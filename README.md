@@ -1,11 +1,31 @@
+# Life Maps
 
-  # Life Maps Application
+Локальное приложение для ведения карты жизненных событий, семейной информации и личной медицинской истории.
 
-  This is a code bundle for Life Maps Application. The original project is available at https://www.figma.com/design/d6nd87VvULStd50dFSW2WE/Life-Maps-Application.
+## Требования
 
-  ## Running the code
+- Node.js 22 или совместимая LTS-версия.
+- npm.
 
-  Run `npm i` to install the dependencies.
+## Запуск
 
-  Run `npm run dev` to start the development server.
-  
+```bash
+npm install
+npm run dev
+```
+
+## Production-сборка
+
+```bash
+npm run build
+```
+
+Сборка создаётся Vite в каталоге `dist/`.
+
+## Технологии
+
+React 18, TypeScript, Vite, Tailwind CSS 4, Motion, Recharts и Lucide.
+
+## Текущее состояние
+
+Приложение работает на клиентской стороне. Основные данные пока демонстрационные и хранятся в исходном коде; полноценное постоянное хранилище, backend и авторизация не реализованы. Не используйте демонстрационные медицинские сведения как персональные рекомендации.
