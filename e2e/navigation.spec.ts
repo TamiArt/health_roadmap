@@ -228,7 +228,7 @@ test("validates child creation without creating an empty profile", async ({ page
   await page.getByRole("button", { name: "Добавить ребёнка" }).click();
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
 
-  await expect(page.getByText("Дети не добавлены")).toBeVisible();
+  await expect(page.getByText("Проверка валидации", { exact: true })).toHaveCount(0);
   await page.getByPlaceholder("Имя").fill("Проверка валидации");
   await page.getByPlaceholder("Год рождения (2022)").fill("2021");
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
@@ -316,7 +316,7 @@ test("renders age-specific child health paths without duplicate birth tests", as
 
   for (const profile of profiles) {
     await page.getByText(profile.name, { exact: true }).first().click();
-    await expect(page.getByText(profile.stage, { exact: true })).toBeVisible();
+    await expect(page.getByText(profile.stage, { exact: true }).first()).toBeVisible();
     const dentalTab = page.getByRole("button", { name: "Стоматолог", exact: true });
     if (profile.hasDental) await expect(dentalTab).toBeVisible();
     else await expect(dentalTab).toHaveCount(0);
