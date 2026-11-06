@@ -66,6 +66,10 @@ describe("lab test catalogue", () => {
 
     expect(assignmentsByConcept.cbc).toEqual(["early_child", "school", "young_adult", "adult"]);
     expect(assignmentsByConcept.urinalysis).toEqual(["early_child", "school", "young_adult", "adult"]);
+    expect(assignmentsByConcept.ferritin).toEqual(["early_child", "young_adult", "adult"]);
+    expect(assignmentsByConcept["iron-studies"]).toEqual(["school"]);
+    expect(assignmentsByConcept.tsh).toEqual(["school", "young_adult"]);
+    expect(assignmentsByConcept["thyroid-panel"]).toEqual(["adult"]);
   });
 
   it("keeps test identifiers unique across age stages", () => {
