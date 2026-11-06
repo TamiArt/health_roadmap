@@ -89,6 +89,7 @@ src/
 ## Проверка качества
 
 - `npm run typecheck` — строгая проверка TypeScript без генерации файлов.
+- `npm test` — запуск unit-тестов Vitest.
 - GitHub Actions выполняет проверку типов и production-сборку при push в рабочую ветку и при pull request в `main`.
 
 ## Команды
@@ -97,5 +98,6 @@ src/
 npm install
 npm run dev
 npm run typecheck
+npm test
 npm run build
 ```

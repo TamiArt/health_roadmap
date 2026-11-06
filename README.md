@@ -20,10 +20,17 @@ npm run dev
 npm run typecheck
 ```
 
+## Тесты
+
+```bash
+npm test
+```
+
 ## Production-сборка
 
 ```bash
 npm run typecheck
+npm test
 npm run build
 ```
 
