@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { Pencil, Plus } from "lucide-react";
 import { CATEGORY_CONFIG, LIFE_EVENTS_INIT, type Category, type LifeEvent } from "./data";
@@ -7,7 +8,7 @@ import { CURRENT_YEAR, createId, DelBtn, EditToggle, INP, SEL } from "./shared";
 // ─── Life Map ─────────────────────────────────────────────────────────────────
 
 export function LifeMapSection() {
-  const [events, setEvents] = useState<LifeEvent[]>(LIFE_EVENTS_INIT);
+  const [events, setEvents] = usePersistentState<LifeEvent[]>("lifeEvents", LIFE_EVENTS_INIT);
   const [showAll, setShowAll] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
