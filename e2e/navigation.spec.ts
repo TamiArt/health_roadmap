@@ -112,3 +112,22 @@ test("updates a tooth status and saves its note", async ({ page }) => {
   await expect(note).toHaveValue("E2E заметка о визите");
   await expect(page.getByRole("button", { name: "Кариес", exact: true })).toHaveClass(/bg-red-500/);
 });
+
+test("keeps main sections within a narrow mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  for (const section of ["Карта жизни", "Здоровье", "Семья", "Аналитика"]) {
+    await page.getByRole("button", { name: section }).click();
+    const main = page.locator("main");
+    await expect(main).toBeVisible();
+    const dimensions = await main.evaluate(element => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(
+      dimensions.scrollWidth,
+      `Horizontal overflow in section "${section}" at 390px: ${JSON.stringify(dimensions)}`,
+    ).toBeLessThanOrEqual(dimensions.clientWidth);
+  }
+});
