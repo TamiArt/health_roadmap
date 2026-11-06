@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - chore/initial-technical-roadmap
+      - '**'
   pull_request:
     branches:
       - main
