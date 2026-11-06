@@ -22,6 +22,7 @@ const ALLOWED_KEYS = new Set([
   "children",
   "familyEvents",
   "vaccineStatuses",
+  "adultToothData",
   "labUploads",
 ]);
 
