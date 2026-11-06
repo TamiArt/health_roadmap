@@ -212,11 +212,13 @@ export async function exportBackup(): Promise<Blob> {
     exportedAt: new Date().toISOString(),
     records: encodedRecords,
   };
-  return new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const backup = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  if (backup.size > MAX_BACKUP_BYTES) throw new Error("Резервная копия превышает максимальный размер 100 МБ.");
+  return backup;
 }
 
 export async function importBackup(file: File): Promise<void> {
-  if (file.size > MAX_BACKUP_BYTES) throw new Error("Размер резервной копии превышает 50 МБ.");
+  if (file.size > MAX_BACKUP_BYTES) throw new Error("Размер резервной копии превышает 100 МБ.");
   const raw: unknown = JSON.parse(await file.text());
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Некорректный файл резервной копии.");
 
