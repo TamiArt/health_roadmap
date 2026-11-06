@@ -49,6 +49,7 @@ test("creates a child profile and opens its health view", async ({ page }) => {
   await page.getByPlaceholder("Имя").fill("E2E ребёнок");
   await page.getByPlaceholder("Год рождения (2022)").fill("2020");
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
 
   await page.getByText("E2E ребёнок", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "E2E ребёнок" })).toBeVisible();
