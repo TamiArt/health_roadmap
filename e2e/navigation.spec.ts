@@ -131,3 +131,45 @@ test("keeps main sections within a narrow mobile viewport", async ({ page }) => 
     ).toBeLessThanOrEqual(dimensions.clientWidth);
   }
 });
+
+test("preserves section state when navigating between main sections", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить событие" }).click();
+  await page.getByPlaceholder("Год (2025)").fill("2026");
+  await page.getByPlaceholder("Название события").fill("Событие после навигации");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByPlaceholder("Имя").fill("Профиль после навигации");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+
+  await page.getByRole("button", { name: "Карта жизни" }).click();
+  await expect(page.getByText("Событие после навигации", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Семья" }).click();
+  await expect(page.getByText("Профиль после навигации", { exact: true })).toBeVisible();
+});
+
+test("preserves health sub-tab data after navigating away and back", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Стоматолог", exact: true }).click();
+
+  const tooth = page.locator('button[title="Зуб 11 — верхний правый резец"]');
+  await tooth.click();
+  await page.getByRole("button", { name: "Кариес", exact: true }).click();
+  const note = page.getByPlaceholder("Заметки: дата, врач, жалобы...");
+  await note.fill("Сохраняется после перехода между разделами");
+
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Здоровье" }).click();
+  await expect(page.getByRole("button", { name: "Стоматолог", exact: true })).toBeVisible();
+  await expect(tooth).toBeVisible();
+  await expect(note).toHaveValue("Сохраняется после перехода между разделами");
+  await expect(page.getByRole("button", { name: "Кариес", exact: true })).toHaveClass(/bg-red-500/);
+});
