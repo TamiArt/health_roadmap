@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { CATEGORY_CONFIG, LIFE_EVENTS_INIT, type Category, type LifeEvent } from "./data";
 import { CURRENT_YEAR, createId, DelBtn, EditToggle, INP, SEL } from "./shared";
 
