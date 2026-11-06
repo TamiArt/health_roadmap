@@ -1,15 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
 import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type VaccineRecord, type VaccineStatus } from "./data";
-import { childAgeVaccines, INP } from "./shared";
+import { childAgeVaccines, createId } from "./shared";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
-
-const RECOMMENDED_IDS = new Set([
-  "s4","s6","r1","r2","r3","r4","r5","r6","ya9","th3","fe2","ai1","ai2","ai3",
-  "r11","r12","r13","a4","a5","a9","a10",
-]);
 
 export function LabTestsTab({ stages, defaultGender = "f" }: { stages?: LifeStage[]; defaultGender?: "f"|"m" }) {
   const [gender, setGender] = useState<"f"|"m">(defaultGender);
@@ -17,15 +12,29 @@ export function LabTestsTab({ stages, defaultGender = "f" }: { stages?: LifeStag
   const [uploads, setUploads] = useState<Record<string, UploadedResult[]>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingId = useRef<string|null>(null);
+  const objectUrlsRef = useRef(new Set<string>());
+
+  useEffect(() => () => {
+    objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    objectUrlsRef.current.clear();
+  }, []);
   const allStages = stages ?? LIFE_STAGES;
 
   function triggerUpload(testId: string) { pendingId.current = testId; fileRef.current?.click(); }
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; const id = pendingId.current;
     if (!file || !id) return;
-    const r: UploadedResult = { id:Date.now().toString(), name:file.name, date:new Date().toLocaleDateString("ru-RU"), url:URL.createObjectURL(file), isPdf:file.type==="application/pdf" };
+    const url = URL.createObjectURL(file);
+    objectUrlsRef.current.add(url);
+    const r: UploadedResult = { id:createId(), name:file.name, date:new Date().toLocaleDateString("ru-RU"), url, isPdf:file.type==="application/pdf" };
     setUploads(prev => ({ ...prev, [id]:[...(prev[id]??[]), r] }));
     e.target.value="";
+  }
+
+  function removeUpload(testId: string, uploadId: string, url: string) {
+    URL.revokeObjectURL(url);
+    objectUrlsRef.current.delete(url);
+    setUploads(prev => ({ ...prev, [testId]:(prev[testId]??[]).filter(upload => upload.id!==uploadId) }));
   }
 
   const visibleStages = allStages.filter(s => s.tests.some(t => t.gender==="all" || t.gender===gender));
@@ -78,7 +87,7 @@ export function LabTestsTab({ stages, defaultGender = "f" }: { stages?: LifeStag
                 <div className="border-t border-border divide-y divide-border/60">
                   {filtered.map(test => {
                     const ups = uploads[test.id]??[];
-                    const isRec = RECOMMENDED_IDS.has(test.id);
+                    const isRec = test.priority === "r";
                     return (
                       <div key={test.id} className="px-4 py-3.5">
                         <div className="flex items-start gap-3">
@@ -99,7 +108,7 @@ export function LabTestsTab({ stages, defaultGender = "f" }: { stages?: LifeStag
                                     {r.isPdf?<FileText size={12} className="text-primary shrink-0"/>:<ImageIcon size={12} className="text-primary shrink-0"/>}
                                     <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate flex-1">{r.name}</a>
                                     <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{r.date}</span>
-                                    <button onClick={() => setUploads(prev => ({ ...prev, [test.id]:(prev[test.id]??[]).filter(u=>u.id!==r.id) }))}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
+                                    <button onClick={() => removeUpload(test.id, r.id, r.url)}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
                                   </div>
                                 ))}
                               </div>
@@ -312,7 +321,7 @@ export function HealthSection({
         ))}
       </div>
 
-      {tab==="roadmap" && <>
+      <div hidden={tab !== "roadmap"}>
         <div className="grid grid-cols-3 gap-3 mb-8">
           {[
             { emoji:"📅", val:"Гинеколог",  sub:"Рекомендован сейчас",  label:"Следующий визит"    },
@@ -367,10 +376,10 @@ export function HealthSection({
             })}
           </div>
         </div>
-      </>}
-      {tab==="tests" && <LabTestsTab/>}
-      {tab==="vaccines" && <VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/>}
-      {tab==="dental" && <DentalTab data={toothData} onChange={setToothData}/>}
+      </div>
+      <div hidden={tab !== "tests"}><LabTestsTab/></div>
+      <div hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
+      <div hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
     </div>
   );
 }

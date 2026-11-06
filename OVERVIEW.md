@@ -42,9 +42,7 @@ src/
 │   ├── FamilySection.tsx       # семья и экран здоровья ребёнка
 │   ├── AnalyticsSection.tsx    # аналитика здоровья
 │   ├── data.ts                 # типы и демонстрационные данные
-│   ├── shared.tsx              # общие константы и небольшие UI-компоненты
-│   └── components/
-│       └── ui/                 # переиспользуемые React UI-примитивы
+│   └── shared.tsx              # общие константы, helpers и небольшие UI-компоненты
 └── styles/
     ├── fonts.css
     ├── index.css

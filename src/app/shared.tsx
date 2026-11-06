@@ -7,6 +7,17 @@ export const INP = "w-full text-xs px-2.5 py-1.5 rounded-lg border border-border
 export const SEL = "text-xs px-2.5 py-1.5 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:border-primary/50";
 export const CURRENT_YEAR = 2026;
 
+let fallbackIdCounter = 0;
+
+export function createId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  fallbackIdCounter += 1;
+  return `id-${Date.now()}-${fallbackIdCounter}`;
+}
+
 export function EditToggle({ on, toggle }: { on: boolean; toggle: () => void }) {
   return (
     <button onClick={toggle}

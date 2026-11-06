@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
 import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT, type Child, type ToothStatus, type VaccineStatus } from "./data";
-import { CURRENT_YEAR, childAgeStages, childAgeVaccines, DelBtn, EditToggle, INP } from "./shared";
+import { CURRENT_YEAR, childAgeStages, childAgeVaccines, createId, DelBtn, EditToggle, INP } from "./shared";
 import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
 
 // ─── Child Health View ────────────────────────────────────────────────────────
@@ -38,9 +38,9 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
           <button key={id} onClick={() => setTab(id)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
-      {tab==="tests" && <LabTestsTab stages={stages} defaultGender="f"/>}
-      {tab==="vaccines" && <VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age}/>}
-      {tab==="dental" && age>=5 && <DentalTab data={toothData} onChange={setToothData}/>}
+      <div hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f"/></div>
+      <div hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age}/></div>
+      {age>=5 && <div hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>}
     </div>
   );
 }
@@ -60,26 +60,25 @@ export function FamilySection() {
   const [cForm, setCForm] = useState({ name:"", birthYear:"", emoji:"👶" });
   const [eForm, setEForm] = useState({ date:"", title:"", emoji:"📅" });
 
-  if (viewingChild) return <ChildHealthView child={viewingChild} onBack={() => setViewingChild(null)}/>;
-
   function addMember() {
     if (!mForm.name) return;
-    setMembers(p => [...p, { id:Date.now().toString(), name:mForm.name, relation:mForm.relation, age:+mForm.age||0, emoji:mForm.emoji }]);
+    setMembers(p => [...p, { id:createId(), name:mForm.name, relation:mForm.relation, age:+mForm.age||0, emoji:mForm.emoji }]);
     setMForm({ name:"", relation:"", age:"", emoji:"👤" }); setShowAddMember(false);
   }
   function addChild() {
     if (!cForm.name||!cForm.birthYear) return;
-    setChildren(p => [...p, { id:Date.now().toString(), name:cForm.name, birthYear:+cForm.birthYear, emoji:cForm.emoji }]);
+    setChildren(p => [...p, { id:createId(), name:cForm.name, birthYear:+cForm.birthYear, emoji:cForm.emoji }]);
     setCForm({ name:"", birthYear:"", emoji:"👶" }); setShowAddChild(false);
   }
   function addEvent() {
     if (!eForm.title) return;
-    setEvents(p => [...p, { id:Date.now().toString(), ...eForm }]);
+    setEvents(p => [...p, { id:createId(), ...eForm }]);
     setEForm({ date:"", title:"", emoji:"📅" }); setShowAddEvent(false);
   }
 
   return (
-    <div className="p-8 max-w-xl">
+    <>
+    <div hidden={!!viewingChild} className="p-8 max-w-xl">
       <div className="flex items-start justify-between mb-7">
         <div>
           <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily:"'Playfair Display', serif" }}>Семья</h1>
@@ -206,5 +205,11 @@ export function FamilySection() {
         </button>
       ))}
     </div>
+    {children.map(child => (
+      <div key={child.id} hidden={viewingChild?.id !== child.id}>
+        <ChildHealthView child={child} onBack={() => setViewingChild(null)}/>
+      </div>
+    ))}
+    </>
   );
 }

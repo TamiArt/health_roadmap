@@ -3,13 +3,17 @@ name: CI
 on:
   push:
     branches:
-      - chore/initial-technical-roadmap
+      - '**'
   pull_request:
     branches:
       - main
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   production-build:
