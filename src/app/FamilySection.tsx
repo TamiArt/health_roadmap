@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
@@ -11,6 +11,7 @@ import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
 function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   const age = CURRENT_YEAR - child.birthYear;
   const [tab, setTab] = useState<"tests"|"vaccines"|"dental">("tests");
+  const tabsId = useId();
   const [vaccineStatuses, setVaccineStatuses, vaccineReady, vaccineError] = usePersistentState<Record<string,VaccineStatus>>(
     `childHealth:${child.id}:vaccineStatuses`,
     Object.fromEntries(childAgeVaccines(age).map(v => [v.id, v.status]))
@@ -41,14 +42,14 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
           <span className="inline-block mt-1 text-[11px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{agePeriod}</span>
         </div>
       </div>
-      <div className="flex gap-1 bg-muted p-1 rounded-lg mb-6">
+      <div role="tablist" aria-label="Разделы здоровья ребёнка" className="flex gap-1 bg-muted p-1 rounded-lg mb-6">
         {tabs.map(([id,label]) => (
-          <button key={id} onClick={() => setTab(id)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
+          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} onClick={() => setTab(id)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
-      <div hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f" storageKey={`childHealth:${child.id}:labUploads`}/></div>
-      <div hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age}/></div>
-      {age>=5 && <div hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>}
+      <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f" storageKey={`childHealth:${child.id}:labUploads`}/></div>
+      <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age}/></div>
+      {age>=5 && <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>}
     </div>
   );
 }
@@ -144,18 +145,19 @@ export function FamilySection() {
             const age = CURRENT_YEAR - child.birthYear;
             return (
               <motion.div key={child.id} initial={{ opacity:0,scale:.95 }} animate={{ opacity:1,scale:1 }}
-                className="relative bg-card border border-primary/15 rounded-xl p-4 text-center cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all group"
-                onClick={() => !editMode && setViewingChild(child)}
+                className="relative bg-card border border-primary/15 rounded-xl p-4 text-center hover:border-primary/40 hover:shadow-sm transition-all group"
               >
-                {editMode && <div className="absolute top-1.5 right-1.5" onClick={e=>e.stopPropagation()}><DelBtn onClick={()=>setChildren(p=>p.filter(c=>c.id!==child.id))}/></div>}
-                <div className="text-3xl mb-2">{child.emoji}</div>
-                <p className="text-xs font-semibold text-foreground">{child.name}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{age} {age===1?"год":age<5?"года":"лет"}</p>
-                {!editMode && (
-                  <div className="mt-2 flex items-center justify-center gap-1 text-[10px] text-primary/60 group-hover:text-primary transition-colors">
-                    <Heart size={9}/> здоровье ребёнка
-                  </div>
-                )}
+                {editMode && <div className="absolute top-1.5 right-1.5 z-10"><DelBtn onClick={()=>setChildren(p=>p.filter(c=>c.id!==child.id))}/></div>}
+                <button type="button" disabled={editMode} aria-haspopup="true" aria-label={`Открыть профиль ребёнка ${child.name}, ${age} лет`} onClick={() => setViewingChild(child)} className="w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-default">
+                  <div className="text-3xl mb-2">{child.emoji}</div>
+                  <p className="text-xs font-semibold text-foreground">{child.name}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{age} {age===1?"год":age<5?"года":"лет"}</p>
+                  {!editMode && (
+                    <div className="mt-2 flex items-center justify-center gap-1 text-[10px] text-primary/60 group-hover:text-primary transition-colors">
+                      <Heart size={9}/> здоровье ребёнка
+                    </div>
+                  )}
+                </button>
               </motion.div>
             );
           })}
