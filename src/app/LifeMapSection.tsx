@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { CATEGORY_CONFIG, LIFE_EVENTS_INIT, type Category, type LifeEvent } from "./data";
-import { CURRENT_YEAR, DelBtn, EditToggle, INP, SEL } from "./shared";
+import { CURRENT_YEAR, createId, DelBtn, EditToggle, INP, SEL } from "./shared";
 
 // ─── Life Map ─────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ export function LifeMapSection() {
   }
   function addEvent() {
     if (!addForm.year || !addForm.title) return;
-    const ev: LifeEvent = { id: Date.now().toString(), year:+addForm.year, title:addForm.title, description:addForm.description, category:addForm.category, emoji:addForm.emoji||"✨", milestone:addForm.milestone };
+    const ev: LifeEvent = { id: createId(), year:+addForm.year, title:addForm.title, description:addForm.description, category:addForm.category, emoji:addForm.emoji||"✨", milestone:addForm.milestone };
     setEvents(prev => [...prev, ev]);
     setAddForm({ year:"", emoji:"✨", title:"", description:"", category:"personal", milestone:false });
     setShowAdd(false);
