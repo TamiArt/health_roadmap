@@ -23,7 +23,7 @@ export function DataManagementPanel({
       link.href = url;
       link.download = `life-maps-backup-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessage("Резервная копия создана.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось создать резервную копию.");
