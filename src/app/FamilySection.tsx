@@ -11,11 +11,11 @@ import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
 function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   const age = CURRENT_YEAR - child.birthYear;
   const [tab, setTab] = useState<"tests"|"vaccines"|"dental">("tests");
-  const [vaccineStatuses, setVaccineStatuses] = usePersistentState<Record<string,VaccineStatus>>(
+  const [vaccineStatuses, setVaccineStatuses, vaccineReady, vaccineError] = usePersistentState<Record<string,VaccineStatus>>(
     `childHealth:${child.id}:vaccineStatuses`,
     Object.fromEntries(childAgeVaccines(age).map(v => [v.id, v.status]))
   );
-  const [toothData, setToothData] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>(
+  const [toothData, setToothData, toothReady, toothError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>(
     `childHealth:${child.id}:toothData`,
     {}
   );
@@ -24,6 +24,9 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
 
   const tabs: Array<["tests"|"vaccines"|"dental", string]> = [["tests","Анализы"],["vaccines","Прививки"]];
   if (age>=5) tabs.push(["dental","Стоматолог"]);
+
+  if (!vaccineReady || !toothReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка данных профиля…</div>;
+  if (vaccineError || toothError) return <div role="alert" className="p-8 text-sm text-red-600">{vaccineError ?? toothError}</div>;
 
   return (
     <div className="p-8 max-w-xl">
@@ -53,9 +56,9 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
 // ─── Family Section ───────────────────────────────────────────────────────────
 
 export function FamilySection() {
-  const [members, setMembers] = usePersistentState("familyMembers", FAMILY_MEMBERS_INIT);
-  const [children, setChildren] = usePersistentState<Child[]>("children", []);
-  const [events, setEvents] = usePersistentState("familyEvents", FAMILY_EVENTS_INIT);
+  const [members, setMembers, membersReady, membersError] = usePersistentState("familyMembers", FAMILY_MEMBERS_INIT);
+  const [children, setChildren, childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
+  const [events, setEvents, eventsReady, eventsError] = usePersistentState("familyEvents", FAMILY_EVENTS_INIT);
   const [editMode, setEditMode] = useState(false);
   const [viewingChild, setViewingChild] = useState<Child|null>(null);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -64,6 +67,9 @@ export function FamilySection() {
   const [mForm, setMForm] = useState({ name:"", relation:"", age:"", emoji:"👤" });
   const [cForm, setCForm] = useState({ name:"", birthYear:"", emoji:"👶" });
   const [eForm, setEForm] = useState({ date:"", title:"", emoji:"📅" });
+
+  if (!membersReady || !childrenReady || !eventsReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка семейных данных…</div>;
+  if (membersError || childrenError || eventsError) return <div role="alert" className="p-8 text-sm text-red-600">{membersError ?? childrenError ?? eventsError}</div>;
 
   function addMember() {
     if (!mForm.name) return;
