@@ -8,13 +8,16 @@ import { CURRENT_YEAR, createId, DelBtn, EditToggle, INP, SEL } from "./shared";
 // ─── Life Map ─────────────────────────────────────────────────────────────────
 
 export function LifeMapSection() {
-  const [events, setEvents] = usePersistentState<LifeEvent[]>("lifeEvents", LIFE_EVENTS_INIT);
+  const [events, setEvents, eventsReady, eventsError] = usePersistentState<LifeEvent[]>("lifeEvents", LIFE_EVENTS_INIT);
   const [showAll, setShowAll] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<LifeEvent>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ year:"", emoji:"✨", title:"", description:"", category:"personal" as Category, milestone:false });
+
+  if (!eventsReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка локальных данных…</div>;
+  if (eventsError) return <div role="alert" className="p-8 text-sm text-red-600">{eventsError}</div>;
 
   const sorted = [...events].sort((a, b) => a.year - b.year);
   const visible = showAll ? sorted : sorted.filter(e => e.milestone);
