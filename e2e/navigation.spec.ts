@@ -192,3 +192,45 @@ test("preserves health sub-tab data after navigating away and back", async ({ pa
   await expect(note).toHaveValue("Сохраняется после перехода между разделами");
   await expect(page.getByRole("button", { name: "Кариес", exact: true })).toHaveClass(/bg-red-500/);
 });
+
+
+test("keeps all primary sections within a tablet viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/");
+
+  for (const section of ["Карта жизни", "Здоровье", "Семья", "Аналитика"]) {
+    await page.getByRole("button", { name: section }).click();
+    const main = page.locator("main");
+    const dimensions = await main.evaluate(element => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(
+      dimensions.scrollWidth,
+      `Horizontal overflow in section "${section}" at 768px: ${JSON.stringify(dimensions)}`,
+    ).toBeLessThanOrEqual(dimensions.clientWidth);
+  }
+});
+
+test("supports keyboard activation of primary navigation", async ({ page }) => {
+  await page.goto("/");
+  const healthButton = page.getByRole("button", { name: "Здоровье" });
+  await healthButton.focus();
+  await expect(healthButton).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Навигатор здоровья" })).toBeVisible();
+});
+
+test("validates child creation without creating an empty profile", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+
+  await expect(page.getByText("Дети не добавлены")).toBeVisible();
+  await page.getByPlaceholder("Имя").fill("Проверка валидации");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await expect(page.getByText("Проверка валидации", { exact: true })).toBeVisible();
+});
