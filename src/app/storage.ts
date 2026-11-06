@@ -1,0 +1,192 @@
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+
+const DB_NAME = "life-maps";
+const DB_VERSION = 1;
+const STORE_NAME = "app-records";
+export const BACKUP_FORMAT = "life-maps-backup";
+export const CURRENT_SCHEMA_VERSION = 1;
+export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
+const RESTORE_EVENT = "life-maps:backup-restored";
+
+type StoredRecord = { key: string; value: unknown };
+export type BackupPayload = {
+  format: typeof BACKUP_FORMAT;
+  schemaVersion: number;
+  exportedAt: string;
+  records: Record<string, unknown>;
+};
+
+const ALLOWED_KEYS = new Set([
+  "lifeEvents",
+  "familyMembers",
+  "children",
+  "familyEvents",
+  "vaccineStatuses",
+]);
+
+export function isAllowedRecordKey(key: string): boolean {
+  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|toothData)$/.test(key);
+}
+
+let databasePromise: Promise<IDBDatabase> | undefined;
+
+function openDatabase(): Promise<IDBDatabase> {
+  if (typeof indexedDB === "undefined") {
+    return Promise.reject(new Error("Локальная база данных недоступна в этом браузере."));
+  }
+  if (databasePromise) return databasePromise;
+
+  databasePromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(STORE_NAME)) {
+        database.createObjectStore(STORE_NAME, { keyPath: "key" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => {
+      databasePromise = undefined;
+      reject(request.error ?? new Error("Не удалось открыть локальную базу данных."));
+    };
+    request.onblocked = () => reject(new Error("Обновление локальной базы заблокировано другой вкладкой."));
+  });
+  return databasePromise;
+}
+
+function requestResult<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error("Ошибка операции с локальной базой."));
+  });
+}
+
+export async function readRecord<T>(key: string): Promise<T | undefined> {
+  const database = await openDatabase();
+  const transaction = database.transaction(STORE_NAME, "readonly");
+  const record = await requestResult<StoredRecord | undefined>(transaction.objectStore(STORE_NAME).get(key));
+  return record?.value as T | undefined;
+}
+
+export async function writeRecord<T>(key: string, value: T): Promise<void> {
+  if (!isAllowedRecordKey(key)) throw new Error("Недопустимый ключ пользовательских данных.");
+  const database = await openDatabase();
+  const transaction = database.transaction(STORE_NAME, "readwrite");
+  transaction.objectStore(STORE_NAME).put({ key, value } satisfies StoredRecord);
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось сохранить данные."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Сохранение отменено."));
+  });
+}
+
+async function readAllRecords(): Promise<Record<string, unknown>> {
+  const database = await openDatabase();
+  const transaction = database.transaction(STORE_NAME, "readonly");
+  const records = await requestResult<StoredRecord[]>(transaction.objectStore(STORE_NAME).getAll());
+  return Object.fromEntries(records.map(record => [record.key, record.value]));
+}
+
+export function migrateBackup(input: BackupPayload): BackupPayload {
+  if (input.format !== BACKUP_FORMAT) throw new Error("Файл не является резервной копией Life Maps.");
+  if (!Number.isInteger(input.schemaVersion) || input.schemaVersion < 0 || input.schemaVersion > CURRENT_SCHEMA_VERSION) {
+    throw new Error("Версия резервной копии не поддерживается.");
+  }
+  if (!input.records || typeof input.records !== "object" || Array.isArray(input.records)) {
+    throw new Error("Структура резервной копии повреждена.");
+  }
+
+  let records = { ...input.records };
+  let version = input.schemaVersion;
+
+  // Migration 0 -> 1: introduce the current namespaced child-health record keys.
+  if (version === 0) {
+    records = Object.fromEntries(Object.entries(records).filter(([key]) => isAllowedRecordKey(key)));
+    version = 1;
+  }
+
+  for (const key of Object.keys(records)) {
+    if (!isAllowedRecordKey(key)) throw new Error(`Неизвестный тип данных в резервной копии: ${key}`);
+  }
+
+  return {
+    format: BACKUP_FORMAT,
+    schemaVersion: version,
+    exportedAt: input.exportedAt || new Date().toISOString(),
+    records,
+  };
+}
+
+export async function exportBackup(): Promise<Blob> {
+  const payload: BackupPayload = {
+    format: BACKUP_FORMAT,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    records: await readAllRecords(),
+  };
+  return new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+}
+
+export async function importBackup(file: File): Promise<void> {
+  if (file.size > MAX_BACKUP_BYTES) throw new Error("Размер резервной копии превышает 50 МБ.");
+  const raw: unknown = JSON.parse(await file.text());
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Некорректный файл резервной копии.");
+
+  const migrated = migrateBackup(raw as BackupPayload);
+  const database = await openDatabase();
+  const transaction = database.transaction(STORE_NAME, "readwrite");
+  const store = transaction.objectStore(STORE_NAME);
+  store.clear();
+  for (const [key, value] of Object.entries(migrated.records)) store.put({ key, value } satisfies StoredRecord);
+
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось восстановить резервную копию."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Восстановление отменено."));
+  });
+  window.dispatchEvent(new Event(RESTORE_EVENT));
+}
+
+export function usePersistentState<T>(
+  key: string,
+  initialValue: T,
+): [T, Dispatch<SetStateAction<T>>, boolean, string | null] {
+  const [value, setValue] = useState<T>(initialValue);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const saved = await readRecord<T>(key);
+        if (active && saved !== undefined) setValue(saved);
+        if (active) setError(null);
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : "Не удалось загрузить локальные данные.");
+      } finally {
+        if (active) setReady(true);
+      }
+    };
+    void load();
+
+    const reload = () => {
+      setReady(false);
+      void load();
+    };
+    window.addEventListener(RESTORE_EVENT, reload);
+    return () => {
+      active = false;
+      window.removeEventListener(RESTORE_EVENT, reload);
+    };
+  }, [key]);
+
+  useEffect(() => {
+    if (!ready || error) return;
+    void writeRecord(key, value).catch(cause => {
+      setError(cause instanceof Error ? cause.message : "Не удалось сохранить локальные данные.");
+    });
+  }, [key, value, ready, error]);
+
+  return [value, setValue, ready, error];
+}
