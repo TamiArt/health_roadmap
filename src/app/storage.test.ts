@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   BACKUP_FORMAT,
   CURRENT_SCHEMA_VERSION,
+  decodeBackupValue,
+  encodeBackupValue,
   isAllowedRecordKey,
   migrateBackup,
   type BackupPayload,
@@ -43,8 +45,20 @@ describe("local backup schema", () => {
   it("only allows known top-level and child-health record keys", () => {
     expect(isAllowedRecordKey("lifeEvents")).toBe(true);
     expect(isAllowedRecordKey("childHealth:child-1:toothData")).toBe(true);
+    expect(isAllowedRecordKey("labUploads")).toBe(true);
+    expect(isAllowedRecordKey("childHealth:child-1:labUploads")).toBe(true);
     expect(isAllowedRecordKey("childHealth:child-1:privateNotes")).toBe(false);
     expect(isAllowedRecordKey("credentials")).toBe(false);
+  });
+
+  it("round-trips binary attachments through the JSON backup representation", async () => {
+    const source = new Blob(["test result file"], { type: "application/pdf" });
+    const encoded = await encodeBackupValue({ labUploads: { report: source } });
+    const decoded = await decodeBackupValue(encoded) as { labUploads: { report: Blob } };
+
+    expect(decoded.labUploads.report).toBeInstanceOf(Blob);
+    expect(decoded.labUploads.report.type).toBe("application/pdf");
+    expect(await decoded.labUploads.report.text()).toBe("test result file");
   });
 
   it("rejects backups created by a newer unsupported schema", () => {
