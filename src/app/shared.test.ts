@@ -1,17 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { childAgeStages, childAgeVaccines, createId } from "./shared";
-import { LIFE_STAGES } from "./data";
+import { LAB_TEST_ASSIGNMENTS, LAB_TEST_CONCEPTS, LIFE_STAGES } from "./data";
 
 describe("childAgeStages", () => {
   it.each([
     [0, ["base", "newborn"]],
-    [1, ["base", "early_child"]],
-    [5, ["base", "early_child"]],
-    [6, ["base", "school"]],
-    [17, ["base", "school"]],
-    [18, ["base"]],
+    [1, ["early_child"]],
+    [5, ["early_child"]],
+    [6, ["school"]],
+    [17, ["school"]],
+    [18, ["young_adult"]],
   ])("selects the configured stage set at age %i", (age, expected) => {
     expect(childAgeStages(age).map(stage => stage.id)).toEqual(expected);
+  });
+
+  it("does not show the same test concept twice for an infant", () => {
+    const infantAssignments = childAgeStages(0).flatMap(stage => stage.tests);
+    const conceptIds = infantAssignments.map(test => test.conceptId ?? test.id);
+
+    expect(new Set(conceptIds).size).toBe(conceptIds.length);
+    expect(infantAssignments.some(test => test.id === "n1" || test.id === "n2")).toBe(false);
   });
 });
 
@@ -42,6 +50,24 @@ describe("createId", () => {
 });
 
 describe("lab test catalogue", () => {
+  it("keeps normalized concept and age-assignment identities consistent", () => {
+    const conceptIds = new Set(LAB_TEST_CONCEPTS.map(concept => concept.id));
+
+    expect(new Set(LAB_TEST_CONCEPTS.map(concept => concept.id)).size).toBe(LAB_TEST_CONCEPTS.length);
+    expect(LAB_TEST_ASSIGNMENTS.every(assignment => conceptIds.has(assignment.conceptId))).toBe(true);
+    expect(new Set(LAB_TEST_ASSIGNMENTS.map(assignment => assignment.id)).size).toBe(LAB_TEST_ASSIGNMENTS.length);
+  });
+
+  it("reuses canonical concepts for repeated age-specific tests", () => {
+    const assignmentsByConcept = LAB_TEST_ASSIGNMENTS.reduce<Record<string, string[]>>((result, assignment) => {
+      result[assignment.conceptId] = [...(result[assignment.conceptId] ?? []), assignment.stageId];
+      return result;
+    }, {});
+
+    expect(assignmentsByConcept.cbc).toEqual(["early_child", "school", "young_adult", "adult"]);
+    expect(assignmentsByConcept.urinalysis).toEqual(["early_child", "school", "young_adult", "adult"]);
+  });
+
   it("keeps test identifiers unique across age stages", () => {
     const ids = LIFE_STAGES.flatMap(stage => stage.tests.map(test => test.id));
 
