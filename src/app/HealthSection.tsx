@@ -312,7 +312,7 @@ export function HealthSection({
         ))}
       </div>
 
-      {tab==="roadmap" && <>
+      <div hidden={tab !== "roadmap"}>
         <div className="grid grid-cols-3 gap-3 mb-8">
           {[
             { emoji:"📅", val:"Гинеколог",  sub:"Рекомендован сейчас",  label:"Следующий визит"    },
@@ -367,10 +367,10 @@ export function HealthSection({
             })}
           </div>
         </div>
-      </>}
-      {tab==="tests" && <LabTestsTab/>}
-      {tab==="vaccines" && <VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/>}
-      {tab==="dental" && <DentalTab data={toothData} onChange={setToothData}/>}
+      </div>
+      <div hidden={tab !== "tests"}><LabTestsTab/></div>
+      <div hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
+      <div hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
     </div>
   );
 }
