@@ -21,7 +21,8 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   if (age>=5) tabs.push(["dental","Стоматолог"]);
 
   return (
-    <div className="p-8 max-w-xl">
+    <>
+    <div hidden={!!viewingChild} className="p-8 max-w-xl">
       <button onClick={onBack} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft size={13}/> Вернуться к семье
       </button>
@@ -59,8 +60,6 @@ export function FamilySection() {
   const [mForm, setMForm] = useState({ name:"", relation:"", age:"", emoji:"👤" });
   const [cForm, setCForm] = useState({ name:"", birthYear:"", emoji:"👶" });
   const [eForm, setEForm] = useState({ date:"", title:"", emoji:"📅" });
-
-  if (viewingChild) return <ChildHealthView child={viewingChild} onBack={() => setViewingChild(null)}/>;
 
   function addMember() {
     if (!mForm.name) return;
@@ -206,5 +205,11 @@ export function FamilySection() {
         </button>
       ))}
     </div>
+    {children.map(child => (
+      <div key={child.id} hidden={viewingChild?.id !== child.id}>
+        <ChildHealthView child={child} onBack={() => setViewingChild(null)}/>
+      </div>
+    ))}
+    </>
   );
 }
