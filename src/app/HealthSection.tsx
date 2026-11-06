@@ -1,39 +1,56 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
 import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type VaccineRecord, type VaccineStatus } from "./data";
 import { childAgeVaccines, createId } from "./shared";
+import { usePersistentState } from "./storage";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
 
-export function LabTestsTab({ stages, defaultGender = "f" }: { stages?: LifeStage[]; defaultGender?: "f"|"m" }) {
+export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUploads" }: { stages?: LifeStage[]; defaultGender?: "f"|"m"; storageKey?: string }) {
   const [gender, setGender] = useState<"f"|"m">(defaultGender);
   const [openStage, setOpenStage] = useState<string|null>(null);
-  const [uploads, setUploads] = useState<Record<string, UploadedResult[]>>({});
+  const [uploads, setUploads, uploadsReady, uploadsError] = usePersistentState<Record<string, UploadedResult[]>>(storageKey, {});
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingId = useRef<string|null>(null);
-  const objectUrlsRef = useRef(new Set<string>());
+  const objectUrls = useMemo(() => {
+    const urls = new Map<string, string>();
+    Object.values(uploads).flat().forEach(upload => urls.set(upload.id, URL.createObjectURL(upload.blob)));
+    return urls;
+  }, [uploads]);
 
   useEffect(() => () => {
-    objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-    objectUrlsRef.current.clear();
-  }, []);
+    objectUrls.forEach(url => URL.revokeObjectURL(url));
+  }, [objectUrls]);
   const allStages = stages ?? LIFE_STAGES;
 
-  function triggerUpload(testId: string) { pendingId.current = testId; fileRef.current?.click(); }
+  function triggerUpload(testId: string) {
+    if (!uploadsReady || uploadsError) return;
+    pendingId.current = testId;
+    fileRef.current?.click();
+  }
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; const id = pendingId.current;
     if (!file || !id) return;
-    const url = URL.createObjectURL(file);
-    objectUrlsRef.current.add(url);
-    const r: UploadedResult = { id:createId(), name:file.name, date:new Date().toLocaleDateString("ru-RU"), url, isPdf:file.type==="application/pdf" };
-    setUploads(prev => ({ ...prev, [id]:[...(prev[id]??[]), r] }));
+    if (file.size > 15 * 1024 * 1024) {
+      setUploadError("Размер одного файла не должен превышать 15 МБ.");
+      e.target.value = "";
+      return;
+    }
+    setUploadError(null);
+    const result: UploadedResult = {
+      id:createId(),
+      name:file.name,
+      date:new Date().toLocaleDateString("ru-RU"),
+      blob:file,
+      isPdf:file.type==="application/pdf",
+    };
+    setUploads(prev => ({ ...prev, [id]:[...(prev[id]??[]), result] }));
     e.target.value="";
   }
 
-  function removeUpload(testId: string, uploadId: string, url: string) {
-    URL.revokeObjectURL(url);
-    objectUrlsRef.current.delete(url);
+  function removeUpload(testId: string, uploadId: string) {
     setUploads(prev => ({ ...prev, [testId]:(prev[testId]??[]).filter(upload => upload.id!==uploadId) }));
   }
 
@@ -43,6 +60,7 @@ export function LabTestsTab({ stages, defaultGender = "f" }: { stages?: LifeStag
   return (
     <div>
       <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} />
+      {(uploadError || uploadsError) && <p role="alert" className="mb-3 text-xs text-red-600">{uploadError ?? uploadsError}</p>}
       {!stages && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div className="flex gap-1 p-1 bg-muted rounded-lg">
@@ -106,15 +124,15 @@ export function LabTestsTab({ stages, defaultGender = "f" }: { stages?: LifeStag
                                 {ups.map(r => (
                                   <div key={r.id} className="flex items-center gap-2 bg-primary/5 rounded-lg px-3 py-2">
                                     {r.isPdf?<FileText size={12} className="text-primary shrink-0"/>:<ImageIcon size={12} className="text-primary shrink-0"/>}
-                                    <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate flex-1">{r.name}</a>
+                                    <a href={objectUrls.get(r.id)} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate flex-1">{r.name}</a>
                                     <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{r.date}</span>
-                                    <button onClick={() => removeUpload(test.id, r.id, r.url)}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
+                                    <button type="button" aria-label={`Удалить файл ${r.name}`} onClick={() => removeUpload(test.id, r.id)}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
                                   </div>
                                 ))}
                               </div>
                             )}
                           </div>
-                          <button onClick={() => triggerUpload(test.id)} className="shrink-0 flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-border hover:border-primary/50 hover:text-primary text-muted-foreground transition-all">
+                          <button type="button" onClick={() => triggerUpload(test.id)} disabled={!uploadsReady || !!uploadsError} className="shrink-0 flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-border hover:border-primary/50 hover:text-primary text-muted-foreground transition-all disabled:opacity-50">
                             <Upload size={11}/>Загрузить
                           </button>
                         </div>
@@ -309,7 +327,10 @@ export function HealthSection({
 }) {
   const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental">("roadmap");
   const [openIdx, setOpenIdx] = useState<number|null>(3);
-  const [toothData, setToothData] = useState<Record<number,{status:ToothStatus;note:string}>>({});
+  const [toothData, setToothData, toothDataReady, toothDataError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
+
+  if (!toothDataReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка стоматологических записей…</div>;
+  if (toothDataError) return <div role="alert" className="p-8 text-sm text-red-600">{toothDataError}</div>;
 
   return (
     <div className="p-8 max-w-xl">

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { usePersistentState } from "./storage";
+import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
 import { VACCINES, type Section, type VaccineStatus } from "./data";
 import { AnalyticsSection } from "./AnalyticsSection";
@@ -9,9 +11,18 @@ import { Sidebar } from "./Sidebar";
 
 export default function App() {
   const [section, setSection] = useState<Section>("map");
-  const [vaccineStatuses, setVaccineStatuses] = useState<Record<string, VaccineStatus>>(
-    () => Object.fromEntries(VACCINES.map(v => [v.id, v.status]))
+  const [vaccineStatuses, setVaccineStatuses, storageReady, storageError] = usePersistentState<Record<string, VaccineStatus>>(
+    "vaccineStatuses",
+    Object.fromEntries(VACCINES.map(v => [v.id, v.status]))
   );
+
+  if (!storageReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-8 text-sm text-muted-foreground">
+        Подключение локальной базы данных…
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen flex-col sm:flex-row bg-background overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -20,6 +31,7 @@ export default function App() {
         className="order-first sm:order-last min-h-0 min-w-0 flex-1 overflow-y-auto"
         style={{ backgroundImage: "radial-gradient(circle, rgba(44,95,90,0.045) 1px, transparent 1px)", backgroundSize: "26px 26px" }}
       >
+        <DataManagementPanel storageReady={storageReady} storageError={storageError} />
         <motion.div hidden={section !== "map"} initial={false} animate={section === "map" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
           <LifeMapSection />
         </motion.div>

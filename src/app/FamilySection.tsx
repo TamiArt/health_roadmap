@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
 import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT, type Child, type ToothStatus, type VaccineStatus } from "./data";
@@ -10,15 +11,22 @@ import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
 function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   const age = CURRENT_YEAR - child.birthYear;
   const [tab, setTab] = useState<"tests"|"vaccines"|"dental">("tests");
-  const [vaccineStatuses, setVaccineStatuses] = useState<Record<string,VaccineStatus>>(
-    () => Object.fromEntries(childAgeVaccines(age).map(v => [v.id, v.status]))
+  const [vaccineStatuses, setVaccineStatuses, vaccineReady, vaccineError] = usePersistentState<Record<string,VaccineStatus>>(
+    `childHealth:${child.id}:vaccineStatuses`,
+    Object.fromEntries(childAgeVaccines(age).map(v => [v.id, v.status]))
   );
-  const [toothData, setToothData] = useState<Record<number,{status:ToothStatus;note:string}>>({});
+  const [toothData, setToothData, toothReady, toothError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>(
+    `childHealth:${child.id}:toothData`,
+    {}
+  );
   const stages = childAgeStages(age);
   const agePeriod = age<1?"Новорождённый":age<6?"Дошкольник":age<18?"Школьник":"Взрослый";
 
   const tabs: Array<["tests"|"vaccines"|"dental", string]> = [["tests","Анализы"],["vaccines","Прививки"]];
   if (age>=5) tabs.push(["dental","Стоматолог"]);
+
+  if (!vaccineReady || !toothReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка данных профиля…</div>;
+  if (vaccineError || toothError) return <div role="alert" className="p-8 text-sm text-red-600">{vaccineError ?? toothError}</div>;
 
   return (
     <div className="p-8 max-w-xl">
@@ -38,7 +46,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
           <button key={id} onClick={() => setTab(id)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
-      <div hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f"/></div>
+      <div hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f" storageKey={`childHealth:${child.id}:labUploads`}/></div>
       <div hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age}/></div>
       {age>=5 && <div hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>}
     </div>
@@ -48,9 +56,9 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
 // ─── Family Section ───────────────────────────────────────────────────────────
 
 export function FamilySection() {
-  const [members, setMembers] = useState(FAMILY_MEMBERS_INIT);
-  const [children, setChildren] = useState<Child[]>([]);
-  const [events, setEvents] = useState(FAMILY_EVENTS_INIT);
+  const [members, setMembers, membersReady, membersError] = usePersistentState("familyMembers", FAMILY_MEMBERS_INIT);
+  const [children, setChildren, childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
+  const [events, setEvents, eventsReady, eventsError] = usePersistentState("familyEvents", FAMILY_EVENTS_INIT);
   const [editMode, setEditMode] = useState(false);
   const [viewingChild, setViewingChild] = useState<Child|null>(null);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -59,6 +67,9 @@ export function FamilySection() {
   const [mForm, setMForm] = useState({ name:"", relation:"", age:"", emoji:"👤" });
   const [cForm, setCForm] = useState({ name:"", birthYear:"", emoji:"👶" });
   const [eForm, setEForm] = useState({ date:"", title:"", emoji:"📅" });
+
+  if (!membersReady || !childrenReady || !eventsReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка семейных данных…</div>;
+  if (membersError || childrenError || eventsError) return <div role="alert" className="p-8 text-sm text-red-600">{membersError ?? childrenError ?? eventsError}</div>;
 
   function addMember() {
     if (!mForm.name) return;

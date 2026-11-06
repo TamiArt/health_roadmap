@@ -39,11 +39,17 @@ export function DelBtn({ onClick }: { onClick: () => void }) {
 }
 
 export function childAgeStages(age: number): LifeStage[] {
-  const base = LIFE_STAGES.find(s => s.id === "base")!;
-  if (age < 1)  return [base, LIFE_STAGES.find(s => s.id === "newborn")!];
-  if (age < 6)  return [base, LIFE_STAGES.find(s => s.id === "early_child")!];
-  if (age < 18) return [base, LIFE_STAGES.find(s => s.id === "school")!];
-  return [base];
+  const stageId = age < 1
+    ? ["base", "newborn"]
+    : age < 6
+      ? ["early_child"]
+      : age < 18
+        ? ["school"]
+        : ["young_adult"];
+
+  return stageId
+    .map(id => LIFE_STAGES.find(stage => stage.id === id))
+    .filter((stage): stage is LifeStage => stage !== undefined);
 }
 
 export function childAgeVaccines(age: number): VaccineRecord[] {
