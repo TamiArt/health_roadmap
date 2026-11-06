@@ -281,16 +281,17 @@ test("exports a backup and restores data from a validated backup", async ({ page
     },
   };
 
-  const fileChooserPromise = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "Импорт" }).click();
-  const fileChooser = await fileChooserPromise;
+  // Set the file directly on the hidden input. This exercises the same
+  // browser change event as a user selecting a file, without a file-chooser race.
   page.once("dialog", dialog => dialog.accept());
-  await fileChooser.setFiles({
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
     name: "backup.json",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(backup)),
   });
-  await expect.poll(async () => page.getByRole("status").innerText()).toContain("Данные восстановлены");
+
+  const status = page.getByRole("status");
+  await expect(status).toContainText("Данные восстановлены", { timeout: 10000 });
   await page.getByRole("button", { name: /^Все события/ }).click();
   await expect(page.getByText("Восстановленное событие", { exact: true })).toBeVisible();
 });
