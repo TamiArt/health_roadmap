@@ -101,7 +101,7 @@ export function migrateBackup(input: BackupPayload): BackupPayload {
 
   // Migration 0 -> 1: introduce the current namespaced child-health record keys.
   if (version === 0) {
-    records = Object.fromEntries(Object.entries(records).filter(([key]) => isAllowedRecordKey(key)));
+    // Keep every record during migration; validation below rejects unknown keys.
     version = 1;
   }
 
