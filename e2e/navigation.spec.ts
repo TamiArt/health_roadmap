@@ -232,7 +232,7 @@ test("validates child creation without creating an empty profile", async ({ page
   await page.getByPlaceholder("Имя").fill("Проверка валидации");
   await page.getByPlaceholder("Год рождения (2022)").fill("2021");
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Проверка валидации" })).toBeVisible();
+  await expect(page.getByText("Проверка валидации", { exact: true }).first()).toBeVisible();
 });
 
 
@@ -281,8 +281,11 @@ test("exports a backup and restores data from a validated backup", async ({ page
     },
   };
 
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Импорт" }).click();
+  const fileChooser = await fileChooserPromise;
   page.once("dialog", dialog => dialog.accept());
-  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+  await fileChooser.setFiles({
     name: "backup.json",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(backup)),
