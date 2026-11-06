@@ -23,7 +23,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="flex h-screen flex-col sm:flex-row bg-background overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
       <Sidebar active={section} onSelect={setSection} />
       <main
         className="flex-1 overflow-y-auto"
