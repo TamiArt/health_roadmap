@@ -74,7 +74,7 @@ test("edits and deletes a life event", async ({ page }) => {
   const eventCard = eventTitle.locator("xpath=ancestor::div[contains(@class, 'relative')][1]");
   await eventCard.getByRole("button").first().click();
   await page.getByPlaceholder("Название", { exact: true }).fill("E2E событие изменено");
-  await eventCard.getByRole("button", { name: "Сохранить" }).click();
+  await page.getByRole("button", { name: "Сохранить" }).click();
 
   await expect(page.getByText("E2E событие изменено", { exact: true })).toBeVisible();
   const updatedTitle = page.getByText("E2E событие изменено", { exact: true });
