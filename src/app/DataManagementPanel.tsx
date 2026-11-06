@@ -57,7 +57,7 @@ export function DataManagementPanel({
           className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50">
           <Download size={13} /> Экспорт
         </button>
-        <button type="button" onClick={() => fileInput.current?.click()} disabled={busy || !storageReady}
+        <button type="button" onClick={() => fileInput.current?.click()} disabled={busy || !storageReady || !!storageError}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground disabled:opacity-50">
           <Upload size={13} /> Импорт
         </button>
