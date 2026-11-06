@@ -142,6 +142,32 @@ export async function decodeBackupValue(value: unknown): Promise<unknown> {
   return value;
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function validateRecordValue(key: string, value: unknown): void {
+  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents"]);
+  if (arrayKeys.has(key)) {
+    if (!Array.isArray(value)) throw new Error(`Повреждён список данных: ${key}`);
+    if (value.some(item => !isPlainRecord(item) || typeof item.id !== "string")) {
+      throw new Error(`В списке ${key} обнаружена некорректная запись.`);
+    }
+    return;
+  }
+
+  if (!isPlainRecord(value)) throw new Error(`Повреждена запись данных: ${key}`);
+  if (key === "labUploads") {
+    for (const [testId, uploads] of Object.entries(value)) {
+      if (!Array.isArray(uploads) || uploads.some(item =>
+        !isPlainRecord(item) || typeof item.id !== "string" || !(item.blob instanceof Blob)
+      )) {
+        throw new Error(`Повреждены вложения для исследования ${testId}.`);
+      }
+    }
+  }
+}
+
 export function migrateBackup(input: BackupPayload): BackupPayload {
   if (input.format !== BACKUP_FORMAT) throw new Error("Файл не является резервной копией Life Maps.");
   if (!Number.isInteger(input.schemaVersion) || input.schemaVersion < 0 || input.schemaVersion > CURRENT_SCHEMA_VERSION) {
@@ -154,14 +180,15 @@ export function migrateBackup(input: BackupPayload): BackupPayload {
   let records = { ...input.records };
   let version = input.schemaVersion;
 
-  // Migration 0 -> 1: introduce the current namespaced child-health record keys.
+  // Migration 0 -> 1: mark the first supported backup schema; preserve all records.
   if (version === 0) {
     // Keep every record during migration; validation below rejects unknown keys.
     version = 1;
   }
 
-  for (const key of Object.keys(records)) {
+  for (const [key, value] of Object.entries(records)) {
     if (!isAllowedRecordKey(key)) throw new Error(`Неизвестный тип данных в резервной копии: ${key}`);
+    validateRecordValue(key, value);
   }
 
   return {
