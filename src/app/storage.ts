@@ -248,10 +248,10 @@ export function usePersistentState<T>(
 
   useEffect(() => {
     let active = true;
-    const load = async () => {
+    const load = async (resetMissing = false) => {
       try {
         const saved = await readRecord<T>(key);
-        if (active && saved !== undefined) setValue(saved);
+        if (active) setValue(saved !== undefined ? saved : resetMissing ? initialValue : current => current);
         if (active) setError(null);
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "Не удалось загрузить локальные данные.");
@@ -261,9 +261,11 @@ export function usePersistentState<T>(
     };
     void load();
 
+    // Keep the application mounted while refreshing records after restore.
+    // Setting ready=false here unmounts the hook owner; its cleanup then
+    // prevents this async load from ever setting ready=true again.
     const reload = () => {
-      setReady(false);
-      void load();
+      void load(true);
     };
     window.addEventListener(RESTORE_EVENT, reload);
     return () => {
