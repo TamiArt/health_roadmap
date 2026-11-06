@@ -159,9 +159,13 @@ function validateRecordValue(key: string, value: unknown): void {
   if (!isPlainRecord(value)) throw new Error(`Повреждена запись данных: ${key}`);
   if (key === "labUploads") {
     for (const [testId, uploads] of Object.entries(value)) {
-      if (!Array.isArray(uploads) || uploads.some(item =>
-        !isPlainRecord(item) || typeof item.id !== "string" || !(item.blob instanceof Blob)
-      )) {
+      if (!Array.isArray(uploads) || uploads.some(item => {
+        if (!isPlainRecord(item) || typeof item.id !== "string" || !isPlainRecord(item.blob)) return true;
+        const blob = item.blob;
+        const isStoredBlob = typeof Blob !== "undefined" && blob instanceof Blob;
+        const isBackupBlob = blob.__lifeMapsBlob === true && typeof blob.base64 === "string" && typeof blob.mimeType === "string";
+        return !isStoredBlob && !isBackupBlob;
+      })) {
         throw new Error(`Повреждены вложения для исследования ${testId}.`);
       }
     }
