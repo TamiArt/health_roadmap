@@ -71,14 +71,14 @@ test("edits and deletes a life event", async ({ page }) => {
 
   const eventTitle = page.getByText("E2E событие для изменения", { exact: true });
   await expect(eventTitle).toBeVisible();
-  const eventCard = eventTitle.locator("xpath=../../../../");
+  const eventCard = eventTitle.locator("xpath=ancestor::div[contains(@class, 'relative')][1]");
   await eventCard.getByRole("button").first().click();
   await page.getByPlaceholder("Название", { exact: true }).fill("E2E событие изменено");
   await eventCard.getByRole("button", { name: "Сохранить" }).click();
 
   await expect(page.getByText("E2E событие изменено", { exact: true })).toBeVisible();
   const updatedTitle = page.getByText("E2E событие изменено", { exact: true });
-  await updatedTitle.locator("xpath=../../../../").getByRole("button").nth(1).click();
+  await updatedTitle.locator("xpath=ancestor::div[contains(@class, 'relative')][1]").getByRole("button").nth(1).click();
   await expect(updatedTitle).toHaveCount(0);
 });
 
@@ -100,14 +100,14 @@ test("updates a tooth status and saves its note", async ({ page }) => {
   await page.getByRole("button", { name: "Здоровье" }).click();
   await page.getByRole("button", { name: "Стоматолог", exact: true }).click();
 
-  const tooth = page.getByRole("button", { name: "Зуб 11 — верхний правый резец" });
+  const tooth = page.locator('button[title="Зуб 11 — верхний правый резец"]');
   await tooth.click();
   await page.getByRole("button", { name: "Кариес", exact: true }).click();
   await expect(tooth.locator("div").first()).toHaveCSS("background-color", "rgb(239, 68, 68)");
 
   const note = page.getByPlaceholder("Заметки: дата, врач, жалобы...");
   await note.fill("E2E заметка о визите");
-  await page.getByRole("button", { name: "Зуб 12 — верхний правый резец" }).click();
+  await page.locator('button[title="Зуб 12 — верхний правый резец"]').click();
   await tooth.click();
   await expect(note).toHaveValue("E2E заметка о визите");
   await expect(page.getByRole("button", { name: "Кариес", exact: true })).toHaveClass(/bg-red-500/);
