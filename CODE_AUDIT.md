@@ -18,7 +18,8 @@
    - Result: added life events, family members/events, dental notes and health-tab state can disappear during ordinary navigation. Vaccine statuses are lifted to `App`, but still reset after a full reload.
    - Implemented on the audit branch: main sections and health tabs remain mounted while hidden; E2E scenarios cover life-map/family edits and dental notes across main-section and health-tab navigation.
    - Scope: this preserves React state only during the current page session. Reloading the page or closing the tab still resets the in-memory data.
-   - Remaining: child-profile health view is still conditionally mounted when opened/closed, and browser persistence is not implemented. Define data ownership and privacy/export/deletion behavior before adding persistence.
+   - Implemented: each child health view remains mounted while the family list or another child is displayed, preserving its vaccine, dental and test-tab state when the profile is closed and reopened.
+   - Scope: all these changes remain in memory for the current page session only. Reloading the page or closing the tab still resets them. Define data ownership and privacy/export/deletion behavior before adding persistent storage.
 
 2. **The lab-test catalogue has overlapping and duplicate records.**
    - `src/app/data.ts`: the base and newborn groups both contain “Группа крови и резус-фактор” (lines 112 and 135).
