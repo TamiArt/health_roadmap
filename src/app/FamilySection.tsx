@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
 import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT, type Child, type ToothStatus, type VaccineStatus } from "./data";
-import { CURRENT_YEAR, childAgeStages, childAgeVaccines, DelBtn, EditToggle, INP } from "./shared";
+import { CURRENT_YEAR, childAgeStages, childAgeVaccines, createId, DelBtn, EditToggle, INP } from "./shared";
 import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
 
 // ─── Child Health View ────────────────────────────────────────────────────────
@@ -64,17 +64,17 @@ export function FamilySection() {
 
   function addMember() {
     if (!mForm.name) return;
-    setMembers(p => [...p, { id:Date.now().toString(), name:mForm.name, relation:mForm.relation, age:+mForm.age||0, emoji:mForm.emoji }]);
+    setMembers(p => [...p, { id:createId(), name:mForm.name, relation:mForm.relation, age:+mForm.age||0, emoji:mForm.emoji }]);
     setMForm({ name:"", relation:"", age:"", emoji:"👤" }); setShowAddMember(false);
   }
   function addChild() {
     if (!cForm.name||!cForm.birthYear) return;
-    setChildren(p => [...p, { id:Date.now().toString(), name:cForm.name, birthYear:+cForm.birthYear, emoji:cForm.emoji }]);
+    setChildren(p => [...p, { id:createId(), name:cForm.name, birthYear:+cForm.birthYear, emoji:cForm.emoji }]);
     setCForm({ name:"", birthYear:"", emoji:"👶" }); setShowAddChild(false);
   }
   function addEvent() {
     if (!eForm.title) return;
-    setEvents(p => [...p, { id:Date.now().toString(), ...eForm }]);
+    setEvents(p => [...p, { id:createId(), ...eForm }]);
     setEForm({ date:"", title:"", emoji:"📅" }); setShowAddEvent(false);
   }
 
