@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { childAgeStages, childAgeVaccines } from "./shared";
+import { childAgeStages, childAgeVaccines, createId } from "./shared";
 
 describe("childAgeStages", () => {
   it.each([
@@ -28,5 +28,14 @@ describe("childAgeVaccines", () => {
 
   it("never returns fewer records at an older age", () => {
     expect(childAgeVaccines(18).length).toBeGreaterThanOrEqual(childAgeVaccines(0).length);
+  });
+});
+
+describe("createId", () => {
+  it("returns a distinct non-empty identifier for each call", () => {
+    const ids = Array.from({ length: 100 }, () => createId());
+
+    expect(ids.every(id => id.length > 0)).toBe(true);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
