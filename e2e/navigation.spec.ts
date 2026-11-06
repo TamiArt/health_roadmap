@@ -291,3 +291,39 @@ test("exports a backup and restores data from a validated backup", async ({ page
   await page.getByRole("button", { name: /^Все события/ }).click();
   await expect(page.getByText("Восстановленное событие", { exact: true })).toBeVisible();
 });
+
+
+test("renders age-specific child health paths without duplicate birth tests", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+
+  const profiles = [
+    { name: "Профиль младенца", birthYear: "2026", stage: "Новорождённый", hasDental: false },
+    { name: "Профиль дошкольника", birthYear: "2021", stage: "Дошкольник", hasDental: true },
+    { name: "Профиль школьника", birthYear: "2014", stage: "Школьник", hasDental: true },
+    { name: "Профиль взрослого", birthYear: "2008", stage: "Молодой взрослый", hasDental: true },
+  ];
+
+  for (const profile of profiles) {
+    await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+    await page.getByPlaceholder("Имя").fill(profile.name);
+    await page.getByPlaceholder("Год рождения (2022)").fill(profile.birthYear);
+    await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  }
+
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  for (const profile of profiles) {
+    await page.getByText(profile.name, { exact: true }).first().click();
+    await expect(page.getByText(profile.stage, { exact: true })).toBeVisible();
+    const dentalTab = page.getByRole("button", { name: "Стоматолог", exact: true });
+    if (profile.hasDental) await expect(dentalTab).toBeVisible();
+    else await expect(dentalTab).toHaveCount(0);
+
+    if (profile.stage === "Новорождённый") {
+      await expect(page.getByText("Группа крови и резус-фактор", { exact: true })).toHaveCount(1);
+    }
+    await page.getByRole("button", { name: "Вернуться к семье" }).click();
+  }
+});
