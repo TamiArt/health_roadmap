@@ -294,6 +294,28 @@ test("exports a backup and restores data from a validated backup", async ({ page
   await expect(status).toContainText("Данные восстановлены", { timeout: 10000 });
   await page.getByRole("button", { name: /^Все события/ }).click();
   await expect(page.getByText("Восстановленное событие", { exact: true })).toBeVisible();
+
+  // The restore event must not unmount the app or leave it stuck on loading.
+  await expect(page.getByRole("button", { name: "Импорт" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Здоровье" })).toBeEnabled();
+});
+
+test("shows a validation error for an invalid backup and keeps the app usable", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Импорт" })).toBeEnabled();
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+    name: "invalid-backup.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify({ not: "a Life Maps backup" })),
+  });
+
+  const status = page.getByRole("status");
+  await expect(status).toContainText("не является резервной копией", { timeout: 5000 });
+  await expect(page.getByRole("button", { name: "Импорт" })).toBeEnabled();
+  await page.getByRole("button", { name: "Здоровье" }).click();
+  await expect(page.getByRole("heading", { name: "Навигатор здоровья" })).toBeVisible();
 });
 
 
