@@ -234,3 +234,60 @@ test("validates child creation without creating an empty profile", async ({ page
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
   await expect(page.getByText("Проверка валидации", { exact: true })).toBeVisible();
 });
+
+
+test("persists life events across a page reload", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("Данные хранятся только в этом браузере.")).toBeVisible();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить событие" }).click();
+  await page.getByPlaceholder("Год (2025)").fill("2026");
+  await page.getByPlaceholder("Название события").fill("Сохранённое локально событие");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: /^Все события/ }).click();
+  await expect(page.getByText("Сохранённое локально событие", { exact: true })).toBeVisible();
+
+  await page.reload();
+  await page.getByRole("button", { name: /^Все события/ }).click();
+  await expect(page.getByText("Сохранённое локально событие", { exact: true })).toBeVisible();
+});
+
+test("exports a backup and restores data from a validated backup", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Экспорт" })).toBeEnabled();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Экспорт" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^life-maps-backup-.*\.json$/);
+
+  const backup = {
+    format: "life-maps-backup",
+    schemaVersion: 1,
+    exportedAt: "2026-11-06T00:00:00.000Z",
+    records: {
+      lifeEvents: [{
+        id: "restored-event",
+        year: 2026,
+        title: "Восстановленное событие",
+        description: "Проверка восстановления",
+        category: "personal",
+        emoji: "✨",
+      }],
+      familyMembers: [],
+      children: [],
+      familyEvents: [],
+      vaccineStatuses: {},
+    },
+  };
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+    name: "backup.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await expect(page.getByText("Данные восстановлены. Разделы обновлены.")).toBeVisible();
+  await page.getByRole("button", { name: /^Все события/ }).click();
+  await expect(page.getByText("Восстановленное событие", { exact: true })).toBeVisible();
+});
