@@ -12,14 +12,11 @@
 
 ### High priority
 
-1. **[Partially remediated] Feature state is lost when navigating between main sections.**
-   - `src/app/App.tsx` renders only the currently selected feature from a switch statement.
-   - `LifeMapSection`, `FamilySection`, `HealthSection` own their editable state locally. Switching to another section unmounts the previous component and recreates its state on return.
-   - Result: added life events, family members/events, dental notes and health-tab state can disappear during ordinary navigation. Vaccine statuses are lifted to `App`, but still reset after a full reload.
-   - Implemented on the audit branch: main sections and health tabs remain mounted while hidden; E2E scenarios cover life-map/family edits and dental notes across main-section and health-tab navigation.
-   - Scope: this preserves React state only during the current page session. Reloading the page or closing the tab still resets the in-memory data.
-   - Implemented: each child health view remains mounted while the family list or another child is displayed, preserving its vaccine, dental and test-tab state when the profile is closed and reopened.
-   - Scope: all these changes remain in memory for the current page session only. Reloading the page or closing the tab still resets them. Define data ownership and privacy/export/deletion behavior before adding persistent storage.
+1. **[Session-level remediation implemented] Feature state was lost when navigating between sections and child profiles.**
+   - `src/app/App.tsx` now keeps all four main sections mounted and hides inactive sections; local state is not destroyed by main navigation.
+   - `HealthSection` keeps its four tabs mounted. `ChildHealthView` tabs also remain mounted, and each child view is retained while the user returns to the family list or opens another child.
+   - E2E scenarios cover life-map and family edits across section navigation, dental notes across health-tab/section navigation, and child dental notes after closing/reopening a child profile.
+   - Scope: this preserves React state only during the current page session. Reloading the page or closing the tab still resets in-memory data. Persistent storage is intentionally deferred until data ownership, privacy, export/import, deletion and backup behavior are designed.
 
 2. **The lab-test catalogue has overlapping and duplicate records.**
    - `src/app/data.ts`: the base and newborn groups both contain “Группа крови и резус-фактор” (lines 112 and 135).
@@ -46,18 +43,16 @@
    - Two creations within the same millisecond can collide, causing duplicate React keys and incorrect updates/deletes.
    - Implemented: centralized ID creation in `shared.tsx` using `crypto.randomUUID()` with a monotonic in-session fallback; life events, family records and uploaded results now use it. A unit test checks uniqueness across repeated calls.
 
-6. **CI push trigger excludes the new development branch.**
-   - `.github/workflows/ci.yml` only runs push builds for `chore/initial-technical-roadmap`.
-   - The new branch will not receive push CI feedback until a pull request is opened against `main`.
-   - Next: run CI on development branches (or all branches) while retaining the PR-to-main trigger.
+6. **[Remediated on this branch] CI push trigger excluded new development branches.**
+   - Push CI now runs on all branches while PR validation remains scoped to PRs targeting `main`.
+   - A concurrency group cancels superseded runs on the same ref to avoid wasting CI time on intermediate commits.
+   - The final branch revision still needs a complete successful CI run.
 
-7. **Russian interface metadata is configured as English.**
-   - `index.html` declares `lang="en"`, English title and an English description that mentions career, finances and goals, while the actual app is a Russian life/health/family navigator.
-   - Next: align document language, title and description with the real interface and current scope.
+7. **[Remediated on this branch] Russian interface metadata was configured as English.**
+   - `index.html` now declares `lang="ru"` and uses a Russian title/description aligned with the current life, health and family scope.
 
-8. **Architecture documentation names a directory that does not exist.**
-   - `OVERVIEW.md` lists `src/app/components/ui/`, but the current repository tree has no such directory; the reusable UI helpers currently live in `src/app/shared.tsx`.
-   - Next: keep the overview tree synchronized with the repository.
+8. **[Remediated on this branch] Architecture documentation named a directory that does not exist.**
+   - `OVERVIEW.md` now describes the actual `src/app` layout and `shared.tsx` helpers.
 
 9. **The app has no committed dependency lockfile.**
    - The repository contains `package.json` but no `package-lock.json` or `pnpm-lock.yaml`; CI uses `npm install`.
@@ -66,8 +61,8 @@
 
 ### Lower priority / verification
 
-10. **Automated regression coverage is still narrow.**
-    - Playwright runs only Chromium and the 390 px overflow scenario checks main-section shells, not every health sub-tab, child-health tab, or tablet viewport.
+10. **Automated regression coverage is improving but still incomplete.**
+    - Playwright currently runs Chromium. E2E now covers 10 scenarios, including session-state retention, but tablet widths, every child-health path, keyboard accessibility and manual visual review remain outstanding.
     - Add coverage for dental and lab tabs at mobile widths, tablet widths, keyboard navigation, and persistence across section/tab changes after the state model is decided.
 
 11. **Unused-code checks are not enforced.**
