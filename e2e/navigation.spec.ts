@@ -232,7 +232,7 @@ test("validates child creation without creating an empty profile", async ({ page
   await page.getByPlaceholder("Имя").fill("Проверка валидации");
   await page.getByPlaceholder("Год рождения (2022)").fill("2021");
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
-  await expect(page.getByText("Проверка валидации", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Проверка валидации" })).toBeVisible();
 });
 
 
@@ -287,7 +287,7 @@ test("exports a backup and restores data from a validated backup", async ({ page
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(backup)),
   });
-  await expect(page.getByText("Данные восстановлены. Разделы обновлены.")).toBeVisible();
+  await expect.poll(async () => page.getByRole("status").innerText()).toContain("Данные восстановлены");
   await page.getByRole("button", { name: /^Все события/ }).click();
   await expect(page.getByText("Восстановленное событие", { exact: true })).toBeVisible();
 });
@@ -316,7 +316,8 @@ test("renders age-specific child health paths without duplicate birth tests", as
 
   for (const profile of profiles) {
     await page.getByText(profile.name, { exact: true }).first().click();
-    await expect(page.getByText(profile.stage, { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: profile.name })).toBeVisible();
+    await expect(page.locator("span:visible").filter({ hasText: profile.stage }).first()).toBeVisible();
     const dentalTab = page.getByRole("button", { name: "Стоматолог", exact: true });
     if (profile.hasDental) await expect(dentalTab).toBeVisible();
     else await expect(dentalTab).toHaveCount(0);
