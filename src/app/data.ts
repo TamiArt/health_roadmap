@@ -65,7 +65,11 @@ export interface LifeStage {
 }
 
 export interface UploadedResult {
-  id: string; name: string; date: string; url: string; isPdf: boolean;
+  id: string;
+  name: string;
+  date: string;
+  blob: Blob;
+  isPdf: boolean;
 }
 
 export interface VaccineRecord {
