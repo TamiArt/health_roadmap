@@ -90,7 +90,8 @@ src/
 
 - `npm run typecheck` — строгая проверка TypeScript без генерации файлов.
 - `npm test` — запуск unit-тестов Vitest.
-- GitHub Actions выполняет проверку типов и production-сборку при push в рабочую ветку и при pull request в `main`.
+- `npm run test:e2e` — браузерные E2E smoke-тесты Playwright (Chromium).
+- GitHub Actions выполняет установку зависимостей, проверку типов, unit-тесты, Playwright E2E smoke-тесты (Chromium) и production-сборку при push в рабочую ветку и при pull request в `main`.
 
 ## Команды
 

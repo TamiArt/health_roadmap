@@ -24,7 +24,10 @@ npm run typecheck
 
 ```bash
 npm test
+npm run test:e2e
 ```
+
+Unit-тесты выполняются Vitest. E2E smoke-тесты запускаются Playwright в Chromium; команда автоматически поднимает локальный Vite dev server.
 
 ## Production-сборка
 
@@ -38,7 +41,7 @@ npm run build
 
 ## Технологии и UI
 
-React 18, TypeScript, Vite, Tailwind CSS 4, Motion, Recharts и Lucide. Интерфейс реализован непосредственно в feature-компонентах на JSX и Tailwind CSS. Неиспользуемый каталог шаблонных shadcn/Radix-компонентов удалён; приложение не зависит от Figma UI-блоков или Figma runtime.
+React 18, TypeScript, Vite, Tailwind CSS 4, Motion, Recharts, Lucide, Vitest и Playwright. Интерфейс реализован непосредственно в feature-компонентах на JSX и Tailwind CSS. Неиспользуемый каталог шаблонных shadcn/Radix-компонентов удалён; приложение не зависит от Figma UI-блоков или Figma runtime.
 
 ## Текущее состояние
 
