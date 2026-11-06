@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
 import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type VaccineRecord, type VaccineStatus } from "./data";
@@ -184,7 +184,7 @@ export function VaccinesTab({
             <span className="text-sm font-semibold text-foreground">{v.name}</span>
             {v.mandatory && <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Обязательная</span>}
           </div>
-          <button onClick={() => cycle(v.id)} className={`shrink-0 text-[11px] px-2.5 py-1 rounded-lg font-medium cursor-pointer transition-all ${cfg.bg} ${cfg.text}`}>{cfg.label}</button>
+          <button type="button" aria-label={`Изменить статус вакцины «${v.name}». Текущий статус: ${cfg.label}`} onClick={() => cycle(v.id)} className={`shrink-0 text-[11px] px-2.5 py-1 rounded-lg font-medium cursor-pointer transition-all ${cfg.bg} ${cfg.text}`}>{cfg.label}</button>
         </div>
         <p className="text-xs text-muted-foreground mb-1">{v.protects}</p>
         <p className="text-[11px] text-muted-foreground/70 italic mb-1" style={{ fontFamily:"'DM Mono', monospace" }}>{v.schedule}</p>
@@ -257,7 +257,7 @@ export function DentalTab({
   function ToothCell({ n, upper }: { n:number; upper:boolean }) {
     const t=data[n]; const cfg=t?TOOTH_STATUS_CFG[t.status]:null; const isSel=selected===n;
     return (
-      <button onClick={() => pick(n)} title={toothLabel(n)} style={{ flexDirection:upper?"column-reverse":"column" }} className="flex flex-col items-center gap-0.5">
+      <button type="button" onClick={() => pick(n)} title={toothLabel(n)} aria-label={`${toothLabel(n)}${t ? `, статус: ${TOOTH_STATUS_CFG[t.status].label}` : ", статус не указан"}`} aria-pressed={isSel} style={{ flexDirection:upper?"column-reverse":"column" }} className="flex flex-col items-center gap-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <div className={`w-6 h-8 flex items-center justify-center border-2 transition-all text-[8px] font-bold ${upper?"rounded-t-lg rounded-b-sm":"rounded-b-lg rounded-t-sm"} ${isSel?"ring-2 ring-offset-1 ring-primary border-primary":cfg?"border-transparent":"border-border"}`}
           style={{ backgroundColor:cfg?cfg.fill:"#f1f5f9", color:cfg?(t?.status==="extracted"?"#64748b":"#fff"):"#94a3b8" }}>
           {n%10}
@@ -301,7 +301,7 @@ export function DentalTab({
           <div className="flex flex-wrap gap-1.5 mb-3">
             {(Object.keys(TOOTH_STATUS_CFG) as ToothStatus[]).map(s => {
               const c=TOOTH_STATUS_CFG[s];
-              return <button key={s} onClick={() => setStatus(selected,s)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${selData?.status===s?`${c.bg} ${c.text}`:"bg-muted text-muted-foreground hover:bg-muted/80"}`}>{c.label}</button>;
+              return <button key={s} type="button" aria-pressed={selData?.status===s} onClick={() => setStatus(selected,s)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${selData?.status===s?`${c.bg} ${c.text}`:"bg-muted text-muted-foreground hover:bg-muted/80"}`}>{c.label}</button>;
             })}
           </div>
           <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={saveNote} placeholder="Заметки: дата, врач, жалобы..." rows={2}
@@ -326,6 +326,8 @@ export function HealthSection({
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
 }) {
   const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental">("roadmap");
+  const tabsId = useId();
+  const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"]] as const;
   const [openIdx, setOpenIdx] = useState<number|null>(3);
   const [toothData, setToothData, toothDataReady, toothDataError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
 
@@ -336,13 +338,13 @@ export function HealthSection({
     <div className="p-8 max-w-xl">
       <h1 className="text-2xl font-bold text-foreground mb-1" style={{ fontFamily:"'Playfair Display', serif" }}>Навигатор здоровья</h1>
       <p className="text-sm text-muted-foreground mb-5">Профилактика и медицинская история</p>
-      <div className="flex gap-1 bg-muted p-1 rounded-lg mb-7">
-        {[["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"]].map(([id,label]) => (
-          <button key={id} onClick={() => setTab(id as typeof tab)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
+      <div role="tablist" aria-label="Разделы навигатора здоровья" className="flex gap-1 bg-muted p-1 rounded-lg mb-7">
+        {tabs.map(([id,label]) => (
+          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} onClick={() => setTab(id)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
 
-      <div hidden={tab !== "roadmap"}>
+      <div id={`${tabsId}-panel-roadmap`} role="tabpanel" aria-labelledby={`${tabsId}-tab-roadmap`} hidden={tab !== "roadmap"}>
         <div className="grid grid-cols-3 gap-3 mb-8">
           {[
             { emoji:"📅", val:"Гинеколог",  sub:"Рекомендован сейчас",  label:"Следующий визит"    },
@@ -398,9 +400,9 @@ export function HealthSection({
           </div>
         </div>
       </div>
-      <div hidden={tab !== "tests"}><LabTestsTab/></div>
-      <div hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
-      <div hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
+      <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab/></div>
+      <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
+      <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
     </div>
   );
 }
