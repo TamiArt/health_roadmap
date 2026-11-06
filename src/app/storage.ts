@@ -157,7 +157,7 @@ function validateRecordValue(key: string, value: unknown): void {
   }
 
   if (!isPlainRecord(value)) throw new Error(`Повреждена запись данных: ${key}`);
-  if (key === "labUploads") {
+  if (key === "labUploads" || key.endsWith(":labUploads")) {
     for (const [testId, uploads] of Object.entries(value)) {
       if (!Array.isArray(uploads) || uploads.some(item => {
         if (!isPlainRecord(item) || typeof item.id !== "string" || !isPlainRecord(item.blob)) return true;
