@@ -133,3 +133,22 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - Import atomically replaces the current app-record store after format/schema/key validation; it is destructive by design and guarded by a confirmation dialog.
 - Clearing browser site data deletes the local database. Keep independent backups.
 - The first app launch seeds generic demo content; subsequent edits are saved locally. There is no migration of earlier in-memory-only session data after a page refresh.
+
+
+## Дополнительный аудит — восстановление резервной копии (2026-11-06)
+
+### Высокий приоритет — исправлено, ожидает CI
+
+1. **Восстановление IndexedDB размонтировало приложение во время обновления состояния.**
+   - В `usePersistentState` событие `life-maps:backup-restored` вызывало `setReady(false)`. Корневой `App` при `!storageReady` возвращал экран загрузки вместо дерева приложения.
+   - Размонтирование запускало cleanup эффекта (`active = false`), поэтому завершившийся асинхронный `readRecord` не мог выполнить `setReady(true)`. Панель статуса и управления исчезала; это объясняет нестабильное наблюдение Playwright (старый status затем отсутствует).
+   - Исправлено: обновление после импорта не сбрасывает `ready`, перечитывает IndexedDB при смонтированном дереве; ключи, отсутствующие в восстановленной копии, возвращаются к начальному значению.
+   - E2E дополнен проверками доступности панели и навигации после успешного импорта, а также ошибочного файла и сохранения работоспособности приложения после ошибки.
+
+2. **Риск повторного появления исходных данных для отсутствующих в backup ключей.**
+   - Ранее reload обновлял только ключи, найденные в backup. После корректного импорта отсутствующий ключ мог остаться в React state со старым значением, хотя в IndexedDB запись уже очищена.
+   - Исправлено сбросом такого ключа к переданному начальному значению при событии восстановления.
+
+### Проверки
+- На ревизии `64e7f94c7f2ab4afd1edc6cdb538e4fce5b1a603` CI: TypeScript, структура, npm audit и unit tests прошли; E2E выявил первопричину, production build был пропущен из-за падения E2E.
+- Исправление и новые E2E-сценарии закоммичены отдельно; итоговый статус будет зафиксирован после завершения CI.
