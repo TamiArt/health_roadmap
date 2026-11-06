@@ -7,10 +7,10 @@ import { usePersistentState } from "./storage";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
 
-export function LabTestsTab({ stages, defaultGender = "f" }: { stages?: LifeStage[]; defaultGender?: "f"|"m" }) {
+export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUploads" }: { stages?: LifeStage[]; defaultGender?: "f"|"m"; storageKey?: string }) {
   const [gender, setGender] = useState<"f"|"m">(defaultGender);
   const [openStage, setOpenStage] = useState<string|null>(null);
-  const [uploads, setUploads] = usePersistentState<Record<string, UploadedResult[]>>("labUploads", {});
+  const [uploads, setUploads] = usePersistentState<Record<string, UploadedResult[]>>(storageKey, {});
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingId = useRef<string|null>(null);
