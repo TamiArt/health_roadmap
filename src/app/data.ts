@@ -33,8 +33,30 @@ export interface LifeEvent {
 }
 
 export interface LabTest {
-  id: string; name: string; what: string; frequency: string;
-  gender: "all" | "f" | "m"; priority?: "r";
+  /** Unique assignment ID within the catalogue. */
+  id: string;
+  /** Stable identity shared by age-specific assignments of the same test concept. */
+  conceptId?: string;
+  name: string;
+  what: string;
+  frequency: string;
+  gender: "all" | "f" | "m";
+  priority?: "r";
+}
+
+export interface LabTestConcept {
+  id: string;
+  name: string;
+  what: string;
+  gender: "all" | "f" | "m";
+  priority?: "r";
+}
+
+export interface LabTestAssignment {
+  id: string;
+  conceptId: string;
+  stageId: string;
+  frequency: string;
 }
 
 export interface LifeStage {
@@ -57,19 +79,7 @@ export interface Child {
 
 // ─── Life Events ──────────────────────────────────────────────────────────────
 
-export const LIFE_EVENTS_INIT: LifeEvent[] = [
-  { id:"1",  year:1997, title:"Рождение",                    description:"Москва, 14 марта 1997 года. Всё только начинается.",                  category:"family",      emoji:"🌟", milestone:true  },
-  { id:"2",  year:2003, title:"Первый класс",                description:"Школа №57, г. Москва. Новые друзья и первые открытия.",               category:"education",   emoji:"🎒"                  },
-  { id:"6",  year:2014, title:"Золотая медаль",               description:"Окончание школы с золотой медалью. ЕГЭ: 285 из 300 баллов.",          category:"achievement", emoji:"🎓", milestone:true  },
-  { id:"7",  year:2015, title:"МГУ, биологический факультет", description:"Поступление на биофак МГУ. Новая жизнь в студенческом городке.",       category:"education",   emoji:"🔬", milestone:true  },
-  { id:"9",  year:2018, title:"Экспедиция на Байкал",         description:"Полевые исследования экосистемы. 3 недели, −15°C, незабываемо.",       category:"travel",      emoji:"🌊"                  },
-  { id:"10", year:2019, title:"Красный диплом МГУ",           description:"Бакалавриат завершён с отличием.",                                    category:"education",   emoji:"📜", milestone:true  },
-  { id:"11", year:2019, title:"Переезд в Санкт-Петербург",    description:"Новый город, новые возможности и новая глава жизни.",                 category:"personal",    emoji:"🏙️"                 },
-  { id:"13", year:2021, title:"Senior Researcher",            description:"Повышение после успешного завершения ключевого исследовательского проекта.", category:"career", emoji:"⬆️", milestone:true },
-  { id:"14", year:2022, title:"Знакомство с Дмитрием",        description:"Начало отношений. Познакомились на конференции по биотехнологиям.",   category:"family",      emoji:"💕"                  },
-  { id:"16", year:2024, title:"Собственная квартира",         description:"Первое собственное жильё в Санкт-Петербурге.",                        category:"personal",    emoji:"🏠", milestone:true  },
-  { id:"17", year:2024, title:"Свадьба",                      description:"Бракосочетание с Дмитрием, июнь 2024. Самый счастливый день.",        category:"family",      emoji:"💍", milestone:true  },
-];
+LIFE_EVENTS_INIT
 
 // ─── Health roadmap ───────────────────────────────────────────────────────────
 
@@ -120,20 +130,11 @@ export const LIFE_STAGES: LifeStage[] = [
       { id:"b4", gender:"all", frequency:"В 1 мес",
         name:"УЗИ тазобедренных суставов",
         what:"Скрининг дисплазии ТБС; при раннем выявлении лечится без операции" },
-      { id:"b5", gender:"all", frequency:"Ежегодно для взрослых",
-        name:"Флюорография / рентген грудной клетки",
-        what:"Скрининг туберкулёза и патологии лёгких; обязателен ежегодно по закону РФ" },
     ],
   },
   {
     id:"newborn", label:"Новорождённый", age:"0–12 мес",
     tests:[
-      { id:"n1", gender:"all", frequency:"3–5 день жизни",
-        name:"Неонатальный скрининг",
-        what:"ФКУ, врождённый гипотиреоз, галактоземия, АГС, муковисцидоз" },
-      { id:"n2", gender:"all", frequency:"Однократно",
-        name:"Группа крови и резус-фактор",
-        what:"Определяется один раз в жизни; критично при переливаниях и операциях" },
       { id:"n3", gender:"all", frequency:"В 1 мес и в 12 мес",
         name:"ОАК (общий анализ крови)",
         what:"Гемоглобин, эритроциты, лейкоциты — исключение анемии и инфекций" },
@@ -216,6 +217,9 @@ export const LIFE_STAGES: LifeStage[] = [
   {
     id:"adult", label:"Взрослый", age:"30–45 лет",
     tests:[
+      { id:"a11", conceptId:"chest-imaging", gender:"all", frequency:"Ежегодно для взрослых",
+        name:"Флюорография / рентген грудной клетки",
+        what:"Скрининг туберкулёза и патологии лёгких; обязателен ежегодно по закону РФ" },
       { id:"a1", gender:"all", frequency:"Ежегодно", name:"ОАК", what:"Полная гематологическая картина" },
       { id:"a2", gender:"all", frequency:"Ежегодно", name:"ОАМ", what:"Почки, скрытая патология" },
       { id:"a3", gender:"all", frequency:"Ежегодно", name:"Биохимия крови", what:"АЛТ, АСТ, функция органов-мишеней" },
@@ -334,16 +338,14 @@ export const VACCINES: VaccineRecord[] = [
 // ─── Family data ──────────────────────────────────────────────────────────────
 
 export const FAMILY_MEMBERS_INIT = [
-  { id:"m1", name:"Дмитрий Морозов",  relation:"Муж",  age:30, emoji:"👨‍💼" },
-  { id:"m2", name:"Ирина Соколова",   relation:"Мама", age:54, emoji:"👩"   },
-  { id:"m3", name:"Андрей Соколов",   relation:"Папа", age:57, emoji:"👨"   },
-  { id:"m4", name:"Максим Соколов",   relation:"Брат", age:24, emoji:"👦"   },
+  { id:"demo-member-1", name:"Пример взрослого", relation:"Партнёр", age:32, emoji:"👤" },
+  { id:"demo-member-2", name:"Пример родственника", relation:"Родитель", age:58, emoji:"👩" },
 ];
 
 export const FAMILY_EVENTS_INIT = [
-  { id:"e1", date:"14 июня 2024",    title:"Свадьба с Дмитрием",      emoji:"💍" },
-  { id:"e2", date:"14 марта 1997",   title:"День рождения Александры", emoji:"🎂" },
-  { id:"e3", date:"2 сентября 2001", title:"Рождение брата Максима",   emoji:"👶" },
+  { id:"demo-event-1", date:"Лето 2024", title:"Семейное событие", emoji:"💍" },
+  { id:"demo-event-2", date:"Весна 2000", title:"День рождения", emoji:"🎂" },
+  { id:"demo-event-3", date:"Осень 2003", title:"Памятная дата", emoji:"👶" },
 ];
 
 // ─── Health quality data ──────────────────────────────────────────────────────
