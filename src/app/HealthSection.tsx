@@ -6,11 +6,6 @@ import { childAgeVaccines, createId, INP } from "./shared";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
 
-const RECOMMENDED_IDS = new Set([
-  "s4","s6","r1","r2","r3","r4","r5","r6","ya9","th3","fe2","ai1","ai2","ai3",
-  "r11","r12","r13","a4","a5","a9","a10",
-]);
-
 export function LabTestsTab({ stages, defaultGender = "f" }: { stages?: LifeStage[]; defaultGender?: "f"|"m" }) {
   const [gender, setGender] = useState<"f"|"m">(defaultGender);
   const [openStage, setOpenStage] = useState<string|null>(null);
@@ -92,7 +87,7 @@ export function LabTestsTab({ stages, defaultGender = "f" }: { stages?: LifeStag
                 <div className="border-t border-border divide-y divide-border/60">
                   {filtered.map(test => {
                     const ups = uploads[test.id]??[];
-                    const isRec = RECOMMENDED_IDS.has(test.id);
+                    const isRec = test.priority === "r";
                     return (
                       <div key={test.id} className="px-4 py-3.5">
                         <div className="flex items-start gap-3">
