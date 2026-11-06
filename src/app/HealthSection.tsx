@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
 import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type VaccineRecord, type VaccineStatus } from "./data";
-import { INP } from "./shared";
+import { childAgeVaccines, INP } from "./shared";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
 

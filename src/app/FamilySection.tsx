@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
-import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT, type Child, type VaccineStatus } from "./data";
+import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT, type Child, type ToothStatus, type VaccineStatus } from "./data";
 import { CURRENT_YEAR, childAgeStages, childAgeVaccines, DelBtn, EditToggle, INP } from "./shared";
 import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
 
