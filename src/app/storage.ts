@@ -5,7 +5,7 @@ const DB_VERSION = 1;
 const STORE_NAME = "app-records";
 export const BACKUP_FORMAT = "life-maps-backup";
 export const CURRENT_SCHEMA_VERSION = 1;
-export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
+export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const RESTORE_EVENT = "life-maps:backup-restored";
 
 type StoredRecord = { key: string; value: unknown };
@@ -22,6 +22,7 @@ const ALLOWED_KEYS = new Set([
   "children",
   "familyEvents",
   "vaccineStatuses",
+  "labUploads",
 ]);
 
 export function isAllowedRecordKey(key: string): boolean {
@@ -87,6 +88,56 @@ async function readAllRecords(): Promise<Record<string, unknown>> {
   return Object.fromEntries(records.map(record => [record.key, record.value]));
 }
 
+type EncodedBlob = { __lifeMapsBlob: true; mimeType: string; base64: string };
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+export async function encodeBackupValue(value: unknown): Promise<unknown> {
+  if (typeof Blob !== "undefined" && value instanceof Blob) {
+    return {
+      __lifeMapsBlob: true,
+      mimeType: value.type,
+      base64: bytesToBase64(new Uint8Array(await value.arrayBuffer())),
+    } satisfies EncodedBlob;
+  }
+  if (Array.isArray(value)) return Promise.all(value.map(encodeBackupValue));
+  if (value && typeof value === "object") {
+    const entries = await Promise.all(Object.entries(value).map(async ([key, item]) => [key, await encodeBackupValue(item)] as const));
+    return Object.fromEntries(entries);
+  }
+  return value;
+}
+
+export async function decodeBackupValue(value: unknown): Promise<unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value) && "__lifeMapsBlob" in value) {
+    const encoded = value as EncodedBlob;
+    if (encoded.__lifeMapsBlob !== true || typeof encoded.base64 !== "string" || typeof encoded.mimeType !== "string") {
+      throw new Error("Некорректное вложение в резервной копии.");
+    }
+    return new Blob([base64ToBytes(encoded.base64)], { type: encoded.mimeType });
+  }
+  if (Array.isArray(value)) return Promise.all(value.map(decodeBackupValue));
+  if (value && typeof value === "object") {
+    const entries = await Promise.all(Object.entries(value).map(async ([key, item]) => [key, await decodeBackupValue(item)] as const));
+    return Object.fromEntries(entries);
+  }
+  return value;
+}
+
 export function migrateBackup(input: BackupPayload): BackupPayload {
   if (input.format !== BACKUP_FORMAT) throw new Error("Файл не является резервной копией Life Maps.");
   if (!Number.isInteger(input.schemaVersion) || input.schemaVersion < 0 || input.schemaVersion > CURRENT_SCHEMA_VERSION) {
@@ -118,11 +169,13 @@ export function migrateBackup(input: BackupPayload): BackupPayload {
 }
 
 export async function exportBackup(): Promise<Blob> {
+  const records = await readAllRecords();
+  const encodedRecords = await encodeBackupValue(records) as Record<string, unknown>;
   const payload: BackupPayload = {
     format: BACKUP_FORMAT,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
-    records: await readAllRecords(),
+    records: encodedRecords,
   };
   return new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
 }
@@ -133,11 +186,12 @@ export async function importBackup(file: File): Promise<void> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Некорректный файл резервной копии.");
 
   const migrated = migrateBackup(raw as BackupPayload);
+  const decodedRecords = await decodeBackupValue(migrated.records) as Record<string, unknown>;
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
   store.clear();
-  for (const [key, value] of Object.entries(migrated.records)) store.put({ key, value } satisfies StoredRecord);
+  for (const [key, value] of Object.entries(decodedRecords)) store.put({ key, value } satisfies StoredRecord);
 
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
