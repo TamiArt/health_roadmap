@@ -66,7 +66,7 @@ export function LifeMapSection() {
 
       <div className="px-8 py-10 max-w-3xl mx-auto">
         <div className="relative">
-          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-border -translate-x-1/2" />
+          <div className="pointer-events-none absolute left-1/2 top-0 bottom-0 w-px bg-border -translate-x-1/2" />
           <div className="space-y-5">
             {visible.map((ev, i) => {
               const flip = i % 2 === 1;
