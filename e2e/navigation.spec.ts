@@ -35,6 +35,7 @@ test("adds a life event and displays it in the timeline", async ({ page }) => {
   await page.getByPlaceholder("Год (2025)").fill("2026");
   await page.getByPlaceholder("Название события").fill("E2E проверка события");
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: /^Все события/ }).click();
 
   await expect(page.getByText("E2E проверка события", { exact: true })).toBeVisible();
 });
