@@ -322,6 +322,7 @@ test("renders age-specific child health paths without duplicate birth tests", as
     else await expect(dentalTab).toHaveCount(0);
 
     if (profile.stage === "Новорождённый") {
+      await page.getByRole("button", { name: /Базовые — при рождении/ }).click();
       await expect(page.getByText("Группа крови и резус-фактор", { exact: true })).toHaveCount(1);
     }
     await page.getByRole("button", { name: "Вернуться к семье" }).click();
