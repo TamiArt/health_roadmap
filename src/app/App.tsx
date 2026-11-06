@@ -16,6 +16,14 @@ export default function App() {
     Object.fromEntries(VACCINES.map(v => [v.id, v.status]))
   );
 
+  if (!storageReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-8 text-sm text-muted-foreground">
+        Подключение локальной базы данных…
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen flex-col sm:flex-row bg-background overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
       <Sidebar active={section} onSelect={setSection} />
