@@ -5,7 +5,7 @@
 - Repository: `TamiArt/health_roadmap`.
 - Audit branch: `chore/code-quality-audit`.
 - Base: `main` at `e3701650e418d0912498822ddbf97df83e40cdad`.
-- Audit type: static source/configuration/documentation review. No local npm/Playwright execution was available during this review; findings below are based on the current repository contents and should be verified with CI before behavior-changing refactors.
+- Audit type: static source/configuration/documentation review plus completed GitHub Actions verification for commit 36213a78c176ee8334987831862fcecae0e5e523. The current CI run completed successfully; no local npm/Playwright execution was performed.
 - No production user data or storage migration was touched.
 
 ## Findings
@@ -19,11 +19,11 @@
    - Scope: this preserves React state only during the current page session. Reloading the page or closing the tab still resets in-memory data. Persistent storage is intentionally deferred until data ownership, privacy, export/import, deletion and backup behavior are designed.
 
 2. **The lab-test catalogue has overlapping and duplicate records.**
-   - `src/app/data.ts`: the base and newborn groups both contain “Группа крови и резус-фактор” (lines 112 and 135).
-   - The same test names recur across age groups: ОАК (149, 162, 201, 219), ОАМ (151, 164, 202, 220), ферритин (155, 207, 225, 246), glucose, lipid profile, TSH and biochemistry.
-   - Some recurrence may represent a legitimate repeat screening interval, but records currently have independent IDs and no shared test identity, so counts/uploads can be duplicated and there is no explicit distinction between “same test at a new age” and “duplicate catalogue entry”.
-   - `childAgeStages(0)` returns both `base` and `newborn`, so the exact blood-group test appears twice for a newborn.
-   - Next: define canonical test IDs and age-stage references; preserve repeated schedules only where explicitly justified. Add tests for unique catalogue identity and expected age-stage composition. Medical schedules require source review before consolidation.
+   - The `base` and `newborn` groups both contain “Группа крови и резус-фактор”; they also both contain the neonatal screening test (the labels differ slightly, but the description is the same).
+   - `childAgeStages(0)` returns both `base` and `newborn`, so both records are currently rendered twice for an infant. This is a confirmed presentation/data duplication.
+   - The same test concepts recur across age groups: ОАК, ОАМ, ферритин, glucose, lipid profile, TSH and biochemistry. Some recurrence may represent a legitimate repeat screening interval, but records have independent IDs and no shared concept identity.
+   - The catalogue currently mixes a test concept, an age-stage assignment and a screening frequency. Represent these separately before broad consolidation.
+   - Next: define canonical test concept IDs and age-stage assignments; preserve repeat intervals only where explicitly justified. Medical schedules require source review before changing their meaning.
 
 3. **[Remediated on this branch] “Recommended” test classification had two sources of truth.**
    - `src/app/data.ts` marks tests with `priority: "r"`.
@@ -70,14 +70,14 @@
     - The first strict run found two unused imports (`INP` in `HealthSection.tsx` and `Trash2` in `LifeMapSection.tsx`); both were removed.
     - No lint script is configured. Consider a lightweight lint configuration only if it adds clear value.
 
-12. **The project guidelines file is still the untouched template.**
-    - `guidelines/Guidelines.md` contains “Add your own guidelines here” and generic template text.
-    - Next: either replace it with concise project-specific rules or remove it if no tooling consumes it.
+12. **[Remediated on this branch] The project guidelines file contained only a generic template.**
+    - `guidelines/Guidelines.md` now contains project-specific rules for privacy, medical content, data integrity, architecture, accessibility and verification.
 
 ## Confirmed duplicates vs. intentional repetition
 
 - No duplicate literal `id` values were found in `data.ts` during the static scan.
-- Repeated lab-test names were found across age stages. They are not automatically safe to delete: a repeated test may represent a valid age-specific interval. Consolidation must preserve the intended schedule and clinical source.
+- Two duplicated infant records are confirmed: blood group/Rh and neonatal screening appear in both `base` and `newborn`, and `childAgeStages(0)` displays both stage groups.
+- Other repeated lab-test concepts across age stages are not automatically safe to delete: a repeated test may represent a valid age-specific interval. Consolidation must preserve the intended schedule and clinical source.
 - The recommendation ID set is a confirmed second source of truth and has mismatches with `priority`.
 
 ## Prioritized implementation plan
@@ -86,11 +86,13 @@
 2. **Normalize the screening catalogue.** Introduce canonical test identity, age-stage membership and one recommendation field. Review repeated tests and schedules against trustworthy, jurisdiction-specific sources before changing medical content.
 3. **Fix resource and identity lifecycle.** Revoke object URLs, centralize unique IDs, and validate add/edit forms (year ranges, birth year, required text, numeric fields).
 4. **Restore reproducible CI.** Add the npm lockfile, use `npm ci`, make push CI cover the active development branch, enable unused TypeScript checks, and verify the full pipeline.
-5. **Close metadata and documentation drift.** Correct document language/meta, synchronize `OVERVIEW.md`, replace/remove the generic guidelines template, and keep this roadmap current.
+5. **Close metadata and documentation drift.** Correct document language/meta, synchronize `OVERVIEW.md`, keep project-specific guidelines current, and keep this roadmap current.
 6. **Expand regression and accessibility.** Test all tabs and child views at mobile/tablet sizes, keyboard/focus behavior, empty/error states, and state preservation. Perform a manual visual review before declaring responsive work complete.
 
 ## Constraints for follow-up work
 
+- Latest verified branch SHA before documentation follow-up: `36213a78c176ee8334987831862fcecae0e5e523`; CI run `42205611369` completed successfully.
+- `main` remains at `e3701650e418d0912498822ddbf97df83e40cdad`; it was not modified.
 - Work only in `chore/code-quality-audit`; never commit to `main`.
 - No paid APIs/services, no external analytics/telemetry.
 - Preserve the existing visual design unless a verified defect requires a narrowly scoped fix.
