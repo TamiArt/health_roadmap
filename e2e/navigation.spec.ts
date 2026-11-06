@@ -221,6 +221,49 @@ test("supports keyboard activation of primary navigation", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Навигатор здоровья" })).toBeVisible();
 });
 
+test("exposes active navigation and health tabs to assistive technology", async ({ page }) => {
+  await page.goto("/");
+  const navigation = page.getByRole("navigation", { name: "Основная навигация" });
+  await expect(navigation.getByRole("button", { name: "Карта жизни" })).toHaveAttribute("aria-current", "page");
+
+  const healthButton = navigation.getByRole("button", { name: "Здоровье" });
+  await healthButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(healthButton).toHaveAttribute("aria-current", "page");
+
+  const tablist = page.getByRole("tablist", { name: "Разделы навигатора здоровья" });
+  const dentalTab = tablist.getByRole("tab", { name: "Стоматолог" });
+  await expect(tablist.getByRole("tab", { name: "Профилактика" })).toHaveAttribute("aria-selected", "true");
+  await dentalTab.click();
+  await expect(dentalTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel", { name: "Стоматолог" })).toBeVisible();
+
+  const tooth = page.getByRole("button", { name: /Зуб 11 — верхний правый резец/ });
+  await expect(tooth).toHaveAttribute("aria-pressed", "false");
+  await tooth.focus();
+  await page.keyboard.press("Enter");
+  await expect(tooth).toHaveAttribute("aria-pressed", "true");
+});
+
+test("opens a child profile card with the keyboard", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByPlaceholder("Имя").fill("Клавиатурный профиль");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2020");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  const profile = page.getByRole("button", { name: "Открыть профиль ребёнка Клавиатурный профиль, 6 лет" });
+  await profile.focus();
+  await expect(profile).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Клавиатурный профиль" })).toBeVisible();
+  const childTabs = page.getByRole("tablist", { name: "Разделы здоровья ребёнка" });
+  await expect(childTabs.getByRole("tab", { name: "Анализы" })).toHaveAttribute("aria-selected", "true");
+});
+
 test("validates child creation without creating an empty profile", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Семья" }).click();
