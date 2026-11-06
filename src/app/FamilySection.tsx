@@ -21,8 +21,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   if (age>=5) tabs.push(["dental","Стоматолог"]);
 
   return (
-    <>
-    <div hidden={!!viewingChild} className="p-8 max-w-xl">
+    <div className="p-8 max-w-xl">
       <button onClick={onBack} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft size={13}/> Вернуться к семье
       </button>
@@ -78,7 +77,8 @@ export function FamilySection() {
   }
 
   return (
-    <div className="p-8 max-w-xl">
+    <>
+    <div hidden={!!viewingChild} className="p-8 max-w-xl">
       <div className="flex items-start justify-between mb-7">
         <div>
           <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily:"'Playfair Display', serif" }}>Семья</h1>
