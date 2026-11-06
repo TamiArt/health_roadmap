@@ -55,10 +55,10 @@ test("creates a child profile and opens its health view", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "E2E ребёнок" })).toBeVisible();
   await page.getByRole("button", { name: "Стоматолог", exact: true }).click();
 
-  const childTooth = page.locator('button[title="Зуб 11 — верхний правый резец"]');
+  const childTooth = page.locator('button[title="Зуб 11 — верхний правый резец"]').last();
   await childTooth.click();
   await page.getByRole("button", { name: "Кариес", exact: true }).click();
-  const childNote = page.getByPlaceholder("Заметки: дата, врач, жалобы...");
+  const childNote = page.getByPlaceholder("Заметки: дата, врач, жалобы...").last();
   await childNote.fill("Заметка детского профиля");
 
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
