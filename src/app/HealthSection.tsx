@@ -10,7 +10,7 @@ import { usePersistentState } from "./storage";
 export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUploads" }: { stages?: LifeStage[]; defaultGender?: "f"|"m"; storageKey?: string }) {
   const [gender, setGender] = useState<"f"|"m">(defaultGender);
   const [openStage, setOpenStage] = useState<string|null>(null);
-  const [uploads, setUploads] = usePersistentState<Record<string, UploadedResult[]>>(storageKey, {});
+  const [uploads, setUploads, uploadsReady, uploadsError] = usePersistentState<Record<string, UploadedResult[]>>(storageKey, {});
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingId = useRef<string|null>(null);
@@ -25,7 +25,11 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   }, [objectUrls]);
   const allStages = stages ?? LIFE_STAGES;
 
-  function triggerUpload(testId: string) { pendingId.current = testId; fileRef.current?.click(); }
+  function triggerUpload(testId: string) {
+    if (!uploadsReady || uploadsError) return;
+    pendingId.current = testId;
+    fileRef.current?.click();
+  }
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; const id = pendingId.current;
     if (!file || !id) return;
@@ -56,7 +60,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   return (
     <div>
       <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} />
-      {uploadError && <p role="alert" className="mb-3 text-xs text-red-600">{uploadError}</p>}
+      {(uploadError || uploadsError) && <p role="alert" className="mb-3 text-xs text-red-600">{uploadError ?? uploadsError}</p>}
       {!stages && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div className="flex gap-1 p-1 bg-muted rounded-lg">
@@ -128,7 +132,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                               </div>
                             )}
                           </div>
-                          <button onClick={() => triggerUpload(test.id)} className="shrink-0 flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-border hover:border-primary/50 hover:text-primary text-muted-foreground transition-all">
+                          <button type="button" onClick={() => triggerUpload(test.id)} disabled={!uploadsReady || !!uploadsError} className="shrink-0 flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-border hover:border-primary/50 hover:text-primary text-muted-foreground transition-all disabled:opacity-50">
                             <Upload size={11}/>Загрузить
                           </button>
                         </div>
@@ -323,7 +327,10 @@ export function HealthSection({
 }) {
   const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental">("roadmap");
   const [openIdx, setOpenIdx] = useState<number|null>(3);
-  const [toothData, setToothData] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
+  const [toothData, setToothData, toothDataReady, toothDataError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
+
+  if (!toothDataReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка стоматологических записей…</div>;
+  if (toothDataError) return <div role="alert" className="p-8 text-sm text-red-600">{toothDataError}</div>;
 
   return (
     <div className="p-8 max-w-xl">
