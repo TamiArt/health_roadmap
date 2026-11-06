@@ -65,10 +65,10 @@
     - Playwright currently runs Chromium. E2E now covers 10 scenarios, including session-state retention, but tablet widths, every child-health path, keyboard accessibility and manual visual review remain outstanding.
     - Add coverage for dental and lab tabs at mobile widths, tablet widths, keyboard navigation, and persistence across section/tab changes after the state model is decided.
 
-11. **Unused-code checks are not enforced.**
-    - `tsconfig.json` sets `noUnusedLocals` and `noUnusedParameters` to `false`.
-    - No lint script is configured. Dead imports/variables and inconsistent patterns can therefore escape CI.
-    - Next: first enable unused checks and fix the resulting verified warnings; consider a lightweight lint configuration only if it adds clear value.
+11. **[Partially remediated] Unused-code checks were not enforced.**
+    - `tsconfig.json` now enables `noUnusedLocals` and `noUnusedParameters`.
+    - The first strict run found two unused imports (`INP` in `HealthSection.tsx` and `Trash2` in `LifeMapSection.tsx`); both were removed.
+    - No lint script is configured. Consider a lightweight lint configuration only if it adds clear value.
 
 12. **The project guidelines file is still the untouched template.**
     - `guidelines/Guidelines.md` contains “Add your own guidelines here” and generic template text.
