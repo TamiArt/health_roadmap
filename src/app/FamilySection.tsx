@@ -38,9 +38,9 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
           <button key={id} onClick={() => setTab(id)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
-      {tab==="tests" && <LabTestsTab stages={stages} defaultGender="f"/>}
-      {tab==="vaccines" && <VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age}/>}
-      {tab==="dental" && age>=5 && <DentalTab data={toothData} onChange={setToothData}/>}
+      <div hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f"/></div>
+      <div hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age}/></div>
+      {age>=5 && <div hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>}
     </div>
   );
 }
