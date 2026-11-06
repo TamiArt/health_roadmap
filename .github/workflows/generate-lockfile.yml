@@ -16,8 +16,10 @@ jobs:
   generate-lockfile:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout feature branch
+      - name: Checkout latest feature branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
