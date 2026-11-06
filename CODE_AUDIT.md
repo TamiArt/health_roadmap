@@ -46,7 +46,7 @@
 6. **[Remediated on this branch] CI push trigger excluded new development branches.**
    - Push CI now runs on all branches while PR validation remains scoped to PRs targeting `main`.
    - A concurrency group cancels superseded runs on the same ref to avoid wasting CI time on intermediate commits.
-   - The final branch revision still needs a complete successful CI run.
+   - Final branch revision `96404168aeed60ee96e1e26751fe57059972b8a6` passed the complete GitHub Actions pipeline: TypeScript, 12 unit tests, 10 E2E tests and production build. [Run](https://github.com/TamiArt/health_roadmap/actions/runs/42205150923).
 
 7. **[Remediated on this branch] Russian interface metadata was configured as English.**
    - `index.html` now declares `lang="ru"` and uses a Russian title/description aligned with the current life, health and family scope.
