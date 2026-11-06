@@ -166,6 +166,10 @@ test("preserves health sub-tab data after navigating away and back", async ({ pa
   const note = page.getByPlaceholder("Заметки: дата, врач, жалобы...");
   await note.fill("Сохраняется после перехода между разделами");
 
+  await page.getByRole("button", { name: "Прививки", exact: true }).click();
+  await page.getByRole("button", { name: "Стоматолог", exact: true }).click();
+  await expect(note).toHaveValue("Сохраняется после перехода между разделами");
+
   await page.getByRole("button", { name: "Семья" }).click();
   await page.getByRole("button", { name: "Здоровье" }).click();
   await expect(page.getByRole("button", { name: "Стоматолог", exact: true })).toBeVisible();
