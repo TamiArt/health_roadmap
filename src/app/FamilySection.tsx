@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
 import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT, type Child, type ToothStatus, type VaccineStatus } from "./data";
@@ -10,10 +11,14 @@ import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
 function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   const age = CURRENT_YEAR - child.birthYear;
   const [tab, setTab] = useState<"tests"|"vaccines"|"dental">("tests");
-  const [vaccineStatuses, setVaccineStatuses] = useState<Record<string,VaccineStatus>>(
-    () => Object.fromEntries(childAgeVaccines(age).map(v => [v.id, v.status]))
+  const [vaccineStatuses, setVaccineStatuses] = usePersistentState<Record<string,VaccineStatus>>(
+    `childHealth:${child.id}:vaccineStatuses`,
+    Object.fromEntries(childAgeVaccines(age).map(v => [v.id, v.status]))
   );
-  const [toothData, setToothData] = useState<Record<number,{status:ToothStatus;note:string}>>({});
+  const [toothData, setToothData] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>(
+    `childHealth:${child.id}:toothData`,
+    {}
+  );
   const stages = childAgeStages(age);
   const agePeriod = age<1?"Новорождённый":age<6?"Дошкольник":age<18?"Школьник":"Взрослый";
 
@@ -48,9 +53,9 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
 // ─── Family Section ───────────────────────────────────────────────────────────
 
 export function FamilySection() {
-  const [members, setMembers] = useState(FAMILY_MEMBERS_INIT);
-  const [children, setChildren] = useState<Child[]>([]);
-  const [events, setEvents] = useState(FAMILY_EVENTS_INIT);
+  const [members, setMembers] = usePersistentState("familyMembers", FAMILY_MEMBERS_INIT);
+  const [children, setChildren] = usePersistentState<Child[]>("children", []);
+  const [events, setEvents] = usePersistentState("familyEvents", FAMILY_EVENTS_INIT);
   const [editMode, setEditMode] = useState(false);
   const [viewingChild, setViewingChild] = useState<Child|null>(null);
   const [showAddMember, setShowAddMember] = useState(false);
