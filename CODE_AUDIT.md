@@ -12,11 +12,13 @@
 
 ### High priority
 
-1. **[In progress] Feature state is lost when navigating between main sections.**
+1. **[Partially remediated] Feature state is lost when navigating between main sections.**
    - `src/app/App.tsx` renders only the currently selected feature from a switch statement.
    - `LifeMapSection`, `FamilySection`, `HealthSection` own their editable state locally. Switching to another section unmounts the previous component and recreates its state on return.
    - Result: added life events, family members/events, dental notes and health-tab state can disappear during ordinary navigation. Vaccine statuses are lifted to `App`, but still reset after a full reload.
-   - Next: introduce a typed application-state boundary/repository, then test navigation persistence. Do not add browser persistence until its data/privacy behavior is explicitly defined.
+   - Implemented on the audit branch: main sections and health tabs remain mounted while hidden; E2E scenarios cover life-map/family edits and dental notes across main-section and health-tab navigation.
+   - Scope: this preserves React state only during the current page session. Reloading the page or closing the tab still resets the in-memory data.
+   - Remaining: child-profile health view is still conditionally mounted when opened/closed, and browser persistence is not implemented. Define data ownership and privacy/export/deletion behavior before adding persistence.
 
 2. **The lab-test catalogue has overlapping and duplicate records.**
    - `src/app/data.ts`: the base and newborn groups both contain “Группа крови и резус-фактор” (lines 112 and 135).
