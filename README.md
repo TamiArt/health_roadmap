@@ -14,9 +14,16 @@ npm install
 npm run dev
 ```
 
+## Проверка типов
+
+```bash
+npm run typecheck
+```
+
 ## Production-сборка
 
 ```bash
+npm run typecheck
 npm run build
 ```
 
