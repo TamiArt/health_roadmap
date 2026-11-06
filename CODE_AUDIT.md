@@ -12,7 +12,7 @@
 
 ### High priority
 
-1. **Feature state is lost when navigating between main sections.**
+1. **[In progress] Feature state is lost when navigating between main sections.**
    - `src/app/App.tsx` renders only the currently selected feature from a switch statement.
    - `LifeMapSection`, `FamilySection`, `HealthSection` own their editable state locally. Switching to another section unmounts the previous component and recreates its state on return.
    - Result: added life events, family members/events, dental notes and health-tab state can disappear during ordinary navigation. Vaccine statuses are lifted to `App`, but still reset after a full reload.
