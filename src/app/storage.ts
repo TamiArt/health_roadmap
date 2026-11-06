@@ -128,7 +128,10 @@ export async function decodeBackupValue(value: unknown): Promise<unknown> {
     if (encoded.__lifeMapsBlob !== true || typeof encoded.base64 !== "string" || typeof encoded.mimeType !== "string") {
       throw new Error("Некорректное вложение в резервной копии.");
     }
-    return new Blob([base64ToBytes(encoded.base64)], { type: encoded.mimeType });
+    const bytes = base64ToBytes(encoded.base64);
+    const copy = new Uint8Array(bytes.length);
+    copy.set(bytes);
+    return new Blob([copy.buffer], { type: encoded.mimeType });
   }
   if (Array.isArray(value)) return Promise.all(value.map(decodeBackupValue));
   if (value && typeof value === "object") {
