@@ -27,11 +27,11 @@
    - `childAgeStages(0)` returns both `base` and `newborn`, so the exact blood-group test appears twice for a newborn.
    - Next: define canonical test IDs and age-stage references; preserve repeated schedules only where explicitly justified. Add tests for unique catalogue identity and expected age-stage composition. Medical schedules require source review before consolidation.
 
-3. **“Recommended” test classification has two sources of truth.**
+3. **[Remediated on this branch] “Recommended” test classification had two sources of truth.**
    - `src/app/data.ts` marks tests with `priority: "r"`.
    - `src/app/HealthSection.tsx` separately maintains `RECOMMENDED_IDS`.
    - These diverge: `r11`, `a4`, `a5`, `a9`, `a10` are in the UI set but do not carry the data priority flag. This can produce inconsistent labels if one list is updated without the other.
-   - Next: derive the badge from one typed field; define the meaning of “recommended” separately from clinical necessity and do not imply that a test is universally required.
+   - Implemented: the UI now reads `LabTest.priority` directly. The five catalogue records that were present in the old UI-only set (`r11`, `a4`, `a5`, `a9`, `a10`) were marked with the same existing `priority: "r"` value so visible labels remain unchanged. A unit test locks the recommendation IDs and verifies catalogue IDs are unique. This is a UI classification consistency fix, not a clinical guideline review.
 
 ### Medium priority
 
