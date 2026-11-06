@@ -10,7 +10,7 @@
 ## Запуск
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
