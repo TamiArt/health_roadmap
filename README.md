@@ -22,9 +22,9 @@ npm run build
 
 Сборка создаётся Vite в каталоге `dist/`.
 
-## Технологии
+## Технологии и UI
 
-React 18, TypeScript, Vite, Tailwind CSS 4, Motion, Recharts и Lucide.
+React 18, TypeScript, Vite, Tailwind CSS 4, Motion, Recharts и Lucide. Интерфейс реализован непосредственно в feature-компонентах на JSX и Tailwind CSS. Неиспользуемый каталог шаблонных shadcn/Radix-компонентов удалён; приложение не зависит от Figma UI-блоков или Figma runtime.
 
 ## Текущее состояние
 

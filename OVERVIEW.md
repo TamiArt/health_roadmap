@@ -60,10 +60,12 @@ src/
 
 ### UI и стили
 - React 18 + TypeScript.
+- Компоненты разделов реализованы напрямую на JSX без готового Figma UI-кита и без импортов из каталога шаблонных компонентов.
 - Tailwind CSS 4 и CSS-переменные в `src/styles/theme.css`.
 - Motion (`motion/react`) для анимаций.
 - Recharts для графика в аналитике.
 - Lucide React для иконок.
+- Неиспользуемые shadcn/Radix UI-заготовки удалены; необходимые элементы интерфейса остаются локальными компонентами и CSS/Tailwind-разметкой.
 - Шрифты Playfair Display, Inter и DM Mono подключаются через `src/styles/fonts.css`.
 
 ## Ограничения текущей версии

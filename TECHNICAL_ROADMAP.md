@@ -8,8 +8,9 @@
 
 - Ветка разработки: `chore/initial-technical-roadmap`.
 - Базовая ветка: `main` (только чтение; изменения запрещены).
-- UI: React 18, TypeScript, Vite, Tailwind CSS 4.
-- Библиотеки: motion, Recharts, lucide-react, Radix UI.
+- UI: React 18, TypeScript, Vite, Tailwind CSS 4; без Figma UI runtime и неиспользуемых UI-китов.
+- Библиотеки: motion, Recharts, lucide-react.
+- Интерфейс feature-разделов реализован на JSX и Tailwind CSS; неиспользуемый каталог shadcn/Radix UI-заготовок удалён.
 - Точка входа: `src/main.tsx` → `src/app/App.tsx`.
 - `App.tsx` декомпозирован: корневой компонент отвечает за layout и маршрутизацию разделов; feature-компоненты находятся в отдельных файлах.
 - Верхнеуровневые разделы: Карта жизни, Здоровье, Семья, Аналитика.
@@ -117,7 +118,7 @@
 - Исходный production build: success.
 - Production build после декомпозиции: success.
 - `App.tsx`: 1410 → 39 строк; логика разделена по feature-модулям.
-- Figma-specific tooling и известные Figma Make-следы удалены; обычные React/shadcn UI-примитивы не требуют Figma runtime и не затрагивались.
+- Figma-specific tooling, Figma Make-следы и неиспользуемый каталог shadcn/Radix UI-заготовок удалены. Активные разделы используют собственную JSX/Tailwind-разметку; нужные CSS-токены сохранены.
 - `OVERVIEW.md` приведён к фактической архитектуре.
 - Ручная проверка интерфейса в браузере и автоматизированные пользовательские тесты ещё не выполнены.
 
