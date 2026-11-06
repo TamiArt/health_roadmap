@@ -97,7 +97,7 @@ export const LIFE_EVENTS_INIT: LifeEvent[] = [
 export const HEALTH_ROADMAP = [
   { age: 17, label: "17 лет", done: true, current: false,
     checks: [
-      { name: "Терапевт (профосмотр)",      done: true,  reason: "Базовая проверка состояния здоровья" },
+      { name: "Терапевт (профосмотр)",      done: false, reason: "Пример базового профилактического осмотра" },
       { name: "Гинеколог",                  done: true,  reason: "Важно начать профилактику в подростковом возрасте" },
       { name: "Офтальмолог",                done: true,  reason: "Нагрузка на зрение в период активной учёбы" },
       { name: "Стоматолог",                 done: true,  reason: "Профилактика кариеса и заболеваний дёсен" },
