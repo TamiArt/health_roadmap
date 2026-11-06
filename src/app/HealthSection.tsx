@@ -323,7 +323,7 @@ export function HealthSection({
 }) {
   const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental">("roadmap");
   const [openIdx, setOpenIdx] = useState<number|null>(3);
-  const [toothData, setToothData] = useState<Record<number,{status:ToothStatus;note:string}>>({});
+  const [toothData, setToothData] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
 
   return (
     <div className="p-8 max-w-xl">
