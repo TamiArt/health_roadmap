@@ -39,3 +39,21 @@ test("adds a life event and displays it in the timeline", async ({ page }) => {
 
   await expect(page.getByText("E2E проверка события", { exact: true })).toBeVisible();
 });
+
+test("creates a child profile and opens its health view", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+
+  await page.getByPlaceholder("Имя").fill("E2E ребёнок");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2020");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+
+  await page.getByText("E2E ребёнок", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: "E2E ребёнок" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Анализы", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+  await expect(page.getByRole("heading", { name: "Семья" })).toBeVisible();
+});
