@@ -35,15 +35,15 @@
 
 ### Medium priority
 
-4. **Temporary file object URLs are not released.**
+4. **[Remediated on this branch] Temporary file object URLs were not released.**
    - `LabTestsTab.handleFile` creates URLs using `URL.createObjectURL(file)`.
    - Removing an upload only removes the record; it does not call `URL.revokeObjectURL`. Switching tabs can also unmount the tab and discard the upload state while leaving the URL allocated.
-   - Next: manage URL lifecycle on removal and component cleanup; test multiple uploads/removal/unmount.
+   - Implemented: object URLs are tracked, revoked when an upload is removed, and all remaining URLs are revoked when the lab tab unmounts. Browser-level upload/remove verification remains to be added.
 
-5. **Generated record IDs rely on millisecond timestamps.**
+5. **[Remediated on this branch] Generated record IDs relied on millisecond timestamps.**
    - Life events and family members/children/events use `Date.now().toString()`.
    - Two creations within the same millisecond can collide, causing duplicate React keys and incorrect updates/deletes.
-   - Next: centralize ID creation with `crypto.randomUUID()` (with an explicit supported-browser policy) and test uniqueness.
+   - Implemented: centralized ID creation in `shared.tsx` using `crypto.randomUUID()` with a monotonic in-session fallback; life events, family records and uploaded results now use it. A unit test checks uniqueness across repeated calls.
 
 6. **CI push trigger excludes the new development branch.**
    - `.github/workflows/ci.yml` only runs push builds for `chore/initial-technical-roadmap`.
