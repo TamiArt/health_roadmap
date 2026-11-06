@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { Download, Upload } from "lucide-react";
 import { exportBackup, importBackup } from "./storage";
 
@@ -23,7 +23,7 @@ export function DataManagementPanel({
       link.href = url;
       link.download = `life-maps-backup-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
       setMessage("Резервная копия создана.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось создать резервную копию.");
@@ -32,7 +32,7 @@ export function DataManagementPanel({
     }
   }
 
-  async function handleImport(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImport(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
@@ -53,7 +53,7 @@ export function DataManagementPanel({
   return (
     <section aria-label="Резервное копирование" className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2">
       <div className="flex items-center gap-2 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur">
-        <button type="button" onClick={() => void handleExport()} disabled={busy || !storageReady}
+        <button type="button" onClick={() => void handleExport()} disabled={busy || !storageReady || !!storageError}
           className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50">
           <Download size={13} /> Экспорт
         </button>
