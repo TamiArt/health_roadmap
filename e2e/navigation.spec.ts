@@ -53,10 +53,24 @@ test("creates a child profile and opens its health view", async ({ page }) => {
 
   await page.getByText("E2E ребёнок", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "E2E ребёнок" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Анализы", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Стоматолог", exact: true }).click();
+
+  const childTooth = page.locator('button[title="Зуб 11 — верхний правый резец"]');
+  await childTooth.click();
+  await page.getByRole("button", { name: "Кариес", exact: true }).click();
+  const childNote = page.getByPlaceholder("Заметки: дата, врач, жалобы...");
+  await childNote.fill("Заметка детского профиля");
 
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
   await expect(page.getByRole("heading", { name: "Семья" })).toBeVisible();
+  await page.getByText("E2E ребёнок", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: "E2E ребёнок" })).toBeVisible();
+  await expect(childNote).toHaveValue("Заметка детского профиля");
+
+  await page.getByRole("button", { name: "Карта жизни" }).click();
+  await page.getByRole("button", { name: "Семья" }).click();
+  await expect(page.getByRole("heading", { name: "E2E ребёнок" })).toBeVisible();
+  await expect(childNote).toHaveValue("Заметка детского профиля");
 });
 
 test("edits and deletes a life event", async ({ page }) => {
