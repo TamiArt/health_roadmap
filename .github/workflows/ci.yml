@@ -27,5 +27,9 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
+      - name: Browser dependencies
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: npm run test:e2e
       - name: Production build
         run: npm run build
