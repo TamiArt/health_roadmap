@@ -101,3 +101,35 @@
 - Do not change clinical recommendations without cited source, jurisdiction, version/date and an explicit review.
 - Do not add persistent storage until backup, export/import, deletion and privacy behavior are designed.
 - Run typecheck, unit tests, E2E and production build after each functional change; report what was actually run.
+
+
+## Follow-up implementation — feat/local-first-data-platform
+
+Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section supersedes the earlier "main remains" note above.
+
+### Implemented
+- Replaced personal-looking life-event and family seed data with generic demo fixtures. Health-roadmap examples were also generalized.
+- Removed duplicate infant assignments for blood group/Rh and neonatal screening. Moved the adult chest-imaging example out of the birth-stage group, preserving the existing text and frequency.
+- Corrected age-stage selection: birth-stage entries are shown only for infants; preschool, school and young-adult stages no longer inherit birth-only items.
+- Added stable `conceptId` values for recurring test concepts and separate `LAB_TEST_CONCEPTS` / `LAB_TEST_ASSIGNMENTS` read models. `LIFE_STAGES` remains the compatibility grouping consumed by current UI components.
+- Added IndexedDB persistence for life events, family members, children, family events, vaccine statuses, adult/child dental records and uploaded lab-result Blobs.
+- Added JSON backup export/import, schema versioning, a 0→1 migration path, validation of record keys, import confirmation and Blob base64 encoding.
+- Added E2E coverage for 768 px tablet overflow, keyboard activation, child form validation, reload persistence and backup restore.
+- Added a source-file line-count check (1500 lines maximum).
+- Added npm audit to CI. The first audit found vulnerable Vite and Vitest dependency trees; direct versions were raised from Vite 6.3.5 to 6.4.5 and Vitest 3.2.4 to 3.2.7. The updated audit result is pending CI verification.
+
+### Remaining / not yet verified
+- No `package-lock.json` is committed yet. CI still installs with `npm install`; switching to `npm ci` must wait until a real lockfile is generated with Node 22/npm 10.9.x. Do not hand-author it.
+- GitHub Actions reported TypeScript errors during intermediate commits; those were corrected (missing demo fixture export and BlobPart typing). The newest full run must pass before this branch is considered stable.
+- Browser-native IndexedDB is local to one browser profile. There is no server database, account system, encryption-at-rest layer or cross-device sync.
+- JSON backups contain sensitive personal/medical data in readable form. Users must protect exported files. Encryption/password protection is not implemented.
+- Lab-result Blobs are included in backups, but backup size is capped at 100 MB and each uploaded file at 15 MB.
+- Manual tablet review, full keyboard/screen-reader audit and all-form validation remain incomplete; E2E coverage is not a substitute for manual review.
+- The normalized catalogue is a compatibility projection. A future refactor should make concepts and assignments the canonical source rather than keeping the legacy nested `LIFE_STAGES` shape as the authoring source.
+- Medical content and schedules have not been clinically reviewed or updated.
+
+### Data safety notes
+- IndexedDB records are not encrypted by this implementation.
+- Import atomically replaces the current app-record store after format/schema/key validation; it is destructive by design and guarded by a confirmation dialog.
+- Clearing browser site data deletes the local database. Keep independent backups.
+- The first app launch seeds generic demo content; subsequent edits are saved locally. There is no migration of earlier in-memory-only session data after a page refresh.
