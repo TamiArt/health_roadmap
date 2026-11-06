@@ -140,6 +140,7 @@ test("preserves section state when navigating between main sections", async ({ p
   await page.getByPlaceholder("Год (2025)").fill("2026");
   await page.getByPlaceholder("Название события").fill("Событие после навигации");
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: /^Все события/ }).click();
 
   await page.getByRole("button", { name: "Семья" }).click();
   await page.getByRole("button", { name: "Изменить" }).click();
