@@ -33,9 +33,9 @@ export function Sidebar({ active, onSelect }: { active: Section; onSelect: (s: S
           </div>
         </div>
       </div>
-      <nav className="flex flex-1 flex-row sm:flex-col items-center sm:items-stretch justify-around sm:justify-start p-1 sm:p-2.5 sm:space-y-0.5">
+      <nav aria-label="Основная навигация" className="flex flex-1 flex-row sm:flex-col items-center sm:items-stretch justify-around sm:justify-start p-1 sm:p-2.5 sm:space-y-0.5">
         {NAV_ITEMS.map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => onSelect(id as Section)}
+          <button key={id} type="button" aria-current={active === id ? "page" : undefined} onClick={() => onSelect(id as Section)}
             className={`flex-1 sm:flex-none w-full flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1 sm:gap-2.5 px-1 sm:px-3 py-1.5 sm:py-2.5 rounded-lg text-[10px] sm:text-sm transition-all ${
               active === id ? "bg-primary text-primary-foreground font-medium shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
