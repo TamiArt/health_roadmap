@@ -53,7 +53,7 @@ test("creates a child profile and opens its health view", async ({ page }) => {
 
   await page.getByText("E2E ребёнок", { exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "E2E ребёнок" })).toBeVisible();
-  await page.getByRole("button", { name: "Стоматолог", exact: true }).click();
+  await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
 
   const childTooth = page.locator('button[title="Зуб 11 — верхний правый резец"]').last();
   await childTooth.click();
@@ -99,7 +99,7 @@ test("edits and deletes a life event", async ({ page }) => {
 test("changes a vaccine status and reflects the new state", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Здоровье" }).click();
-  await page.getByRole("button", { name: "Прививки", exact: true }).click();
+  await page.getByRole("tab", { name: "Прививки", exact: true }).click();
 
   const vaccineStatus = page.getByRole("button", { name: "Нужна", exact: true }).first();
   await expect(vaccineStatus).toBeVisible();
@@ -112,7 +112,7 @@ test("changes a vaccine status and reflects the new state", async ({ page }) => 
 test("updates a tooth status and saves its note", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Здоровье" }).click();
-  await page.getByRole("button", { name: "Стоматолог", exact: true }).click();
+  await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
 
   const tooth = page.locator('button[title="Зуб 11 — верхний правый резец"]');
   await tooth.click();
@@ -173,7 +173,7 @@ test("preserves section state when navigating between main sections", async ({ p
 test("preserves health sub-tab data after navigating away and back", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Здоровье" }).click();
-  await page.getByRole("button", { name: "Стоматолог", exact: true }).click();
+  await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
 
   const tooth = page.locator('button[title="Зуб 11 — верхний правый резец"]');
   await tooth.click();
@@ -181,13 +181,13 @@ test("preserves health sub-tab data after navigating away and back", async ({ pa
   const note = page.getByPlaceholder("Заметки: дата, врач, жалобы...");
   await note.fill("Сохраняется после перехода между разделами");
 
-  await page.getByRole("button", { name: "Прививки", exact: true }).click();
-  await page.getByRole("button", { name: "Стоматолог", exact: true }).click();
+  await page.getByRole("tab", { name: "Прививки", exact: true }).click();
+  await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
   await expect(note).toHaveValue("Сохраняется после перехода между разделами");
 
   await page.getByRole("button", { name: "Семья" }).click();
   await page.getByRole("button", { name: "Здоровье" }).click();
-  await expect(page.getByRole("button", { name: "Стоматолог", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Стоматолог", exact: true })).toBeVisible();
   await expect(tooth).toBeVisible();
   await expect(note).toHaveValue("Сохраняется после перехода между разделами");
   await expect(page.getByRole("button", { name: "Кариес", exact: true })).toHaveClass(/bg-red-500/);
@@ -387,7 +387,7 @@ test("renders age-specific child health paths without duplicate birth tests", as
     await page.getByText(profile.name, { exact: true }).first().click();
     await expect(page.getByRole("heading", { name: profile.name })).toBeVisible();
     await expect(page.locator("span:visible").filter({ hasText: profile.stage }).first()).toBeVisible();
-    const dentalTab = page.getByRole("button", { name: "Стоматолог", exact: true });
+    const dentalTab = page.getByRole("tab", { name: "Стоматолог", exact: true });
     if (profile.hasDental) await expect(dentalTab).toBeVisible();
     else await expect(dentalTab).toHaveCount(0);
 
