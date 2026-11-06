@@ -26,7 +26,7 @@ export default function App() {
     <div className="flex h-screen flex-col sm:flex-row bg-background overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
       <Sidebar active={section} onSelect={setSection} />
       <main
-        className="flex-1 overflow-y-auto"
+        className="order-first sm:order-last min-h-0 min-w-0 flex-1 overflow-y-auto"
         style={{ backgroundImage: "radial-gradient(circle, rgba(44,95,90,0.045) 1px, transparent 1px)", backgroundSize: "26px 26px" }}
       >
         <motion.div key={section} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }}>
