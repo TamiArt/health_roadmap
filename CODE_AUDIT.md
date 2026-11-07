@@ -152,3 +152,20 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 ### Проверки
 - На ревизии `64e7f94c7f2ab4afd1edc6cdb538e4fce5b1a603` CI: TypeScript, структура, npm audit и unit tests прошли; E2E выявил первопричину, production build был пропущен из-за падения E2E.
 - Исправление и новые E2E-сценарии закоммичены отдельно; итоговый статус будет зафиксирован после завершения CI.
+
+
+## UI/accessibility and input-boundary audit — 2026-11-07
+
+### Fixed in `feat/ui-quality-accessibility`
+- The persistent local-storage notice is hidden at mobile breakpoints. Transient operation/error feedback remains visible.
+- Backup controls are offset above the fixed mobile navigation; E2E now checks their bounding boxes do not overlap.
+- E2E navigation selectors now use `tab` roles; vaccine status controls are queried by their accessible labels rather than visible status text alone.
+- Added pure validation helpers for bounded integers and required trimmed text, with unit tests.
+- Family forms now reject blank/oversized names, ages outside 0–120, non-integer ages, child birth years outside 1900–2026, and oversized optional relation/date/emoji values.
+- Life timeline create/edit paths now reject years outside 1900–2100, blank/oversized titles, descriptions over 500 characters, and oversized emoji values.
+- Added E2E coverage for whitespace-only child names, future birth years, invalid timeline years and mobile menu clearance.
+
+### Verification status
+- TypeScript, project structure, dependency audit and unit tests were observed passing on the preceding CI revision before the final combined validation changes.
+- The latest combined revision's full CI is pending; do not treat E2E or production build as passed until GitHub Actions completes.
+- Manual testing on real mobile devices and a full screen-reader review remain outstanding.
