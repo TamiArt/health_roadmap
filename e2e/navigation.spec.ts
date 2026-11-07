@@ -476,6 +476,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await page.getByRole("button", { name: "Здоровье" }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("07.11.2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toHaveCount(0);
 });
