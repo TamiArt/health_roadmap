@@ -222,3 +222,10 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - `writeRecord` performs a compare-and-write in a single `readwrite` transaction. If the stored revision differs from the caller's expected revision, the transaction does not write and returns the already committed value/revision.
 - The hook adopts the winning committed value on conflict instead of overwriting it. BroadcastChannel messages include revisions; older or duplicate messages are ignored.
 - E2E asserts the revision metadata exists and has advanced after creating and editing a manual lab result. Full CI for this revision is pending.
+
+
+## Deterministic stale-tab conflict E2E — 2026-11-07
+- Added a two-tab Playwright scenario where both tabs load the same initial revision.
+- The second tab disables `BroadcastChannel` before app initialization so it deliberately remains stale while the first tab commits a newer revision. The test waits for the first transaction's revision to reach `2` before submitting the stale edit.
+- The stale tab then attempts a different value. Assertions verify that compare-and-write rejects it, the stale tab adopts the committed value, and a reload still reads the winning value (the rejected value is absent).
+- This tests the IndexedDB conflict guard independently of live cross-tab notifications. Full CI is pending.
