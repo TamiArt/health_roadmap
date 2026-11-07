@@ -631,27 +631,27 @@ test("keeps lab measurements isolated between child profiles after switching and
   await saveChildMeasurement("Второй профиль — изоляция", "9.2");
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
-  // The profile component remains mounted while hidden, so its expanded stage is preserved.
+  // Inactive profile panels remain mounted; assert the other profile value is hidden, not absent from the DOM.
   await expect(page.getByText("12.1 г/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("9.2 г/л", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("9.2 г/л", { exact: true })).toBeHidden();
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
-  // Its stage is also still expanded from the initial save.
+  // The first profile panel remains mounted but must be hidden while the second profile is active.
   await expect(page.getByText("9.2 г/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("12.1 г/л", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("12.1 г/л", { exact: true })).toBeHidden();
 
   await page.reload();
   await page.getByRole("button", { name: "Семья" }).click();
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
   await expect(page.getByText("12.1 г/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("9.2 г/л", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("9.2 г/л", { exact: true })).toBeHidden();
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
   await expect(page.getByText("9.2 г/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("12.1 г/л", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("12.1 г/л", { exact: true })).toBeHidden();
 });
 
 test("stale tab cannot overwrite a newer lab measurement revision", async ({ page }) => {
