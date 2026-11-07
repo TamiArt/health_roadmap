@@ -169,3 +169,11 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - TypeScript, project structure, dependency audit and unit tests were observed passing on the preceding CI revision before the final combined validation changes.
 - The latest combined revision's full CI is pending; do not treat E2E or production build as passed until GitHub Actions completes.
 - Manual testing on real mobile devices and a full screen-reader review remain outstanding.
+
+
+## Medical attachment validation — 2026-11-07
+- Added client-side allowlisting for PDF, PNG, JPEG, WEBP and GIF. SVG and unknown extensions are rejected.
+- The validator checks extension/MIME consistency, zero-byte files and the existing 15 MiB per-file limit. Empty MIME metadata is tolerated when the extension is supported.
+- The file input now has an accessible name; invalid selection is reported and the input is reset so the same file can be selected again.
+- Unit tests cover allowed formats, unsupported SVG, MIME mismatch, empty files and the exact/over-limit size boundary. E2E covers rejecting SVG and accepting a PDF.
+- Full CI for the final E2E revision is still pending; do not mark browser tests/build as passed until the latest workflow completes.
