@@ -20,6 +20,24 @@ export function isValidRequiredText(value: string, maxLength: number): boolean {
   return trimmed.length > 0 && trimmed.length <= maxLength;
 }
 
+/** Validate a manually entered lab result and its sample date. */
+export function validateLabMeasurement(value: string, date: string, unit: string): string | null {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return "Укажите значение результата.";
+  if (trimmedValue.length > 40) return "Значение не должно превышать 40 символов.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "Укажите корректную дату анализа.";
+  const parsedDate = new Date(date + "T00:00:00");
+  if (Number.isNaN(parsedDate.getTime()) || parsedDate.getFullYear() !== Number(date.slice(0, 4)) ||
+      parsedDate.getMonth() + 1 !== Number(date.slice(5, 7)) || parsedDate.getDate() !== Number(date.slice(8, 10))) {
+    return "Укажите корректную дату анализа.";
+  }
+  const now = new Date();
+  const today = [now.getFullYear(), String(now.getMonth()+1).padStart(2,"0"), String(now.getDate()).padStart(2,"0")].join("-");
+  if (date > today) return "Дата анализа не может быть в будущем.";
+  if (unit.trim().length > 20) return "Единица измерения не должна превышать 20 символов.";
+  return null;
+}
+
 /** Validate lab-result uploads before persisting their Blob in IndexedDB. */
 export function validateLabUpload(file: Pick<File, "name" | "type" | "size">): string | null {
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
