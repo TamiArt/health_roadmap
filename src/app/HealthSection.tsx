@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
-import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type VaccineRecord, type VaccineStatus } from "./data";
-import { childAgeVaccines, createId } from "./shared";
+import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type LabMeasurement, type VaccineRecord, type VaccineStatus } from "./data";
+import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
@@ -11,6 +11,16 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   const [gender, setGender] = useState<"f"|"m">(defaultGender);
   const [openStage, setOpenStage] = useState<string|null>(null);
   const [uploads, setUploads, uploadsReady, uploadsError] = usePersistentState<Record<string, UploadedResult[]>>(storageKey, {});
+  const [measurements, setMeasurements, measurementsReady, measurementsError] = usePersistentState<Record<string, LabMeasurement[]>>(storageKey.replace(/labUploads$/, "labMeasurements"), {});
+  const [measurementTestId, setMeasurementTestId] = useState<string | null>(null);
+  const [editingMeasurementId, setEditingMeasurementId] = useState<string | null>(null);
+  const [measurementDate, setMeasurementDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  });
+  const [measurementValue, setMeasurementValue] = useState("");
+  const [measurementUnit, setMeasurementUnit] = useState("");
+  const [measurementError, setMeasurementError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingId = useRef<string|null>(null);
@@ -24,6 +34,8 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
     objectUrls.forEach(url => URL.revokeObjectURL(url));
   }, [objectUrls]);
   const allStages = stages ?? LIFE_STAGES;
+  const currentDate = new Date();
+  const todayIsoDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,"0")}-${String(currentDate.getDate()).padStart(2,"0")}`;
 
   function triggerUpload(testId: string) {
     if (!uploadsReady || uploadsError) return;
@@ -31,10 +43,13 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
     fileRef.current?.click();
   }
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; const id = pendingId.current;
-    if (!file || !id) return;
-    if (file.size > 15 * 1024 * 1024) {
-      setUploadError("Размер одного файла не должен превышать 15 МБ.");
+    const file = e.target.files?.[0];
+    const id = pendingId.current;
+    pendingId.current = null;
+    if (!file || !id) { e.target.value = ""; return; }
+    const validationError = validateLabUpload(file);
+    if (validationError) {
+      setUploadError(validationError);
       e.target.value = "";
       return;
     }
@@ -44,10 +59,44 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
       name:file.name,
       date:new Date().toLocaleDateString("ru-RU"),
       blob:file,
-      isPdf:file.type==="application/pdf",
+      isPdf:file.name.toLowerCase().endsWith(".pdf"),
     };
     setUploads(prev => ({ ...prev, [id]:[...(prev[id]??[]), result] }));
     e.target.value="";
+  }
+
+  function startMeasurement(testId: string, existing?: LabMeasurement) {
+    setMeasurementTestId(testId);
+    setEditingMeasurementId(existing?.id ?? null);
+    setMeasurementValue(existing?.value ?? "");
+    setMeasurementUnit(existing?.unit ?? "");
+    setMeasurementError(null);
+    const now = new Date();
+    setMeasurementDate(existing?.date ?? `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`);
+  }
+
+  function saveMeasurement(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!measurementTestId || !measurementsReady || measurementsError) return;
+    const validationError = validateLabMeasurement(measurementValue, measurementDate, measurementUnit);
+    if (validationError) { setMeasurementError(validationError); return; }
+    const record: LabMeasurement = { id: editingMeasurementId ?? createId(), date: measurementDate, value: measurementValue.trim(), unit: measurementUnit.trim() };
+    setMeasurements(prev => ({
+      ...prev,
+      [measurementTestId]: [
+        ...(prev[measurementTestId] ?? []).filter(item => item.id !== record.id),
+        record,
+      ].sort((a,b) => b.date.localeCompare(a.date)),
+    }));
+    setMeasurementTestId(null);
+    setEditingMeasurementId(null);
+    setMeasurementValue("");
+    setMeasurementUnit("");
+    setMeasurementError(null);
+  }
+
+  function removeMeasurement(testId: string, measurementId: string) {
+    setMeasurements(prev => ({ ...prev, [testId]: (prev[testId] ?? []).filter(item => item.id !== measurementId) }));
   }
 
   function removeUpload(testId: string, uploadId: string) {
@@ -59,8 +108,8 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
 
   return (
     <div>
-      <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} />
-      {(uploadError || uploadsError) && <p role="alert" className="mb-3 text-xs text-red-600">{uploadError ?? uploadsError}</p>}
+      <input ref={fileRef} type="file" aria-label="Загрузить результат анализа" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif,.pdf" className="hidden" onChange={handleFile} />
+      {(uploadError || uploadsError || measurementsError) && <p role="alert" className="mb-3 text-xs text-red-600">{uploadError ?? uploadsError ?? measurementsError}</p>}
       {!stages && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div className="flex gap-1 p-1 bg-muted rounded-lg">
@@ -79,7 +128,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
           const filtered = stage.tests.filter(t => t.gender==="all"||t.gender===gender);
           if (!filtered.length) return null;
           const isOpen = openStage===stage.id;
-          const uploadedCount = filtered.reduce((n,t) => n+(uploads[t.id]?.length??0), 0);
+          const uploadedCount = filtered.reduce((n,t) => n+(uploads[t.id]?.length??0)+(measurements[t.id]?.length??0), 0);
           return (
             <div key={stage.id} className={`bg-card rounded-xl border overflow-hidden ${stage.pinned?"border-amber-300/60":stage.current?"border-primary/30":"border-border"}`}>
               <button onClick={() => setOpenStage(isOpen?null:stage.id)} className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/30 transition-colors text-left">
@@ -96,7 +145,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {uploadedCount>0 && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{uploadedCount} загружено</span>}
+                  {uploadedCount>0 && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{uploadedCount} результатов</span>}
                   <span className="text-xs text-muted-foreground" style={{ fontFamily:"'DM Mono', monospace" }}>{filtered.length}</span>
                   <ChevronRight size={13} className={`text-muted-foreground transition-transform ${isOpen?"rotate-90":""}`} />
                 </div>
@@ -105,6 +154,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                 <div className="border-t border-border divide-y divide-border/60">
                   {filtered.map(test => {
                     const ups = uploads[test.id]??[];
+                    const values = measurements[test.id]??[];
                     const isRec = test.priority === "r";
                     return (
                       <div key={test.id} className="px-4 py-3.5">
@@ -119,8 +169,16 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                             </div>
                             <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{test.what}</p>
                             <p className="text-[11px] text-muted-foreground/70 mt-1 italic" style={{ fontFamily:"'DM Mono', monospace" }}>{test.frequency}</p>
-                            {ups.length>0 && (
+                            {(ups.length>0 || values.length>0) && (
                               <div className="mt-2 space-y-1">
+                                {values.map(item => (
+                                  <div key={item.id} className="flex items-center gap-2 bg-emerald-50/70 rounded-lg px-3 py-2">
+                                    <span className="text-xs font-semibold text-foreground flex-1 min-w-0">{item.value}{item.unit ? ` ${item.unit}` : ""}</span>
+                                    <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{new Date(`${item.date}T00:00:00`).toLocaleDateString("ru-RU")}</span>
+                                    <button type="button" aria-label={`Изменить результат от ${item.date}`} onClick={() => startMeasurement(test.id, item)} className="text-[10px] text-primary hover:underline">Изменить</button>
+                                    <button type="button" aria-label={`Удалить результат от ${item.date}`} onClick={() => removeMeasurement(test.id, item.id)}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
+                                  </div>
+                                ))}
                                 {ups.map(r => (
                                   <div key={r.id} className="flex items-center gap-2 bg-primary/5 rounded-lg px-3 py-2">
                                     {r.isPdf?<FileText size={12} className="text-primary shrink-0"/>:<ImageIcon size={12} className="text-primary shrink-0"/>}
@@ -132,10 +190,34 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                               </div>
                             )}
                           </div>
-                          <button type="button" onClick={() => triggerUpload(test.id)} disabled={!uploadsReady || !!uploadsError} className="shrink-0 flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-border hover:border-primary/50 hover:text-primary text-muted-foreground transition-all disabled:opacity-50">
-                            <Upload size={11}/>Загрузить
-                          </button>
+                          <div className="shrink-0 flex flex-col gap-1.5">
+                            <button type="button" onClick={() => startMeasurement(test.id)} disabled={!measurementsReady || !!measurementsError} className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-all disabled:opacity-50">+ Значение</button>
+                            <button type="button" onClick={() => triggerUpload(test.id)} disabled={!uploadsReady || !!uploadsError} className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-border hover:border-primary/50 hover:text-primary text-muted-foreground transition-all disabled:opacity-50">
+                              <Upload size={11}/>Файл
+                            </button>
+                          </div>
                         </div>
+                        {measurementTestId === test.id && (
+                          <form onSubmit={saveMeasurement} className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 space-y-2">
+                            <p className="text-xs font-semibold text-foreground">{editingMeasurementId ? "Редактирование результата анализа" : "Новый результат анализа"}</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <label className="text-[11px] text-muted-foreground">Дата анализа
+                                <input aria-label="Дата анализа" type="date" max={todayIsoDate} value={measurementDate} onChange={event => setMeasurementDate(event.target.value)} required className="mt-1 w-full min-w-0 text-xs px-2 py-1.5 rounded border border-border bg-card text-foreground"/>
+                              </label>
+                              <label className="text-[11px] text-muted-foreground">Значение
+                                <input aria-label="Значение результата" type="text" maxLength={40} value={measurementValue} onChange={event => setMeasurementValue(event.target.value)} placeholder="Например, 5.4" required className="mt-1 w-full min-w-0 text-xs px-2 py-1.5 rounded border border-border bg-card text-foreground"/>
+                              </label>
+                              <label className="text-[11px] text-muted-foreground">Единицы измерения
+                                <input aria-label="Единицы измерения" type="text" maxLength={20} value={measurementUnit} onChange={event => setMeasurementUnit(event.target.value)} placeholder="ммоль/л" className="mt-1 w-full min-w-0 text-xs px-2 py-1.5 rounded border border-border bg-card text-foreground"/>
+                              </label>
+                            </div>
+                            {measurementError && <p role="alert" className="text-xs text-red-600">{measurementError}</p>}
+                            <div className="flex justify-end gap-2">
+                              <button type="button" onClick={() => { setMeasurementTestId(null); setEditingMeasurementId(null); setMeasurementError(null); }} className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground">Отмена</button>
+                              <button type="submit" className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground">{editingMeasurementId ? "Сохранить изменения" : "Сохранить результат"}</button>
+                            </div>
+                          </form>
+                        )}
                       </div>
                     );
                   })}
@@ -184,7 +266,7 @@ export function VaccinesTab({
             <span className="text-sm font-semibold text-foreground">{v.name}</span>
             {v.mandatory && <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Обязательная</span>}
           </div>
-          <button onClick={() => cycle(v.id)} className={`shrink-0 text-[11px] px-2.5 py-1 rounded-lg font-medium cursor-pointer transition-all ${cfg.bg} ${cfg.text}`}>{cfg.label}</button>
+          <button type="button" aria-label={`Изменить статус вакцины «${v.name}». Текущий статус: ${cfg.label}`} onClick={() => cycle(v.id)} className={`shrink-0 text-[11px] px-2.5 py-1 rounded-lg font-medium cursor-pointer transition-all ${cfg.bg} ${cfg.text}`}>{cfg.label}</button>
         </div>
         <p className="text-xs text-muted-foreground mb-1">{v.protects}</p>
         <p className="text-[11px] text-muted-foreground/70 italic mb-1" style={{ fontFamily:"'DM Mono', monospace" }}>{v.schedule}</p>
@@ -257,7 +339,7 @@ export function DentalTab({
   function ToothCell({ n, upper }: { n:number; upper:boolean }) {
     const t=data[n]; const cfg=t?TOOTH_STATUS_CFG[t.status]:null; const isSel=selected===n;
     return (
-      <button onClick={() => pick(n)} title={toothLabel(n)} style={{ flexDirection:upper?"column-reverse":"column" }} className="flex flex-col items-center gap-0.5">
+      <button type="button" onClick={() => pick(n)} title={toothLabel(n)} aria-label={`${toothLabel(n)}${t ? `, статус: ${TOOTH_STATUS_CFG[t.status].label}` : ", статус не указан"}`} aria-pressed={isSel} style={{ flexDirection:upper?"column-reverse":"column" }} className="flex flex-col items-center gap-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <div className={`w-6 h-8 flex items-center justify-center border-2 transition-all text-[8px] font-bold ${upper?"rounded-t-lg rounded-b-sm":"rounded-b-lg rounded-t-sm"} ${isSel?"ring-2 ring-offset-1 ring-primary border-primary":cfg?"border-transparent":"border-border"}`}
           style={{ backgroundColor:cfg?cfg.fill:"#f1f5f9", color:cfg?(t?.status==="extracted"?"#64748b":"#fff"):"#94a3b8" }}>
           {n%10}
@@ -301,7 +383,7 @@ export function DentalTab({
           <div className="flex flex-wrap gap-1.5 mb-3">
             {(Object.keys(TOOTH_STATUS_CFG) as ToothStatus[]).map(s => {
               const c=TOOTH_STATUS_CFG[s];
-              return <button key={s} onClick={() => setStatus(selected,s)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${selData?.status===s?`${c.bg} ${c.text}`:"bg-muted text-muted-foreground hover:bg-muted/80"}`}>{c.label}</button>;
+              return <button key={s} type="button" aria-pressed={selData?.status===s} onClick={() => setStatus(selected,s)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${selData?.status===s?`${c.bg} ${c.text}`:"bg-muted text-muted-foreground hover:bg-muted/80"}`}>{c.label}</button>;
             })}
           </div>
           <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={saveNote} placeholder="Заметки: дата, врач, жалобы..." rows={2}
@@ -326,6 +408,8 @@ export function HealthSection({
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
 }) {
   const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental">("roadmap");
+  const tabsId = useId();
+  const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"]] as const;
   const [openIdx, setOpenIdx] = useState<number|null>(3);
   const [toothData, setToothData, toothDataReady, toothDataError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
 
@@ -336,13 +420,13 @@ export function HealthSection({
     <div className="p-8 max-w-xl">
       <h1 className="text-2xl font-bold text-foreground mb-1" style={{ fontFamily:"'Playfair Display', serif" }}>Навигатор здоровья</h1>
       <p className="text-sm text-muted-foreground mb-5">Профилактика и медицинская история</p>
-      <div className="flex gap-1 bg-muted p-1 rounded-lg mb-7">
-        {[["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"]].map(([id,label]) => (
-          <button key={id} onClick={() => setTab(id as typeof tab)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
+      <div role="tablist" aria-label="Разделы навигатора здоровья" className="flex gap-1 bg-muted p-1 rounded-lg mb-7">
+        {tabs.map(([id,label]) => (
+          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} onClick={() => setTab(id)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
 
-      <div hidden={tab !== "roadmap"}>
+      <div id={`${tabsId}-panel-roadmap`} role="tabpanel" aria-labelledby={`${tabsId}-tab-roadmap`} hidden={tab !== "roadmap"}>
         <div className="grid grid-cols-3 gap-3 mb-8">
           {[
             { emoji:"📅", val:"Гинеколог",  sub:"Рекомендован сейчас",  label:"Следующий визит"    },
@@ -398,9 +482,9 @@ export function HealthSection({
           </div>
         </div>
       </div>
-      <div hidden={tab !== "tests"}><LabTestsTab/></div>
-      <div hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
-      <div hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
+      <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab/></div>
+      <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
+      <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
     </div>
   );
 }

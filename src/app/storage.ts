@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 const DB_NAME = "life-maps";
 const DB_VERSION = 1;
@@ -8,7 +8,8 @@ export const CURRENT_SCHEMA_VERSION = 1;
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const RESTORE_EVENT = "life-maps:backup-restored";
 
-type StoredRecord = { key: string; value: unknown };
+type StoredRecord = { key: string; value: unknown; revision?: number };
+type VersionedRecord<T> = { value: T | undefined; revision: number };
 export type BackupPayload = {
   format: typeof BACKUP_FORMAT;
   schemaVersion: number;
@@ -24,10 +25,11 @@ const ALLOWED_KEYS = new Set([
   "vaccineStatuses",
   "adultToothData",
   "labUploads",
+  "labMeasurements",
 ]);
 
 export function isAllowedRecordKey(key: string): boolean {
-  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|toothData|labUploads)$/.test(key);
+  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|toothData|labUploads|labMeasurements)$/.test(key);
 }
 
 let databasePromise: Promise<IDBDatabase> | undefined;
@@ -46,12 +48,21 @@ function openDatabase(): Promise<IDBDatabase> {
         database.createObjectStore(STORE_NAME, { keyPath: "key" });
       }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => {
+        // Release this tab's connection so another tab can upgrade the schema.
+        database.close();
+        databasePromise = undefined;
+      };
+      resolve(database);
+    };
     request.onerror = () => {
       databasePromise = undefined;
       reject(request.error ?? new Error("Не удалось открыть локальную базу данных."));
     };
-    request.onblocked = () => reject(new Error("Обновление локальной базы заблокировано другой вкладкой."));
+    // "blocked" is a waiting state, not a terminal error. Keep the request
+    // pending; an older tab may close its connection and let this open succeed.
   });
   return databasePromise;
 }
@@ -63,23 +74,46 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
-export async function readRecord<T>(key: string): Promise<T | undefined> {
+export async function readRecordState<T>(key: string): Promise<VersionedRecord<T>> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readonly");
   const record = await requestResult<StoredRecord | undefined>(transaction.objectStore(STORE_NAME).get(key));
-  return record?.value as T | undefined;
+  return { value: record?.value as T | undefined, revision: record?.revision ?? 0 };
 }
 
-export async function writeRecord<T>(key: string, value: T): Promise<void> {
+export async function readRecord<T>(key: string): Promise<T | undefined> {
+  return (await readRecordState<T>(key)).value;
+}
+
+/** Compare-and-write: a stale tab cannot overwrite a newer IndexedDB revision. */
+export async function writeRecord<T>(key: string, value: T, expectedRevision?: number): Promise<VersionedRecord<T> & { conflict: boolean }> {
   if (!isAllowedRecordKey(key)) throw new Error("Недопустимый ключ пользовательских данных.");
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readwrite");
-  transaction.objectStore(STORE_NAME).put({ key, value } satisfies StoredRecord);
+  const store = transaction.objectStore(STORE_NAME);
+  let result: VersionedRecord<T> & { conflict: boolean } = { value, revision: 0, conflict: false };
+  const request = store.get(key);
+  request.onsuccess = () => {
+    const current = request.result as StoredRecord | undefined;
+    const currentRevision = current?.revision ?? 0;
+    if (expectedRevision !== undefined && currentRevision !== expectedRevision) {
+      result = { value: current?.value as T | undefined, revision: currentRevision, conflict: true };
+      return;
+    }
+    result = { value, revision: currentRevision + 1, conflict: false };
+    store.put({ key, value, revision: result.revision } satisfies StoredRecord);
+  };
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось сохранить данные."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Сохранение отменено."));
   });
+  if (!result.conflict && typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("life-maps:records");
+    channel.postMessage({ key, value, revision: result.revision });
+    channel.close();
+  }
+  return result;
 }
 
 async function readAllRecords(): Promise<Record<string, unknown>> {
@@ -157,6 +191,18 @@ function validateRecordValue(key: string, value: unknown): void {
   }
 
   if (!isPlainRecord(value)) throw new Error(`Повреждена запись данных: ${key}`);
+  if (key === "labMeasurements" || key.endsWith(":labMeasurements")) {
+    for (const [testId, measurements] of Object.entries(value)) {
+      if (!Array.isArray(measurements) || measurements.some(item => {
+        if (!isPlainRecord(item) || typeof item.id !== "string" || typeof item.value !== "string" ||
+            typeof item.unit !== "string" || typeof item.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.date)) return true;
+        const date = new Date(item.date + "T00:00:00");
+        return Number.isNaN(date.getTime()) || date.getFullYear() !== Number(item.date.slice(0,4)) ||
+          date.getMonth()+1 !== Number(item.date.slice(5,7)) || date.getDate() !== Number(item.date.slice(8,10));
+      })) throw new Error(`Повреждены значения анализов для исследования ${testId}.`);
+    }
+  }
+
   if (key === "labUploads" || key.endsWith(":labUploads")) {
     for (const [testId, uploads] of Object.entries(value)) {
       if (!Array.isArray(uploads) || uploads.some(item => {
@@ -245,13 +291,18 @@ export function usePersistentState<T>(
   const [value, setValue] = useState<T>(initialValue);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const skipNextWrite = useRef<{ value: T } | null>(null);
+  const revision = useRef(0);
 
   useEffect(() => {
     let active = true;
     const load = async (resetMissing = false) => {
       try {
-        const saved = await readRecord<T>(key);
-        if (active) setValue(saved !== undefined ? saved : resetMissing ? initialValue : current => current);
+        const saved = await readRecordState<T>(key);
+        if (active) {
+          revision.current = saved.revision;
+          setValue(saved.value !== undefined ? saved.value : resetMissing ? initialValue : current => current);
+        }
         if (active) setError(null);
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "Не удалось загрузить локальные данные.");
@@ -268,14 +319,32 @@ export function usePersistentState<T>(
       void load(true);
     };
     window.addEventListener(RESTORE_EVENT, reload);
+    const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("life-maps:records") : undefined;
+    if (channel) {
+      channel.onmessage = event => {
+        const message = event.data as { key?: unknown; value?: unknown; revision?: unknown };
+        if (message?.key !== key || typeof message.revision !== "number" || message.revision <= revision.current) return;
+        // Ignore stale/out-of-order notifications; apply only a newer committed revision.
+        revision.current = message.revision;
+        const incomingValue = message.value as T;
+        skipNextWrite.current = { value: incomingValue };
+        setValue(incomingValue);
+      };
+    }
     return () => {
       active = false;
       window.removeEventListener(RESTORE_EVENT, reload);
+      channel?.close();
     };
   }, [key]);
 
   useEffect(() => {
     if (!ready || error) return;
+    if (skipNextWrite.current) {
+      const remoteUpdate = skipNextWrite.current;
+      skipNextWrite.current = null;
+      if (remoteUpdate.value === value) return;
+    }
     void writeRecord(key, value).catch(cause => {
       setError(cause instanceof Error ? cause.message : "Не удалось сохранить локальные данные.");
     });

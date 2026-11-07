@@ -152,3 +152,73 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 ### Проверки
 - На ревизии `64e7f94c7f2ab4afd1edc6cdb538e4fce5b1a603` CI: TypeScript, структура, npm audit и unit tests прошли; E2E выявил первопричину, production build был пропущен из-за падения E2E.
 - Исправление и новые E2E-сценарии закоммичены отдельно; итоговый статус будет зафиксирован после завершения CI.
+
+
+## UI/accessibility and input-boundary audit — 2026-11-07
+
+### Fixed in `feat/ui-quality-accessibility`
+- The persistent local-storage notice is hidden at mobile breakpoints. Transient operation/error feedback remains visible.
+- Backup controls are offset above the fixed mobile navigation; E2E now checks their bounding boxes do not overlap.
+- E2E navigation selectors now use `tab` roles; vaccine status controls are queried by their accessible labels rather than visible status text alone.
+- Added pure validation helpers for bounded integers and required trimmed text, with unit tests.
+- Family forms now reject blank/oversized names, ages outside 0–120, non-integer ages, child birth years outside 1900–2026, and oversized optional relation/date/emoji values.
+- Life timeline create/edit paths now reject years outside 1900–2100, blank/oversized titles, descriptions over 500 characters, and oversized emoji values.
+- Added E2E coverage for whitespace-only child names, future birth years, invalid timeline years and mobile menu clearance.
+
+### Verification status
+- TypeScript, project structure, dependency audit and unit tests were observed passing on the preceding CI revision before the final combined validation changes.
+- The latest combined revision's full CI is pending; do not treat E2E or production build as passed until GitHub Actions completes.
+- Manual testing on real mobile devices and a full screen-reader review remain outstanding.
+
+
+## Medical attachment validation — 2026-11-07
+- Added client-side allowlisting for PDF, PNG, JPEG, WEBP and GIF. SVG and unknown extensions are rejected.
+- The validator checks extension/MIME consistency, zero-byte files and the existing 15 MiB per-file limit. Empty MIME metadata is tolerated when the extension is supported.
+- The file input now has an accessible name; invalid selection is reported and the input is reset so the same file can be selected again.
+- Unit tests cover allowed formats, unsupported SVG, MIME mismatch, empty files and the exact/over-limit size boundary. E2E covers rejecting SVG and accepting a PDF.
+- Full CI for the final E2E revision is still pending; do not mark browser tests/build as passed until the latest workflow completes.
+
+
+## IndexedDB connection lifecycle — 2026-11-07
+- Fixed a connection lifecycle issue in `openDatabase`: `IDBOpenDBRequest.onblocked` is a waiting notification, not a terminal failure. Rejecting the promise there left a rejected promise cached and could permanently prevent retries in that tab.
+- The open request now remains pending while another tab releases its connection. Successful connections close on `versionchange` and clear the cached connection promise so the next access can reopen the database.
+- Browser multi-tab upgrade behavior is not yet covered by a dedicated automated IndexedDB integration test; latest CI is pending.
+
+
+## Manual lab measurements — 2026-11-07
+- Added a separate IndexedDB collection (`labMeasurements`) so manually entered values do not replace uploaded file records.
+- Each result stores a stable ID, sample date (`YYYY-MM-DD`), original value text and optional unit. Multiple dated measurements per test are retained and displayed newest first.
+- Numeric and qualitative values (including comparator strings) are accepted without clinical interpretation or reference-range judgment.
+- Validation rejects blank/oversized values, invalid calendar dates, future dates and oversized units. Individual measurements can be deleted independently.
+- Added the new storage key to the backup allowlist, including per-child health keys, so results are included in export/restore.
+- Unit tests cover valid/invalid dates, qualitative/numeric values and backup schema validation. E2E covers persistence after reload and restoration from backup.
+- The attachment-upload E2E selector was updated to match the visible `Файл` action. The earlier run's failure was a stale selector, not a failure of the new measurement flow; final CI remains pending.
+
+
+## Lab measurement editing — 2026-11-07
+- Added an edit action to each saved manual result. The form is prefilled with the existing date, value and unit.
+- Saving an edit preserves the original record ID and replaces that record in the per-test history; it does not append a duplicate. Results are re-sorted by sample date.
+- Cancel clears edit mode without mutating the stored record. Deletion remains a separate action.
+- Extended the Playwright scenario to edit a saved result, change its date, and assert that the previous value is no longer rendered.
+- The preceding revision (`f9d4f109`) passed the complete CI pipeline, including E2E and production build. CI for this edit is running separately.
+
+
+### E2E assertion correction — 2026-11-07
+- The first edit-flow E2E revision correctly changed the stored value from `5.4` to `<0.1`, but its post-reload assertions still expected the original value/date. The failure was a stale test expectation, not an observed IndexedDB write failure.
+- Updated the post-reload assertions to expect `<0.1 ммоль/л` on `07.11.2026` and to verify that `5.4 ммоль/л` is absent.
+- Re-run the full CI pipeline for the corrected test before treating this path as verified.
+
+
+## Cross-tab IndexedDB updates — 2026-11-07
+- Added `BroadcastChannel` notifications after successful IndexedDB write transactions. Messages carry the record key and structured-cloneable value; no medical data is sent to a remote service.
+- Each persistent-state hook listens for updates to its own key, applies the received value, and suppresses the resulting persistence effect once to prevent cross-tab echo loops.
+- The listener is closed during hook cleanup. Browsers without `BroadcastChannel` continue to use the existing local IndexedDB behavior, without cross-tab live updates.
+- E2E now opens a second browser tab, edits a lab measurement in the first tab, and verifies the second tab receives the new value/date before reload.
+- Full CI for this revision is pending.
+
+
+## Stale-write protection — 2026-11-07
+- IndexedDB records now carry a monotonically increasing `revision`. Legacy records without this field remain readable and are treated as revision `0`; no data migration or destructive rewrite is required.
+- `writeRecord` performs a compare-and-write in a single `readwrite` transaction. If the stored revision differs from the caller's expected revision, the transaction does not write and returns the already committed value/revision.
+- The hook adopts the winning committed value on conflict instead of overwriting it. BroadcastChannel messages include revisions; older or duplicate messages are ignored.
+- E2E asserts the revision metadata exists and has advanced after creating and editing a manual lab result. Full CI for this revision is pending.

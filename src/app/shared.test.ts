@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { childAgeStages, childAgeVaccines, createId } from "./shared";
+import { childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, validateLabMeasurement, validateLabUpload } from "./shared";
 import { LAB_TEST_ASSIGNMENTS, LAB_TEST_CONCEPTS, LIFE_STAGES } from "./data";
 
 describe("childAgeStages", () => {
@@ -89,5 +89,53 @@ describe("lab test catalogue", () => {
       "a10", "a4", "a5", "a9", "ai1", "ai2", "ai3", "fe2", "r1", "r11",
       "r12", "r13", "r2", "r3", "r4", "r5", "r6", "s4", "s6", "th3", "ya9",
     ]);
+  });
+});
+
+
+describe("form validation helpers", () => {
+  it("rejects empty, whitespace-only, decimal and out-of-range integer values", () => {
+    expect(parseBoundedInteger("", 0, 120)).toBeNull();
+    expect(parseBoundedInteger("   ", 0, 120)).toBeNull();
+    expect(parseBoundedInteger("1.5", 0, 120)).toBeNull();
+    expect(parseBoundedInteger("-1", 0, 120)).toBeNull();
+    expect(parseBoundedInteger("121", 0, 120)).toBeNull();
+    expect(parseBoundedInteger("27", 0, 120)).toBe(27);
+  });
+
+  it("accepts only non-empty trimmed text within the configured length", () => {
+    expect(isValidRequiredText("  ", 80)).toBe(false);
+    expect(isValidRequiredText(" A ", 80)).toBe(true);
+    expect(isValidRequiredText("x".repeat(81), 80)).toBe(false);
+  });
+});
+
+
+describe("manual lab measurement validation", () => {
+  it("accepts numeric and qualitative values with a valid non-future date", () => {
+    expect(validateLabMeasurement("5.4", "2026-11-06", "ммоль/л")).toBeNull();
+    expect(validateLabMeasurement("<0.1", "2026-11-06", "нг/мл")).toBeNull();
+    expect(validateLabMeasurement("отрицательно", "2026-11-06", "")).toBeNull();
+  });
+  it("rejects blank values, invalid/future dates and oversized units", () => {
+    expect(validateLabMeasurement("  ", "2026-11-06", "")).toContain("Укажите значение");
+    expect(validateLabMeasurement("5", "2026-02-30", "")).toContain("корректную дату");
+    expect(validateLabMeasurement("5", "2099-01-01", "")).toContain("будущем");
+    expect(validateLabMeasurement("5", "2026-11-06", "x".repeat(21))).toContain("20 символов");
+  });
+});
+
+describe("medical attachment validation", () => {
+  it("allows supported formats and rejects unsupported or misleading files", () => {
+    expect(validateLabUpload({ name: "result.pdf", type: "application/pdf", size: 1024 })).toBeNull();
+    expect(validateLabUpload({ name: "scan.JPG", type: "image/jpeg", size: 1024 })).toBeNull();
+    expect(validateLabUpload({ name: "scan.svg", type: "image/svg+xml", size: 1024 })).toContain("Поддерживаются только");
+    expect(validateLabUpload({ name: "result.pdf", type: "image/png", size: 1024 })).toContain("не соответствует");
+  });
+
+  it("rejects empty files and files larger than 15 MiB", () => {
+    expect(validateLabUpload({ name: "empty.pdf", type: "application/pdf", size: 0 })).toBe("Файл пустой.");
+    expect(validateLabUpload({ name: "large.pdf", type: "application/pdf", size: 15 * 1024 * 1024 + 1 })).toContain("15 МБ");
+    expect(validateLabUpload({ name: "limit.pdf", type: "application/pdf", size: 15 * 1024 * 1024 })).toBeNull();
   });
 });

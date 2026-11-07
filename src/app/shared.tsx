@@ -7,6 +7,56 @@ export const INP = "w-full text-xs px-2.5 py-1.5 rounded-lg border border-border
 export const SEL = "text-xs px-2.5 py-1.5 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:border-primary/50";
 export const CURRENT_YEAR = 2026;
 
+/** Parse an integer without treating an empty field as zero. */
+export function parseBoundedInteger(value: string | number, min: number, max: number): number | null {
+  if (typeof value === "string" && value.trim() === "") return null;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(parsed) && parsed >= min && parsed <= max ? parsed : null;
+}
+
+/** Validate required user-facing text after trimming whitespace. */
+export function isValidRequiredText(value: string, maxLength: number): boolean {
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= maxLength;
+}
+
+/** Validate a manually entered lab result and its sample date. */
+export function validateLabMeasurement(value: string, date: string, unit: string): string | null {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return "Укажите значение результата.";
+  if (trimmedValue.length > 40) return "Значение не должно превышать 40 символов.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "Укажите корректную дату анализа.";
+  const parsedDate = new Date(date + "T00:00:00");
+  if (Number.isNaN(parsedDate.getTime()) || parsedDate.getFullYear() !== Number(date.slice(0, 4)) ||
+      parsedDate.getMonth() + 1 !== Number(date.slice(5, 7)) || parsedDate.getDate() !== Number(date.slice(8, 10))) {
+    return "Укажите корректную дату анализа.";
+  }
+  const now = new Date();
+  const today = [now.getFullYear(), String(now.getMonth()+1).padStart(2,"0"), String(now.getDate()).padStart(2,"0")].join("-");
+  if (date > today) return "Дата анализа не может быть в будущем.";
+  if (unit.trim().length > 20) return "Единица измерения не должна превышать 20 символов.";
+  return null;
+}
+
+/** Validate lab-result uploads before persisting their Blob in IndexedDB. */
+export function validateLabUpload(file: Pick<File, "name" | "type" | "size">): string | null {
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const allowedTypes: Record<string, string> = {
+    pdf: "application/pdf",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    gif: "image/gif",
+  };
+  const expectedType = allowedTypes[extension];
+  if (!expectedType) return "Поддерживаются только PDF, PNG, JPG, WEBP и GIF.";
+  if (file.size <= 0) return "Файл пустой.";
+  if (file.size > 15 * 1024 * 1024) return "Размер одного файла не должен превышать 15 МБ.";
+  if (file.type && file.type !== expectedType) return "Тип файла не соответствует его расширению.";
+  return null;
+}
+
 let fallbackIdCounter = 0;
 
 export function createId(): string {
