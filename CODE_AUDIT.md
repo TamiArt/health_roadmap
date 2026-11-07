@@ -242,3 +242,7 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - The first conflict E2E failed because it assumed a newly created record would have exactly revision `2`. The app legitimately advances revisions more than once during initial persistence/Strict Mode lifecycle, so the exact count was not a valid invariant.
 - Updated the test to capture the settled stale tab's actual revision, then require the first tab's committed revision to be greater before submitting the stale edit. This tests ordering, not an implementation-specific counter value.
 - The failed run had TypeScript, structure, dependency audit and unit tests green; Playwright had 21 passing tests and this single failing scenario. Production build was skipped because E2E failed.
+
+
+### Restore/write ordering — 2026-11-07
+- Loading a record (including after a backup-restore event) now increments the write generation before reading IndexedDB. Any queued pre-restore writes are invalidated, preventing stale in-memory state from being written back over the restored backup.
