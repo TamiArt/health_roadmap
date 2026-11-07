@@ -13,6 +13,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   const [uploads, setUploads, uploadsReady, uploadsError] = usePersistentState<Record<string, UploadedResult[]>>(storageKey, {});
   const [measurements, setMeasurements, measurementsReady, measurementsError] = usePersistentState<Record<string, LabMeasurement[]>>(storageKey.replace(/labUploads$/, "labMeasurements"), {});
   const [measurementTestId, setMeasurementTestId] = useState<string | null>(null);
+  const [editingMeasurementId, setEditingMeasurementId] = useState<string | null>(null);
   const [measurementDate, setMeasurementDate] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
@@ -64,13 +65,14 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
     e.target.value="";
   }
 
-  function startMeasurement(testId: string) {
+  function startMeasurement(testId: string, existing?: LabMeasurement) {
     setMeasurementTestId(testId);
-    setMeasurementValue("");
-    setMeasurementUnit("");
+    setEditingMeasurementId(existing?.id ?? null);
+    setMeasurementValue(existing?.value ?? "");
+    setMeasurementUnit(existing?.unit ?? "");
     setMeasurementError(null);
     const now = new Date();
-    setMeasurementDate(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`);
+    setMeasurementDate(existing?.date ?? `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`);
   }
 
   function saveMeasurement(e: React.FormEvent<HTMLFormElement>) {
@@ -78,12 +80,16 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
     if (!measurementTestId || !measurementsReady || measurementsError) return;
     const validationError = validateLabMeasurement(measurementValue, measurementDate, measurementUnit);
     if (validationError) { setMeasurementError(validationError); return; }
-    const record: LabMeasurement = { id: createId(), date: measurementDate, value: measurementValue.trim(), unit: measurementUnit.trim() };
+    const record: LabMeasurement = { id: editingMeasurementId ?? createId(), date: measurementDate, value: measurementValue.trim(), unit: measurementUnit.trim() };
     setMeasurements(prev => ({
       ...prev,
-      [measurementTestId]: [...(prev[measurementTestId] ?? []), record].sort((a,b) => b.date.localeCompare(a.date)),
+      [measurementTestId]: [
+        ...(prev[measurementTestId] ?? []).filter(item => item.id !== record.id),
+        record,
+      ].sort((a,b) => b.date.localeCompare(a.date)),
     }));
     setMeasurementTestId(null);
+    setEditingMeasurementId(null);
     setMeasurementValue("");
     setMeasurementUnit("");
     setMeasurementError(null);
@@ -169,6 +175,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                                   <div key={item.id} className="flex items-center gap-2 bg-emerald-50/70 rounded-lg px-3 py-2">
                                     <span className="text-xs font-semibold text-foreground flex-1 min-w-0">{item.value}{item.unit ? ` ${item.unit}` : ""}</span>
                                     <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{new Date(`${item.date}T00:00:00`).toLocaleDateString("ru-RU")}</span>
+                                    <button type="button" aria-label={`Изменить результат от ${item.date}`} onClick={() => startMeasurement(test.id, item)} className="text-[10px] text-primary hover:underline">Изменить</button>
                                     <button type="button" aria-label={`Удалить результат от ${item.date}`} onClick={() => removeMeasurement(test.id, item.id)}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
                                   </div>
                                 ))}
@@ -192,7 +199,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                         </div>
                         {measurementTestId === test.id && (
                           <form onSubmit={saveMeasurement} className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 space-y-2">
-                            <p className="text-xs font-semibold text-foreground">Новый результат анализа</p>
+                            <p className="text-xs font-semibold text-foreground">{editingMeasurementId ? "Редактирование результата анализа" : "Новый результат анализа"}</p>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                               <label className="text-[11px] text-muted-foreground">Дата анализа
                                 <input aria-label="Дата анализа" type="date" max={todayIsoDate} value={measurementDate} onChange={event => setMeasurementDate(event.target.value)} required className="mt-1 w-full min-w-0 text-xs px-2 py-1.5 rounded border border-border bg-card text-foreground"/>
@@ -206,8 +213,8 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                             </div>
                             {measurementError && <p role="alert" className="text-xs text-red-600">{measurementError}</p>}
                             <div className="flex justify-end gap-2">
-                              <button type="button" onClick={() => { setMeasurementTestId(null); setMeasurementError(null); }} className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground">Отмена</button>
-                              <button type="submit" className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground">Сохранить результат</button>
+                              <button type="button" onClick={() => { setMeasurementTestId(null); setEditingMeasurementId(null); setMeasurementError(null); }} className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground">Отмена</button>
+                              <button type="submit" className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground">{editingMeasurementId ? "Сохранить изменения" : "Сохранить результат"}</button>
                             </div>
                           </form>
                         )}
