@@ -287,11 +287,12 @@ export async function importBackup(file: File): Promise<void> {
 export function usePersistentState<T>(
   key: string,
   initialValue: T,
-): [T, Dispatch<SetStateAction<T>>, boolean, string | null] {
+): [T, Dispatch<SetStateAction<T>>, boolean, string | null, boolean] {
   const [value, setValue] = useState<T>(initialValue);
   const [ready, setReady] = useState(false);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
   const skipNextWrite = useRef<{ value: T } | null>(null);
   const revision = useRef(0);
   const writeQueue = useRef<Promise<void>>(Promise.resolve());
@@ -368,15 +369,18 @@ export function usePersistentState<T>(
       const result = await writeRecord(key, value, revision.current);
       revision.current = result.revision;
       if (result.conflict) {
+        setConflict(true);
         updateGeneration.current += 1;
         const winningValue = result.value as T;
         skipNextWrite.current = { value: winningValue };
         setValue(winningValue);
+      } else {
+        setConflict(false);
       }
     }).catch(cause => {
       setError(cause instanceof Error ? cause.message : "Не удалось сохранить локальные данные.");
     });
   }, [key, value, ready, loadedKey, error]);
 
-  return [value, setValue, ready, error];
+  return [value, setValue, ready, error, conflict];
 }

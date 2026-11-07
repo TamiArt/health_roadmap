@@ -10,8 +10,8 @@ import { usePersistentState } from "./storage";
 export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUploads" }: { stages?: LifeStage[]; defaultGender?: "f"|"m"; storageKey?: string }) {
   const [gender, setGender] = useState<"f"|"m">(defaultGender);
   const [openStage, setOpenStage] = useState<string|null>(null);
-  const [uploads, setUploads, uploadsReady, uploadsError] = usePersistentState<Record<string, UploadedResult[]>>(storageKey, {});
-  const [measurements, setMeasurements, measurementsReady, measurementsError] = usePersistentState<Record<string, LabMeasurement[]>>(storageKey.replace(/labUploads$/, "labMeasurements"), {});
+  const [uploads, setUploads, uploadsReady, uploadsError, uploadsConflict] = usePersistentState<Record<string, UploadedResult[]>>(storageKey, {});
+  const [measurements, setMeasurements, measurementsReady, measurementsError, measurementsConflict] = usePersistentState<Record<string, LabMeasurement[]>>(storageKey.replace(/labUploads$/, "labMeasurements"), {});
   const [measurementTestId, setMeasurementTestId] = useState<string | null>(null);
   const [editingMeasurementId, setEditingMeasurementId] = useState<string | null>(null);
   const [measurementDate, setMeasurementDate] = useState(() => {
@@ -110,6 +110,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
     <div>
       <input ref={fileRef} type="file" aria-label="Загрузить результат анализа" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif,.pdf" className="hidden" onChange={handleFile} />
       {(uploadError || uploadsError || measurementsError) && <p role="alert" className="mb-3 text-xs text-red-600">{uploadError ?? uploadsError ?? measurementsError}</p>}
+      {(uploadsConflict || measurementsConflict) && <p role="status" aria-live="polite" className="mb-3 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">Данные были изменены в другой вкладке. Загружена последняя сохранённая версия; ваше изменение не сохранено — повторите его.</p>}
       {!stages && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div className="flex gap-1 p-1 bg-muted rounded-lg">
