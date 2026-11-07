@@ -302,7 +302,7 @@ export function usePersistentState<T>(
     updateGeneration.current += 1;
     revision.current = 0;
     skipNextWrite.current = null;
-    const load = async (resetMissing = false) => {
+    const load = async () => {
       // Invalidate pending writes before initial load or backup restoration.
       updateGeneration.current += 1;
       skipNextWrite.current = null;
@@ -331,7 +331,7 @@ export function usePersistentState<T>(
     // Setting ready=false here unmounts the hook owner; its cleanup then
     // prevents this async load from ever setting ready=true again.
     const reload = () => {
-      void load(true);
+      void load();
     };
     window.addEventListener(RESTORE_EVENT, reload);
     const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("life-maps:records") : undefined;
