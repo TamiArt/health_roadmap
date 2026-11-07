@@ -441,3 +441,24 @@ test("renders age-specific child health paths without duplicate birth tests", as
     await page.getByRole("button", { name: "Вернуться к семье" }).click();
   }
 });
+
+ 
+test("saves and reloads manually entered lab measurements with date and unit", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("tab", { name: "Анализы" }).click();
+  await page.getByRole("button", { name: "Базовые — при рождении" }).click();
+  await page.getByRole("button", { name: "+ Значение" }).first().click();
+  await page.getByLabel("Дата анализа").fill("2026-11-06");
+  await page.getByLabel("Значение результата").fill("5.4");
+  await page.getByLabel("Единицы измерения").fill("ммоль/л");
+  await page.getByRole("button", { name: "Сохранить результат" }).click();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("tab", { name: "Анализы" }).click();
+  await page.getByRole("button", { name: "Базовые — при рождении" }).click();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
+});
