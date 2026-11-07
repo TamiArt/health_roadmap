@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 const DB_NAME = "life-maps";
 const DB_VERSION = 1;
@@ -90,6 +90,12 @@ export async function writeRecord<T>(key: string, value: T): Promise<void> {
     transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось сохранить данные."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Сохранение отменено."));
   });
+  // Notify other open tabs only after IndexedDB confirms the transaction.
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("life-maps:records");
+    channel.postMessage({ key, value });
+    channel.close();
+  }
 }
 
 async function readAllRecords(): Promise<Record<string, unknown>> {
@@ -267,6 +273,7 @@ export function usePersistentState<T>(
   const [value, setValue] = useState<T>(initialValue);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const skipNextWrite = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -290,14 +297,29 @@ export function usePersistentState<T>(
       void load(true);
     };
     window.addEventListener(RESTORE_EVENT, reload);
+    const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("life-maps:records") : undefined;
+    if (channel) {
+      channel.onmessage = event => {
+        const message = event.data as { key?: unknown; value?: unknown };
+        if (message?.key !== key) return;
+        // Do not echo a remote update back to other tabs as a new local write.
+        skipNextWrite.current = true;
+        setValue(message.value as T);
+      };
+    }
     return () => {
       active = false;
       window.removeEventListener(RESTORE_EVENT, reload);
+      channel?.close();
     };
   }, [key]);
 
   useEffect(() => {
     if (!ready || error) return;
+    if (skipNextWrite.current) {
+      skipNextWrite.current = false;
+      return;
+    }
     void writeRecord(key, value).catch(cause => {
       setError(cause instanceof Error ? cause.message : "Не удалось сохранить локальные данные.");
     });
