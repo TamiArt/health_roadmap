@@ -33,6 +33,8 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
     objectUrls.forEach(url => URL.revokeObjectURL(url));
   }, [objectUrls]);
   const allStages = stages ?? LIFE_STAGES;
+  const currentDate = new Date();
+  const todayIsoDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,"0")}-${String(currentDate.getDate()).padStart(2,"0")}`;
 
   function triggerUpload(testId: string) {
     if (!uploadsReady || uploadsError) return;
@@ -193,7 +195,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                             <p className="text-xs font-semibold text-foreground">Новый результат анализа</p>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                               <label className="text-[11px] text-muted-foreground">Дата анализа
-                                <input aria-label="Дата анализа" type="date" max={new Date().toLocaleDateString("en-CA")} value={measurementDate} onChange={event => setMeasurementDate(event.target.value)} required className="mt-1 w-full min-w-0 text-xs px-2 py-1.5 rounded border border-border bg-card text-foreground"/>
+                                <input aria-label="Дата анализа" type="date" max={todayIsoDate} value={measurementDate} onChange={event => setMeasurementDate(event.target.value)} required className="mt-1 w-full min-w-0 text-xs px-2 py-1.5 rounded border border-border bg-card text-foreground"/>
                               </label>
                               <label className="text-[11px] text-muted-foreground">Значение
                                 <input aria-label="Значение результата" type="text" maxLength={40} value={measurementValue} onChange={event => setMeasurementValue(event.target.value)} placeholder="Например, 5.4" required className="mt-1 w-full min-w-0 text-xs px-2 py-1.5 rounded border border-border bg-card text-foreground"/>
