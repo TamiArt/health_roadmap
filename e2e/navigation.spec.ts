@@ -490,4 +490,15 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await expect(page.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
   await expect(page.getByText("07.11.2026", { exact: true })).toBeVisible();
   await expect(page.getByText("5.4 ммоль/л", { exact: true })).toHaveCount(0);
+  const storedRevision = await page.evaluate(() => new Promise<number>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get("labMeasurements");
+      read.onsuccess = () => resolve(read.result?.revision ?? 0);
+      read.onerror = () => reject(read.error);
+    };
+  }));
+  expect(storedRevision).toBeGreaterThanOrEqual(2);
 });
