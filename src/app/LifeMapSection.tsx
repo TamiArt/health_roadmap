@@ -3,7 +3,7 @@ import { usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { Pencil, Plus } from "lucide-react";
 import { CATEGORY_CONFIG, LIFE_EVENTS_INIT, type Category, type LifeEvent } from "./data";
-import { CURRENT_YEAR, createId, DelBtn, EditToggle, INP, SEL } from "./shared";
+import { CURRENT_YEAR, createId, isValidRequiredText, parseBoundedInteger, DelBtn, EditToggle, INP, SEL } from "./shared";
 
 // ─── Life Map ─────────────────────────────────────────────────────────────────
 
@@ -15,6 +15,7 @@ export function LifeMapSection() {
   const [editForm, setEditForm] = useState<Partial<LifeEvent>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ year:"", emoji:"✨", title:"", description:"", category:"personal" as Category, milestone:false });
+  const [formError, setFormError] = useState<string | null>(null);
 
   if (!eventsReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка локальных данных…</div>;
   if (eventsError) return <div role="alert" className="p-8 text-sm text-red-600">{eventsError}</div>;
@@ -24,16 +25,25 @@ export function LifeMapSection() {
 
   function startEdit(ev: LifeEvent) { setEditingId(ev.id); setEditForm({ ...ev }); }
   function saveEdit() {
-    if (!editingId || !editForm.title) return;
-    setEvents(prev => prev.map(e => e.id === editingId ? { ...e, ...editForm } as LifeEvent : e));
-    setEditingId(null);
+    if (!editingId) return;
+    const year = parseBoundedInteger(editForm.year ?? "", 1900, 2100);
+    const title = editForm.title?.trim() ?? "";
+    if (year === null) { setFormError("Год события должен быть целым числом от 1900 до 2100."); return; }
+    if (!isValidRequiredText(title, 100)) { setFormError("Укажите название события (не более 100 символов)."); return; }
+    if ((editForm.description ?? "").length > 500 || (editForm.emoji ?? "").length > 16) { setFormError("Описание ограничено 500 символами, эмодзи — 16."); return; }
+    setEvents(prev => prev.map(e => e.id === editingId ? { ...e, ...editForm, year, title } as LifeEvent : e));
+    setEditingId(null); setFormError(null);
   }
   function addEvent() {
-    if (!addForm.year || !addForm.title) return;
-    const ev: LifeEvent = { id: createId(), year:+addForm.year, title:addForm.title, description:addForm.description, category:addForm.category, emoji:addForm.emoji||"✨", milestone:addForm.milestone };
+    const year = parseBoundedInteger(addForm.year, 1900, 2100);
+    const title = addForm.title.trim();
+    if (year === null) { setFormError("Год события должен быть целым числом от 1900 до 2100."); return; }
+    if (!isValidRequiredText(title, 100)) { setFormError("Укажите название события (не более 100 символов)."); return; }
+    if (addForm.description.length > 500 || addForm.emoji.length > 16) { setFormError("Описание ограничено 500 символами, эмодзи — 16."); return; }
+    const ev: LifeEvent = { id: createId(), year, title, description:addForm.description.trim(), category:addForm.category, emoji:addForm.emoji.trim()||"✨", milestone:addForm.milestone };
     setEvents(prev => [...prev, ev]);
     setAddForm({ year:"", emoji:"✨", title:"", description:"", category:"personal", milestone:false });
-    setShowAdd(false);
+    setShowAdd(false); setFormError(null);
   }
 
   const milestones = events.filter(e => e.milestone).length;
@@ -91,12 +101,13 @@ export function LifeMapSection() {
                       {isEditing ? (
                         <div className="bg-card border border-primary/30 rounded-xl p-3 shadow-md">
                           <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-                            <input value={editForm.year??""} onChange={e => setEditForm(f => ({ ...f, year:+e.target.value }))} type="number" placeholder="Год" className={INP} />
-                            <input value={editForm.emoji??""} onChange={e => setEditForm(f => ({ ...f, emoji:e.target.value }))} placeholder="Emoji" className={INP} />
+                            <input value={editForm.year??""} onChange={e => setEditForm(f => ({ ...f, year:e.target.value === "" ? undefined : Number(e.target.value) }))} type="number" min={1900} max={2100} step={1} placeholder="Год" className={INP} />
+                            <input value={editForm.emoji??""} onChange={e => setEditForm(f => ({ ...f, emoji:e.target.value }))} maxLength={16} placeholder="Emoji" className={INP} />
                           </div>
-                          <input value={editForm.title??""} onChange={e => setEditForm(f => ({ ...f, title:e.target.value }))} placeholder="Название" className={`${INP} mb-1.5`} />
-                          <textarea value={editForm.description??""} onChange={e => setEditForm(f => ({ ...f, description:e.target.value }))} rows={2} placeholder="Описание" className={`${INP} resize-none mb-1.5`} />
-                          <div className="flex items-center justify-between">
+                          <input value={editForm.title??""} onChange={e => setEditForm(f => ({ ...f, title:e.target.value }))} maxLength={100} placeholder="Название" className={`${INP} mb-1.5`} />
+                          <textarea value={editForm.description??""} onChange={e => setEditForm(f => ({ ...f, description:e.target.value }))} maxLength={500} rows={2} placeholder="Описание" className={`${INP} resize-none mb-1.5`} />
+                          {formError && <p role="alert" className="mb-2 text-xs text-red-600">{formError}</p>}
+                  <div className="flex items-center justify-between">
                             <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                               <input type="checkbox" checked={editForm.milestone??false} onChange={e => setEditForm(f => ({ ...f, milestone:e.target.checked }))} className="w-3.5 h-3.5 accent-primary" />
                               Ключевое
@@ -143,10 +154,10 @@ export function LifeMapSection() {
                 <div className="w-full max-w-sm bg-card border border-primary/20 rounded-xl p-4">
                   <p className="text-xs font-semibold text-foreground mb-3">Новое событие</p>
                   <div className="grid grid-cols-2 gap-2 mb-2">
-                    <input value={addForm.year} onChange={e => setAddForm(f => ({ ...f, year:e.target.value }))} placeholder="Год (2025)" type="number" className={INP} />
-                    <input value={addForm.emoji} onChange={e => setAddForm(f => ({ ...f, emoji:e.target.value }))} placeholder="Emoji ✨" className={INP} />
+                    <input value={addForm.year} onChange={e => setAddForm(f => ({ ...f, year:e.target.value }))} placeholder="Год (2025)" type="number" min={1900} max={2100} step={1} required className={INP} />
+                    <input value={addForm.emoji} onChange={e => setAddForm(f => ({ ...f, emoji:e.target.value }))} placeholder="Emoji ✨" maxLength={16} className={INP} />
                   </div>
-                  <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title:e.target.value }))} placeholder="Название события" className={`${INP} mb-2`} />
+                  <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title:e.target.value }))} placeholder="Название события" maxLength={100} required className={`${INP} mb-2`} />
                   <div className="flex items-center gap-2 mb-2">
                     <select value={addForm.category} onChange={e => setAddForm(f => ({ ...f, category:e.target.value as Category }))} className={`${SEL} flex-1`}>
                       {(Object.keys(CATEGORY_CONFIG) as Category[]).map(k => (
@@ -158,7 +169,8 @@ export function LifeMapSection() {
                       Ключевое
                     </label>
                   </div>
-                  <textarea value={addForm.description} onChange={e => setAddForm(f => ({ ...f, description:e.target.value }))} placeholder="Описание (необязательно)" rows={2} className={`${INP} resize-none mb-3`} />
+                  <textarea value={addForm.description} onChange={e => setAddForm(f => ({ ...f, description:e.target.value }))} placeholder="Описание (необязательно)" maxLength={500} rows={2} className={`${INP} resize-none mb-3`} />
+                  {formError && <p role="alert" className="mb-2 text-xs text-red-600">{formError}</p>}
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => setShowAdd(false)} className="text-xs px-3 py-1.5 border border-border rounded-lg text-muted-foreground">Отмена</button>
                     <button onClick={addEvent} className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded-lg">Добавить</button>
