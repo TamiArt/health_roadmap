@@ -63,9 +63,15 @@ export function DataManagementPanel({
         </button>
         <input ref={fileInput} type="file" accept="application/json,.json" className="hidden" onChange={handleImport} />
       </div>
-      <p role="status" aria-live="polite" className="pointer-events-none max-w-72 rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow">
-        {storageError ?? message ?? (storageReady ? "Данные хранятся только в этом браузере." : "Подключение локальной базы…")}
-      </p>
+      {(storageError || message) ? (
+        <p role="status" aria-live="polite" className="pointer-events-none max-w-72 rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow">
+          {storageError ?? message}
+        </p>
+      ) : (
+        <p role="status" aria-live="polite" className="pointer-events-none hidden max-w-72 rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow sm:block">
+          {storageReady ? "Данные хранятся только в этом браузере." : "Подключение локальной базы…"}
+        </p>
+      )}
     </section>
   );
 }
