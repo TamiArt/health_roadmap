@@ -364,6 +364,9 @@ test("exports a backup and restores data from a validated backup", async ({ page
       children: [],
       familyEvents: [],
       vaccineStatuses: {},
+      labMeasurements: {
+        b1: [{ id: "restored-measurement", date: "2026-11-06", value: "A(II)", unit: "Rh+" }],
+      },
     },
   };
 
@@ -384,6 +387,12 @@ test("exports a backup and restores data from a validated backup", async ({ page
   // The restore event must not unmount the app or leave it stuck on loading.
   await expect(page.getByRole("button", { name: "Импорт" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Здоровье" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("tab", { name: "Анализы" }).click();
+  await page.getByRole("button", { name: "Базовые — при рождении" }).click();
+  await expect(page.getByText("A(II) Rh+", { exact: true })).toBeVisible();
+  await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
 });
 
 test("shows a validation error for an invalid backup and keeps the app usable", async ({ page }) => {
