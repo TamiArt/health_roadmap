@@ -177,3 +177,9 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - The file input now has an accessible name; invalid selection is reported and the input is reset so the same file can be selected again.
 - Unit tests cover allowed formats, unsupported SVG, MIME mismatch, empty files and the exact/over-limit size boundary. E2E covers rejecting SVG and accepting a PDF.
 - Full CI for the final E2E revision is still pending; do not mark browser tests/build as passed until the latest workflow completes.
+
+
+## IndexedDB connection lifecycle — 2026-11-07
+- Fixed a connection lifecycle issue in `openDatabase`: `IDBOpenDBRequest.onblocked` is a waiting notification, not a terminal failure. Rejecting the promise there left a rejected promise cached and could permanently prevent retries in that tab.
+- The open request now remains pending while another tab releases its connection. Successful connections close on `versionchange` and clear the cached connection promise so the next access can reopen the database.
+- Browser multi-tab upgrade behavior is not yet covered by a dedicated automated IndexedDB integration test; latest CI is pending.
