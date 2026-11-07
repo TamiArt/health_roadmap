@@ -33,7 +33,7 @@ test("rejects unsupported lab attachments and accepts a valid PDF", async ({ pag
   await page.getByRole("tab", { name: "Анализы", exact: true }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
 
-  await page.getByRole("button", { name: "Загрузить" }).first().click();
+  await page.getByRole("button", { name: "Файл" }).first().click();
   await page.locator('input[type="file"][accept^="application/pdf"]').setInputFiles({
     name: "unsafe.svg",
     mimeType: "image/svg+xml",
@@ -41,7 +41,7 @@ test("rejects unsupported lab attachments and accepts a valid PDF", async ({ pag
   });
   await expect(page.getByRole("alert")).toContainText("Поддерживаются только");
 
-  await page.getByRole("button", { name: "Загрузить" }).first().click();
+  await page.getByRole("button", { name: "Файл" }).first().click();
   await page.locator('input[type="file"][accept^="application/pdf"]').setInputFiles({
     name: "lab-result.pdf",
     mimeType: "application/pdf",
