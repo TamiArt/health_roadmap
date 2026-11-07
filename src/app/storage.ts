@@ -24,10 +24,11 @@ const ALLOWED_KEYS = new Set([
   "vaccineStatuses",
   "adultToothData",
   "labUploads",
+  "labMeasurements",
 ]);
 
 export function isAllowedRecordKey(key: string): boolean {
-  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|toothData|labUploads)$/.test(key);
+  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|toothData|labUploads|labMeasurements)$/.test(key);
 }
 
 let databasePromise: Promise<IDBDatabase> | undefined;
