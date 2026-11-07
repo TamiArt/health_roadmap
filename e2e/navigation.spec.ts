@@ -599,6 +599,60 @@ test("renders age-specific child health paths without duplicate birth tests", as
 });
 
  
+test("keeps lab measurements isolated between child profiles after switching and reload", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+
+  for (const name of ["Первый профиль — изоляция", "Второй профиль — изоляция"]) {
+    await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+    await page.getByPlaceholder("Имя").fill(name);
+    await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+    await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  }
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  async function saveChildMeasurement(profileName: string, value: string) {
+    await page.getByRole("button", { name: new RegExp(`Открыть профиль ребёнка ${profileName}, 5 лет`) }).click();
+    await page.getByRole("button", { name: /Дошкольник/ }).click();
+    const bloodCount = page.getByText("ОАК", { exact: true }).first();
+    await expect(bloodCount).toBeVisible();
+    const testRow = bloodCount.locator("xpath=ancestor::div[contains(@class,'px-4')][1]");
+    await testRow.getByRole("button", { name: "+ Значение" }).click();
+    await page.getByLabel("Значение результата").fill(value);
+    await page.getByLabel("Единицы измерения").fill("г/л");
+    await page.getByRole("button", { name: "Сохранить результат" }).click();
+    await expect(page.getByText(value + " г/л", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Вернуться к семье" }).click();
+  }
+
+  await saveChildMeasurement("Первый профиль — изоляция", "12.1");
+  await saveChildMeasurement("Второй профиль — изоляция", "9.2");
+
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  await expect(page.getByText("12.1 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("9.2 г/л", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  await expect(page.getByText("9.2 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("12.1 г/л", { exact: true })).toHaveCount(0);
+
+  await page.reload();
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  await expect(page.getByText("12.1 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("9.2 г/л", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  await expect(page.getByText("9.2 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("12.1 г/л", { exact: true })).toHaveCount(0);
+});
+
 test("stale tab cannot overwrite a newer lab measurement revision", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Здоровье" }).click();
