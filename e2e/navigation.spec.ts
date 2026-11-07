@@ -519,7 +519,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
 
   // The stale write is rejected, the tab adopts the committed winner,
   // and the user is explicitly told that their attempted edit was not saved.
-  await expect(staleTab.getByRole("status")).toContainText("ваше изменение не сохранено");
+  await expect(staleTab.getByRole("status").filter({ hasText: "ваше изменение не сохранено" })).toBeVisible();
   await expect(staleTab.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
   await expect(staleTab.getByText("7.2 ммоль/л", { exact: true })).toHaveCount(0);
   await staleTab.reload();
