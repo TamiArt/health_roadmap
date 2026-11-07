@@ -193,3 +193,11 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - Added the new storage key to the backup allowlist, including per-child health keys, so results are included in export/restore.
 - Unit tests cover valid/invalid dates, qualitative/numeric values and backup schema validation. E2E covers persistence after reload and restoration from backup.
 - The attachment-upload E2E selector was updated to match the visible `Файл` action. The earlier run's failure was a stale selector, not a failure of the new measurement flow; final CI remains pending.
+
+
+## Lab measurement editing — 2026-11-07
+- Added an edit action to each saved manual result. The form is prefilled with the existing date, value and unit.
+- Saving an edit preserves the original record ID and replaces that record in the per-test history; it does not append a duplicate. Results are re-sorted by sample date.
+- Cancel clears edit mode without mutating the stored record. Deletion remains a separate action.
+- Extended the Playwright scenario to edit a saved result, change its date, and assert that the previous value is no longer rendered.
+- The preceding revision (`f9d4f109`) passed the complete CI pipeline, including E2E and production build. CI for this edit is running separately.
