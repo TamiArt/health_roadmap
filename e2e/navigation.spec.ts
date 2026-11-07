@@ -452,6 +452,83 @@ test("renders age-specific child health paths without duplicate birth tests", as
 });
 
  
+test("stale tab cannot overwrite a newer lab measurement revision", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("tab", { name: "Анализы" }).click();
+  await page.getByRole("button", { name: "Базовые — при рождении" }).click();
+  await page.getByRole("button", { name: "+ Значение" }).first().click();
+  await page.getByLabel("Дата анализа").fill("2026-11-06");
+  await page.getByLabel("Значение результата").fill("5.4");
+  await page.getByLabel("Единицы измерения").fill("ммоль/л");
+  await page.getByRole("button", { name: "Сохранить результат" }).click();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+
+  const staleTab = await page.context().newPage();
+  // Disable live notifications in this tab to deterministically exercise the
+  // IndexedDB revision check rather than the BroadcastChannel refresh path.
+  await staleTab.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", { configurable: true, value: undefined });
+  });
+  await staleTab.goto("/");
+  await staleTab.getByRole("button", { name: "Здоровье" }).click();
+  await staleTab.getByRole("tab", { name: "Анализы" }).click();
+  await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
+  await expect(staleTab.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  const staleRevision = await staleTab.evaluate(() => new Promise<number>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get("labMeasurements");
+      read.onsuccess = () => resolve(read.result?.revision ?? 0);
+      read.onerror = () => reject(read.error);
+    };
+  }));
+  // Merely opening a tab must not create a new revision by re-saving the
+  // snapshot it just loaded.
+  await expect.poll(async () => staleTab.evaluate(() => new Promise<number>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get("labMeasurements");
+      read.onsuccess = () => resolve(read.result?.revision ?? 0);
+      read.onerror = () => reject(read.error);
+    };
+  }))).toBe(staleRevision);
+
+  await page.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
+  await page.getByLabel("Значение результата").fill("6.1");
+  await page.getByRole("button", { name: "Сохранить изменения" }).click();
+  await expect(page.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect.poll(async () => page.evaluate(() => new Promise<number>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get("labMeasurements");
+      read.onsuccess = () => resolve(read.result?.revision ?? 0);
+      read.onerror = () => reject(read.error);
+    };
+  }))).toBeGreaterThan(staleRevision);
+
+  await staleTab.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
+  await staleTab.getByLabel("Значение результата").fill("7.2");
+  await staleTab.getByRole("button", { name: "Сохранить изменения" }).click();
+
+  // The stale write is rejected and the tab adopts the committed winner.
+  await expect(staleTab.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("7.2 ммоль/л", { exact: true })).toHaveCount(0);
+  await staleTab.reload();
+  await staleTab.getByRole("button", { name: "Здоровье" }).click();
+  await staleTab.getByRole("tab", { name: "Анализы" }).click();
+  await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
+  await expect(staleTab.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("7.2 ммоль/л", { exact: true })).toHaveCount(0);
+  await staleTab.close();
+});
+
 test("saves and reloads manually entered lab measurements with date and unit", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Здоровье" }).click();

@@ -290,18 +290,33 @@ export function usePersistentState<T>(
 ): [T, Dispatch<SetStateAction<T>>, boolean, string | null] {
   const [value, setValue] = useState<T>(initialValue);
   const [ready, setReady] = useState(false);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const skipNextWrite = useRef<{ value: T } | null>(null);
   const revision = useRef(0);
+  const writeQueue = useRef<Promise<void>>(Promise.resolve());
+  const updateGeneration = useRef(0);
 
   useEffect(() => {
     let active = true;
-    const load = async (resetMissing = false) => {
+    updateGeneration.current += 1;
+    revision.current = 0;
+    skipNextWrite.current = null;
+    const load = async () => {
+      // Invalidate pending writes before initial load or backup restoration.
+      updateGeneration.current += 1;
+      skipNextWrite.current = null;
       try {
         const saved = await readRecordState<T>(key);
         if (active) {
           revision.current = saved.revision;
-          setValue(saved.value !== undefined ? saved.value : resetMissing ? initialValue : current => current);
+          // Loading an existing record is not a user edit. Do not write the
+          // loaded snapshot back: that would create a needless revision and
+          // can make another tab's otherwise-current revision look stale.
+          const loadedValue = saved.value !== undefined ? saved.value : initialValue;
+          skipNextWrite.current = { value: loadedValue };
+          setValue(loadedValue);
+          setLoadedKey(key);
         }
         if (active) setError(null);
       } catch (cause) {
@@ -316,7 +331,7 @@ export function usePersistentState<T>(
     // Setting ready=false here unmounts the hook owner; its cleanup then
     // prevents this async load from ever setting ready=true again.
     const reload = () => {
-      void load(true);
+      void load();
     };
     window.addEventListener(RESTORE_EVENT, reload);
     const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("life-maps:records") : undefined;
@@ -326,6 +341,7 @@ export function usePersistentState<T>(
         if (message?.key !== key || typeof message.revision !== "number" || message.revision <= revision.current) return;
         // Ignore stale/out-of-order notifications; apply only a newer committed revision.
         revision.current = message.revision;
+        updateGeneration.current += 1;
         const incomingValue = message.value as T;
         skipNextWrite.current = { value: incomingValue };
         setValue(incomingValue);
@@ -339,16 +355,28 @@ export function usePersistentState<T>(
   }, [key]);
 
   useEffect(() => {
-    if (!ready || error) return;
+    if (!ready || error || loadedKey !== key) return;
     if (skipNextWrite.current) {
       const remoteUpdate = skipNextWrite.current;
       skipNextWrite.current = null;
       if (remoteUpdate.value === value) return;
     }
-    void writeRecord(key, value).catch(cause => {
+    const generation = updateGeneration.current;
+    writeQueue.current = writeQueue.current.then(async () => {
+      // Ignore queued writes made obsolete by a remote update or key change.
+      if (generation !== updateGeneration.current) return;
+      const result = await writeRecord(key, value, revision.current);
+      revision.current = result.revision;
+      if (result.conflict) {
+        updateGeneration.current += 1;
+        const winningValue = result.value as T;
+        skipNextWrite.current = { value: winningValue };
+        setValue(winningValue);
+      }
+    }).catch(cause => {
       setError(cause instanceof Error ? cause.message : "Не удалось сохранить локальные данные.");
     });
-  }, [key, value, ready, error]);
+  }, [key, value, ready, loadedKey, error]);
 
   return [value, setValue, ready, error];
 }

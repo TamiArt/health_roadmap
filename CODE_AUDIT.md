@@ -222,3 +222,35 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - `writeRecord` performs a compare-and-write in a single `readwrite` transaction. If the stored revision differs from the caller's expected revision, the transaction does not write and returns the already committed value/revision.
 - The hook adopts the winning committed value on conflict instead of overwriting it. BroadcastChannel messages include revisions; older or duplicate messages are ignored.
 - E2E asserts the revision metadata exists and has advanced after creating and editing a manual lab result. Full CI for this revision is pending.
+
+
+## Deterministic stale-tab conflict E2E — 2026-11-07
+- Added a two-tab Playwright scenario where both tabs load the same initial revision.
+- The second tab disables `BroadcastChannel` before app initialization so it deliberately remains stale while the first tab commits a newer revision. The test waits for the first transaction's revision to reach `2` before submitting the stale edit.
+- The stale tab then attempts a different value. Assertions verify that compare-and-write rejects it, the stale tab adopts the committed value, and a reload still reads the winning value (the rejected value is absent).
+- This tests the IndexedDB conflict guard independently of live cross-tab notifications. Full CI is pending.
+
+
+## Persistence integration correction and write ordering — 2026-11-07
+- Review of the new branch found that the compare-and-write API had been added but the React persistence effect still called `writeRecord` without `expectedRevision`. This meant the conflict guard was not active through normal UI edits. The hook now passes its current revision to every write.
+- Writes from one hook are serialized through a promise queue. Each queued operation reads the latest committed revision when it executes, so rapid local updates do not race using the same revision.
+- A generation counter invalidates queued writes after a newer remote notification or storage-key change. The conflict E2E now exercises the wired hook path and checks the stale edit is rejected.
+- This correction is important: earlier documentation described the intended compare-and-write behavior before it was fully connected to the UI persistence path. Treat the feature as verified only after the current CI passes.
+
+
+### Conflict-test calibration — 2026-11-07
+- The first conflict E2E failed because it assumed a newly created record would have exactly revision `2`. The app legitimately advances revisions more than once during initial persistence/Strict Mode lifecycle, so the exact count was not a valid invariant.
+- Updated the test to capture the settled stale tab's actual revision, then require the first tab's committed revision to be greater before submitting the stale edit. This tests ordering, not an implementation-specific counter value.
+- The failed run had TypeScript, structure, dependency audit and unit tests green; Playwright had 21 passing tests and this single failing scenario. Production build was skipped because E2E failed.
+
+
+### Restore/write ordering — 2026-11-07
+- Loading a record (including after a backup-restore event) now increments the write generation before reading IndexedDB. Any queued pre-restore writes are invalidated, preventing stale in-memory state from being written back over the restored backup.
+
+
+### Исправление лишней записи при загрузке состояния — 2026-11-07
+- Найдена причина падения `stale tab cannot overwrite a newer lab measurement revision`: после загрузки записи из IndexedDB хук запускал эффект сохранения для уже загруженного значения. Это создавало лишнюю ревизию без пользовательского изменения.
+- Вторая вкладка, открытая для проверки конфликта, могла тем самым увеличить ревизию, не отправляя BroadcastChannel-сообщение (в тесте канал намеренно отключён). Первая вкладка оставалась со старой ревизией, и её обычное сохранение `6.1` ошибочно отклонялось как конфликт.
+- Исправлено: загруженный снимок помечается как пропускаемый для следующей записи; добавлена защита `loadedKey`, не позволяющая сохранять прежнее состояние при смене ключа до завершения загрузки нового.
+- E2E теперь отдельно проверяет, что простое открытие второй вкладки не увеличивает ревизию, после чего проверяет обычное сохранение `6.1` и отклонение устаревшего `7.2`.
+- Проверки CI для этой корректировки должны быть запущены заново; результат предыдущего запуска не считается подтверждением исправления.
