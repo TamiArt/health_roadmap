@@ -229,3 +229,10 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - The second tab disables `BroadcastChannel` before app initialization so it deliberately remains stale while the first tab commits a newer revision. The test waits for the first transaction's revision to reach `2` before submitting the stale edit.
 - The stale tab then attempts a different value. Assertions verify that compare-and-write rejects it, the stale tab adopts the committed value, and a reload still reads the winning value (the rejected value is absent).
 - This tests the IndexedDB conflict guard independently of live cross-tab notifications. Full CI is pending.
+
+
+## Persistence integration correction and write ordering — 2026-11-07
+- Review of the new branch found that the compare-and-write API had been added but the React persistence effect still called `writeRecord` without `expectedRevision`. This meant the conflict guard was not active through normal UI edits. The hook now passes its current revision to every write.
+- Writes from one hook are serialized through a promise queue. Each queued operation reads the latest committed revision when it executes, so rapid local updates do not race using the same revision.
+- A generation counter invalidates queued writes after a newer remote notification or storage-key change. The conflict E2E now exercises the wired hook path and checks the stale edit is rejected.
+- This correction is important: earlier documentation described the intended compare-and-write behavior before it was fully connected to the UI persistence path. Treat the feature as verified only after the current CI passes.
