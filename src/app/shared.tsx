@@ -7,6 +7,19 @@ export const INP = "w-full text-xs px-2.5 py-1.5 rounded-lg border border-border
 export const SEL = "text-xs px-2.5 py-1.5 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:border-primary/50";
 export const CURRENT_YEAR = 2026;
 
+/** Parse an integer without treating an empty field as zero. */
+export function parseBoundedInteger(value: string | number, min: number, max: number): number | null {
+  if (typeof value === "string" && value.trim() === "") return null;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(parsed) && parsed >= min && parsed <= max ? parsed : null;
+}
+
+/** Validate required user-facing text after trimming whitespace. */
+export function isValidRequiredText(value: string, maxLength: number): boolean {
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= maxLength;
+}
+
 let fallbackIdCounter = 0;
 
 export function createId(): string {
