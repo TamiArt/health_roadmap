@@ -480,6 +480,16 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByLabel("Значение результата").fill("6.1");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
   await expect(page.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect.poll(async () => page.evaluate(() => new Promise<number>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get("labMeasurements");
+      read.onsuccess = () => resolve(read.result?.revision ?? 0);
+      read.onerror = () => reject(read.error);
+    };
+  }))).toBe(2);
 
   await staleTab.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
   await staleTab.getByLabel("Значение результата").fill("7.2");
