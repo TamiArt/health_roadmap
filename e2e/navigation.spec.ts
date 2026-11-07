@@ -395,6 +395,65 @@ test("exports a backup and restores data from a validated backup", async ({ page
   await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
 });
 
+test("restoring a backup cannot be overwritten by a tab with an uncommitted initial snapshot", async ({ page, context }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Экспорт" })).toBeEnabled();
+
+  const staleTab = await context.newPage();
+  await staleTab.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", { configurable: true, value: undefined });
+  });
+  await staleTab.goto("/");
+  await expect(staleTab.getByRole("button", { name: "Экспорт" })).toBeEnabled();
+
+  // Neither tab has written the default lifeEvents value yet: both hold
+  // revision 0 in memory, which exposed the restore/reset-to-zero race.
+  const backup = {
+    format: "life-maps-backup",
+    schemaVersion: 1,
+    exportedAt: "2026-11-07T00:00:00.000Z",
+    records: {
+      lifeEvents: [{
+        id: "restore-wins",
+        year: 2026,
+        title: "Событие из резервной копии",
+        description: "Должно сохраниться после конфликта",
+        category: "personal",
+        emoji: "✨",
+        milestone: true,
+      }],
+      familyMembers: [],
+      children: [],
+      familyEvents: [],
+      vaccineStatuses: {},
+    },
+  };
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+    name: "restore-race.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await expect(page.getByRole("status")).toContainText("Данные восстановлены", { timeout: 10000 });
+
+  await staleTab.getByRole("button", { name: "Изменить" }).click();
+  await staleTab.getByRole("button", { name: "Добавить событие" }).click();
+  await staleTab.getByPlaceholder("Год (2025)").fill("2026");
+  await staleTab.getByPlaceholder("Название события").fill("Устаревшая запись из другой вкладки");
+  await staleTab.getByRole("button", { name: "Добавить", exact: true }).click();
+  await staleTab.getByRole("button", { name: /^Все события/ }).click();
+
+  await expect(staleTab.getByText("Событие из резервной копии", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("Устаревшая запись из другой вкладки", { exact: true })).toHaveCount(0);
+
+  await staleTab.reload();
+  await staleTab.getByRole("button", { name: /^Все события/ }).click();
+  await expect(staleTab.getByText("Событие из резервной копии", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("Устаревшая запись из другой вкладки", { exact: true })).toHaveCount(0);
+  await staleTab.close();
+});
+
 test("shows a validation error for an invalid backup and keeps the app usable", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Импорт" })).toBeEnabled();
