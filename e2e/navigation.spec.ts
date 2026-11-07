@@ -27,6 +27,29 @@ test.describe("primary navigation", () => {
   });
 });
 
+test("rejects unsupported lab attachments and accepts a valid PDF", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("tab", { name: "Анализы", exact: true }).click();
+  await page.getByRole("button", { name: "Базовые — при рождении" }).click();
+
+  await page.getByRole("button", { name: "Загрузить" }).first().click();
+  await page.locator('input[type="file"][accept^="application/pdf"]').setInputFiles({
+    name: "unsafe.svg",
+    mimeType: "image/svg+xml",
+    buffer: Buffer.from("<svg></svg>"),
+  });
+  await expect(page.getByRole("alert")).toContainText("Поддерживаются только");
+
+  await page.getByRole("button", { name: "Загрузить" }).first().click();
+  await page.locator('input[type="file"][accept^="application/pdf"]').setInputFiles({
+    name: "lab-result.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 test"),
+  });
+  await expect(page.getByRole("link", { name: "lab-result.pdf" })).toBeVisible();
+});
+
 test("adds a life event and displays it in the timeline", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Изменить" }).click();
