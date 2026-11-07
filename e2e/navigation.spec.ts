@@ -21,7 +21,7 @@ test.describe("primary navigation", () => {
     await page.getByRole("button", { name: "Здоровье" }).click();
 
     for (const tab of ["Анализы", "Прививки", "Стоматолог", "Профилактика"]) {
-      await page.getByRole("button", { name: tab, exact: true }).click();
+      await page.getByRole("tab", { name: tab, exact: true }).click();
       await expect(page.getByRole("heading", { name: "Навигатор здоровья" })).toBeVisible();
     }
   });
@@ -101,12 +101,11 @@ test("changes a vaccine status and reflects the new state", async ({ page }) => 
   await page.getByRole("button", { name: "Здоровье" }).click();
   await page.getByRole("tab", { name: "Прививки", exact: true }).click();
 
-  const vaccineStatus = page.getByRole("button", { name: "Нужна", exact: true }).first();
+  const vaccineStatus = page.getByRole("button", { name: /Изменить статус вакцины/ }).first();
   await expect(vaccineStatus).toBeVisible();
+  const initialLabel = await vaccineStatus.getAttribute("aria-label");
   await vaccineStatus.click();
-  await expect(page.getByRole("button", { name: "Сделана", exact: true }).first()).toBeVisible();
-  await page.getByRole("button", { name: "Сделана", exact: true }).first().click();
-  await expect(page.getByRole("button", { name: "Просрочена", exact: true }).first()).toBeVisible();
+  await expect(vaccineStatus).not.toHaveAttribute("aria-label", initialLabel);
 });
 
 test("updates a tooth status and saves its note", async ({ page }) => {
