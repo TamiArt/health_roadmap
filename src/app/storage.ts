@@ -291,7 +291,7 @@ export function usePersistentState<T>(
   const [value, setValue] = useState<T>(initialValue);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const skipNextWrite = useRef(false);
+  const skipNextWrite = useRef<{ value: T } | null>(null);
   const revision = useRef(0);
 
   useEffect(() => {
@@ -326,8 +326,9 @@ export function usePersistentState<T>(
         if (message?.key !== key || typeof message.revision !== "number" || message.revision <= revision.current) return;
         // Ignore stale/out-of-order notifications; apply only a newer committed revision.
         revision.current = message.revision;
-        skipNextWrite.current = true;
-        setValue(message.value as T);
+        const incomingValue = message.value as T;
+        skipNextWrite.current = { value: incomingValue };
+        setValue(incomingValue);
       };
     }
     return () => {
@@ -340,8 +341,9 @@ export function usePersistentState<T>(
   useEffect(() => {
     if (!ready || error) return;
     if (skipNextWrite.current) {
-      skipNextWrite.current = false;
-      return;
+      const remoteUpdate = skipNextWrite.current;
+      skipNextWrite.current = null;
+      if (remoteUpdate.value === value) return;
     }
     void writeRecord(key, value).catch(cause => {
       setError(cause instanceof Error ? cause.message : "Не удалось сохранить локальные данные.");
