@@ -207,3 +207,11 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - The first edit-flow E2E revision correctly changed the stored value from `5.4` to `<0.1`, but its post-reload assertions still expected the original value/date. The failure was a stale test expectation, not an observed IndexedDB write failure.
 - Updated the post-reload assertions to expect `<0.1 ммоль/л` on `07.11.2026` and to verify that `5.4 ммоль/л` is absent.
 - Re-run the full CI pipeline for the corrected test before treating this path as verified.
+
+
+## Cross-tab IndexedDB updates — 2026-11-07
+- Added `BroadcastChannel` notifications after successful IndexedDB write transactions. Messages carry the record key and structured-cloneable value; no medical data is sent to a remote service.
+- Each persistent-state hook listens for updates to its own key, applies the received value, and suppresses the resulting persistence effect once to prevent cross-tab echo loops.
+- The listener is closed during hook cleanup. Browsers without `BroadcastChannel` continue to use the existing local IndexedDB behavior, without cross-tab live updates.
+- E2E now opens a second browser tab, edits a lab measurement in the first tab, and verifies the second tab receives the new value/date before reload.
+- Full CI for this revision is pending.
