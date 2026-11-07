@@ -1,8 +1,8 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
-import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type VaccineRecord, type VaccineStatus } from "./data";
-import { childAgeVaccines, createId, validateLabUpload } from "./shared";
+import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type LabMeasurement, type VaccineRecord, type VaccineStatus } from "./data";
+import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
@@ -11,6 +11,15 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   const [gender, setGender] = useState<"f"|"m">(defaultGender);
   const [openStage, setOpenStage] = useState<string|null>(null);
   const [uploads, setUploads, uploadsReady, uploadsError] = usePersistentState<Record<string, UploadedResult[]>>(storageKey, {});
+  const [measurements, setMeasurements, measurementsReady, measurementsError] = usePersistentState<Record<string, LabMeasurement[]>>(storageKey.replace(/labUploads$/, "labMeasurements"), {});
+  const [measurementTestId, setMeasurementTestId] = useState<string | null>(null);
+  const [measurementDate, setMeasurementDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  });
+  const [measurementValue, setMeasurementValue] = useState("");
+  const [measurementUnit, setMeasurementUnit] = useState("");
+  const [measurementError, setMeasurementError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingId = useRef<string|null>(null);
@@ -53,6 +62,35 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
     e.target.value="";
   }
 
+  function startMeasurement(testId: string) {
+    setMeasurementTestId(testId);
+    setMeasurementValue("");
+    setMeasurementUnit("");
+    setMeasurementError(null);
+    const now = new Date();
+    setMeasurementDate(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`);
+  }
+
+  function saveMeasurement(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!measurementTestId || !measurementsReady || measurementsError) return;
+    const validationError = validateLabMeasurement(measurementValue, measurementDate, measurementUnit);
+    if (validationError) { setMeasurementError(validationError); return; }
+    const record: LabMeasurement = { id: createId(), date: measurementDate, value: measurementValue.trim(), unit: measurementUnit.trim() };
+    setMeasurements(prev => ({
+      ...prev,
+      [measurementTestId]: [...(prev[measurementTestId] ?? []), record].sort((a,b) => b.date.localeCompare(a.date)),
+    }));
+    setMeasurementTestId(null);
+    setMeasurementValue("");
+    setMeasurementUnit("");
+    setMeasurementError(null);
+  }
+
+  function removeMeasurement(testId: string, measurementId: string) {
+    setMeasurements(prev => ({ ...prev, [testId]: (prev[testId] ?? []).filter(item => item.id !== measurementId) }));
+  }
+
   function removeUpload(testId: string, uploadId: string) {
     setUploads(prev => ({ ...prev, [testId]:(prev[testId]??[]).filter(upload => upload.id!==uploadId) }));
   }
@@ -63,7 +101,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   return (
     <div>
       <input ref={fileRef} type="file" aria-label="Загрузить результат анализа" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif,.pdf" className="hidden" onChange={handleFile} />
-      {(uploadError || uploadsError) && <p role="alert" className="mb-3 text-xs text-red-600">{uploadError ?? uploadsError}</p>}
+      {(uploadError || uploadsError || measurementsError) && <p role="alert" className="mb-3 text-xs text-red-600">{uploadError ?? uploadsError ?? measurementsError}</p>}
       {!stages && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div className="flex gap-1 p-1 bg-muted rounded-lg">
@@ -82,7 +120,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
           const filtered = stage.tests.filter(t => t.gender==="all"||t.gender===gender);
           if (!filtered.length) return null;
           const isOpen = openStage===stage.id;
-          const uploadedCount = filtered.reduce((n,t) => n+(uploads[t.id]?.length??0), 0);
+          const uploadedCount = filtered.reduce((n,t) => n+(uploads[t.id]?.length??0)+(measurements[t.id]?.length??0), 0);
           return (
             <div key={stage.id} className={`bg-card rounded-xl border overflow-hidden ${stage.pinned?"border-amber-300/60":stage.current?"border-primary/30":"border-border"}`}>
               <button onClick={() => setOpenStage(isOpen?null:stage.id)} className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/30 transition-colors text-left">
@@ -99,7 +137,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {uploadedCount>0 && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{uploadedCount} загружено</span>}
+                  {uploadedCount>0 && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">{uploadedCount} результатов</span>}
                   <span className="text-xs text-muted-foreground" style={{ fontFamily:"'DM Mono', monospace" }}>{filtered.length}</span>
                   <ChevronRight size={13} className={`text-muted-foreground transition-transform ${isOpen?"rotate-90":""}`} />
                 </div>
@@ -108,6 +146,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                 <div className="border-t border-border divide-y divide-border/60">
                   {filtered.map(test => {
                     const ups = uploads[test.id]??[];
+                    const values = measurements[test.id]??[];
                     const isRec = test.priority === "r";
                     return (
                       <div key={test.id} className="px-4 py-3.5">
@@ -122,8 +161,15 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                             </div>
                             <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{test.what}</p>
                             <p className="text-[11px] text-muted-foreground/70 mt-1 italic" style={{ fontFamily:"'DM Mono', monospace" }}>{test.frequency}</p>
-                            {ups.length>0 && (
+                            {(ups.length>0 || values.length>0) && (
                               <div className="mt-2 space-y-1">
+                                {values.map(item => (
+                                  <div key={item.id} className="flex items-center gap-2 bg-emerald-50/70 rounded-lg px-3 py-2">
+                                    <span className="text-xs font-semibold text-foreground flex-1 min-w-0">{item.value}{item.unit ? ` ${item.unit}` : ""}</span>
+                                    <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{new Date(`${item.date}T00:00:00`).toLocaleDateString("ru-RU")}</span>
+                                    <button type="button" aria-label={`Удалить результат от ${item.date}`} onClick={() => removeMeasurement(test.id, item.id)}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
+                                  </div>
+                                ))}
                                 {ups.map(r => (
                                   <div key={r.id} className="flex items-center gap-2 bg-primary/5 rounded-lg px-3 py-2">
                                     {r.isPdf?<FileText size={12} className="text-primary shrink-0"/>:<ImageIcon size={12} className="text-primary shrink-0"/>}
@@ -135,10 +181,34 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                               </div>
                             )}
                           </div>
-                          <button type="button" onClick={() => triggerUpload(test.id)} disabled={!uploadsReady || !!uploadsError} className="shrink-0 flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-border hover:border-primary/50 hover:text-primary text-muted-foreground transition-all disabled:opacity-50">
-                            <Upload size={11}/>Загрузить
-                          </button>
+                          <div className="shrink-0 flex flex-col gap-1.5">
+                            <button type="button" onClick={() => startMeasurement(test.id)} disabled={!measurementsReady || !!measurementsError} className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-all disabled:opacity-50">+ Значение</button>
+                            <button type="button" onClick={() => triggerUpload(test.id)} disabled={!uploadsReady || !!uploadsError} className="flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-border hover:border-primary/50 hover:text-primary text-muted-foreground transition-all disabled:opacity-50">
+                              <Upload size={11}/>Файл
+                            </button>
+                          </div>
                         </div>
+                        {measurementTestId === test.id && (
+                          <form onSubmit={saveMeasurement} className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3 space-y-2">
+                            <p className="text-xs font-semibold text-foreground">Новый результат анализа</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <label className="text-[11px] text-muted-foreground">Дата анализа
+                                <input aria-label="Дата анализа" type="date" max={new Date().toLocaleDateString("en-CA")} value={measurementDate} onChange={event => setMeasurementDate(event.target.value)} required className="mt-1 w-full min-w-0 text-xs px-2 py-1.5 rounded border border-border bg-card text-foreground"/>
+                              </label>
+                              <label className="text-[11px] text-muted-foreground">Значение
+                                <input aria-label="Значение результата" type="text" maxLength={40} value={measurementValue} onChange={event => setMeasurementValue(event.target.value)} placeholder="Например, 5.4" required className="mt-1 w-full min-w-0 text-xs px-2 py-1.5 rounded border border-border bg-card text-foreground"/>
+                              </label>
+                              <label className="text-[11px] text-muted-foreground">Единицы измерения
+                                <input aria-label="Единицы измерения" type="text" maxLength={20} value={measurementUnit} onChange={event => setMeasurementUnit(event.target.value)} placeholder="ммоль/л" className="mt-1 w-full min-w-0 text-xs px-2 py-1.5 rounded border border-border bg-card text-foreground"/>
+                              </label>
+                            </div>
+                            {measurementError && <p role="alert" className="text-xs text-red-600">{measurementError}</p>}
+                            <div className="flex justify-end gap-2">
+                              <button type="button" onClick={() => { setMeasurementTestId(null); setMeasurementError(null); }} className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground">Отмена</button>
+                              <button type="submit" className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground">Сохранить результат</button>
+                            </div>
+                          </form>
+                        )}
                       </div>
                     );
                   })}
