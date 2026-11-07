@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, validateLabUpload } from "./shared";
+import { childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, validateLabMeasurement, validateLabUpload } from "./shared";
 import { LAB_TEST_ASSIGNMENTS, LAB_TEST_CONCEPTS, LIFE_STAGES } from "./data";
 
 describe("childAgeStages", () => {
@@ -110,6 +110,20 @@ describe("form validation helpers", () => {
   });
 });
 
+
+describe("manual lab measurement validation", () => {
+  it("accepts numeric and qualitative values with a valid non-future date", () => {
+    expect(validateLabMeasurement("5.4", "2026-11-06", "ммоль/л")).toBeNull();
+    expect(validateLabMeasurement("<0.1", "2026-11-06", "нг/мл")).toBeNull();
+    expect(validateLabMeasurement("отрицательно", "2026-11-06", "")).toBeNull();
+  });
+  it("rejects blank values, invalid/future dates and oversized units", () => {
+    expect(validateLabMeasurement("  ", "2026-11-06", "")).toContain("Укажите значение");
+    expect(validateLabMeasurement("5", "2026-02-30", "")).toContain("корректную дату");
+    expect(validateLabMeasurement("5", "2099-01-01", "")).toContain("будущем");
+    expect(validateLabMeasurement("5", "2026-11-06", "x".repeat(21))).toContain("20 символов");
+  });
+});
 
 describe("medical attachment validation", () => {
   it("allows supported formats and rejects unsupported or misleading files", () => {
