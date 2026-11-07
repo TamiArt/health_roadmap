@@ -191,4 +191,5 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - Numeric and qualitative values (including comparator strings) are accepted without clinical interpretation or reference-range judgment.
 - Validation rejects blank/oversized values, invalid calendar dates, future dates and oversized units. Individual measurements can be deleted independently.
 - Added the new storage key to the backup allowlist, including per-child health keys, so results are included in export/restore.
-- Unit and E2E coverage added; full CI must complete before this feature is marked verified.
+- Unit tests cover valid/invalid dates, qualitative/numeric values and backup schema validation. E2E covers persistence after reload and restoration from backup.
+- The attachment-upload E2E selector was updated to match the visible `Файл` action. The earlier run's failure was a stale selector, not a failure of the new measurement flow; final CI remains pending.
