@@ -20,6 +20,25 @@ export function isValidRequiredText(value: string, maxLength: number): boolean {
   return trimmed.length > 0 && trimmed.length <= maxLength;
 }
 
+/** Validate lab-result uploads before persisting their Blob in IndexedDB. */
+export function validateLabUpload(file: Pick<File, "name" | "type" | "size">): string | null {
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const allowedTypes: Record<string, string> = {
+    pdf: "application/pdf",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    gif: "image/gif",
+  };
+  const expectedType = allowedTypes[extension];
+  if (!expectedType) return "Поддерживаются только PDF, PNG, JPG, WEBP и GIF.";
+  if (file.size <= 0) return "Файл пустой.";
+  if (file.size > 15 * 1024 * 1024) return "Размер одного файла не должен превышать 15 МБ.";
+  if (file.type && file.type !== expectedType) return "Тип файла не соответствует его расширению.";
+  return null;
+}
+
 let fallbackIdCounter = 0;
 
 export function createId(): string {
