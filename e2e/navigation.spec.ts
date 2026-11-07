@@ -32,8 +32,11 @@ test("adds a life event and displays it in the timeline", async ({ page }) => {
   await page.getByRole("button", { name: "Изменить" }).click();
   await page.getByRole("button", { name: "Добавить событие" }).click();
 
-  await page.getByPlaceholder("Год (2025)").fill("2026");
+  await page.getByPlaceholder("Год (2025)").fill("1800");
   await page.getByPlaceholder("Название события").fill("E2E проверка события");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("от 1900 до 2100");
+  await page.getByPlaceholder("Год (2025)").fill("2026");
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
   await page.getByRole("button", { name: /^Все события/ }).click();
 
@@ -129,6 +132,14 @@ test("updates a tooth status and saves its note", async ({ page }) => {
 test("keeps main sections within a narrow mobile viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+
+  const mobileNavigation = page.getByRole("navigation", { name: "Основная навигация" });
+  const backupPanel = page.getByRole("region", { name: "Резервное копирование" });
+  const navigationBox = await mobileNavigation.boundingBox();
+  const backupBox = await backupPanel.boundingBox();
+  expect(navigationBox).not.toBeNull();
+  expect(backupBox).not.toBeNull();
+  expect(backupBox!.y + backupBox!.height).toBeLessThanOrEqual(navigationBox!.y);
 
   for (const section of ["Карта жизни", "Здоровье", "Семья", "Аналитика"]) {
     await page.getByRole("button", { name: section }).click();
