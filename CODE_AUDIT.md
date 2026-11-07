@@ -183,3 +183,12 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - Fixed a connection lifecycle issue in `openDatabase`: `IDBOpenDBRequest.onblocked` is a waiting notification, not a terminal failure. Rejecting the promise there left a rejected promise cached and could permanently prevent retries in that tab.
 - The open request now remains pending while another tab releases its connection. Successful connections close on `versionchange` and clear the cached connection promise so the next access can reopen the database.
 - Browser multi-tab upgrade behavior is not yet covered by a dedicated automated IndexedDB integration test; latest CI is pending.
+
+
+## Manual lab measurements — 2026-11-07
+- Added a separate IndexedDB collection (`labMeasurements`) so manually entered values do not replace uploaded file records.
+- Each result stores a stable ID, sample date (`YYYY-MM-DD`), original value text and optional unit. Multiple dated measurements per test are retained and displayed newest first.
+- Numeric and qualitative values (including comparator strings) are accepted without clinical interpretation or reference-range judgment.
+- Validation rejects blank/oversized values, invalid calendar dates, future dates and oversized units. Individual measurements can be deleted independently.
+- Added the new storage key to the backup allowlist, including per-child health keys, so results are included in export/restore.
+- Unit and E2E coverage added; full CI must complete before this feature is marked verified.
