@@ -72,6 +72,16 @@ export interface UploadedResult {
   isPdf: boolean;
 }
 
+/** A manually entered measurement for one lab-test assignment. */
+export interface LabMeasurement {
+  id: string;
+  /** Date the sample was collected / test was performed (local YYYY-MM-DD). */
+  date: string;
+  /** Preserve the original entered representation, including qualitative values or comparators. */
+  value: string;
+  unit: string;
+}
+
 export interface VaccineRecord {
   id: string; name: string; protects: string; schedule: string;
   mandatory: boolean; status: VaccineStatus; note: string; minAge?: number;
