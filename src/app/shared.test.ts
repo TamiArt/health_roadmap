@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger } from "./shared";
+import { childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, validateLabUpload } from "./shared";
 import { LAB_TEST_ASSIGNMENTS, LAB_TEST_CONCEPTS, LIFE_STAGES } from "./data";
 
 describe("childAgeStages", () => {
@@ -107,5 +107,21 @@ describe("form validation helpers", () => {
     expect(isValidRequiredText("  ", 80)).toBe(false);
     expect(isValidRequiredText(" A ", 80)).toBe(true);
     expect(isValidRequiredText("x".repeat(81), 80)).toBe(false);
+  });
+});
+
+
+describe("medical attachment validation", () => {
+  it("allows supported formats and rejects unsupported or misleading files", () => {
+    expect(validateLabUpload({ name: "result.pdf", type: "application/pdf", size: 1024 })).toBeNull();
+    expect(validateLabUpload({ name: "scan.JPG", type: "image/jpeg", size: 1024 })).toBeNull();
+    expect(validateLabUpload({ name: "scan.svg", type: "image/svg+xml", size: 1024 })).toContain("Поддерживаются только");
+    expect(validateLabUpload({ name: "result.pdf", type: "image/png", size: 1024 })).toContain("не соответствует");
+  });
+
+  it("rejects empty files and files larger than 15 MiB", () => {
+    expect(validateLabUpload({ name: "empty.pdf", type: "application/pdf", size: 0 })).toBe("Файл пустой.");
+    expect(validateLabUpload({ name: "large.pdf", type: "application/pdf", size: 15 * 1024 * 1024 + 1 })).toContain("15 МБ");
+    expect(validateLabUpload({ name: "limit.pdf", type: "application/pdf", size: 15 * 1024 * 1024 })).toBeNull();
   });
 });
