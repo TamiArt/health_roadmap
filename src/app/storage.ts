@@ -8,7 +8,8 @@ export const CURRENT_SCHEMA_VERSION = 1;
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const RESTORE_EVENT = "life-maps:backup-restored";
 
-type StoredRecord = { key: string; value: unknown };
+type StoredRecord = { key: string; value: unknown; revision?: number };
+type VersionedRecord<T> = { value: T | undefined; revision: number };
 export type BackupPayload = {
   format: typeof BACKUP_FORMAT;
   schemaVersion: number;
@@ -73,29 +74,46 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
-export async function readRecord<T>(key: string): Promise<T | undefined> {
+export async function readRecordState<T>(key: string): Promise<VersionedRecord<T>> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readonly");
   const record = await requestResult<StoredRecord | undefined>(transaction.objectStore(STORE_NAME).get(key));
-  return record?.value as T | undefined;
+  return { value: record?.value as T | undefined, revision: record?.revision ?? 0 };
 }
 
-export async function writeRecord<T>(key: string, value: T): Promise<void> {
+export async function readRecord<T>(key: string): Promise<T | undefined> {
+  return (await readRecordState<T>(key)).value;
+}
+
+/** Compare-and-write: a stale tab cannot overwrite a newer IndexedDB revision. */
+export async function writeRecord<T>(key: string, value: T, expectedRevision?: number): Promise<VersionedRecord<T> & { conflict: boolean }> {
   if (!isAllowedRecordKey(key)) throw new Error("Недопустимый ключ пользовательских данных.");
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readwrite");
-  transaction.objectStore(STORE_NAME).put({ key, value } satisfies StoredRecord);
+  const store = transaction.objectStore(STORE_NAME);
+  let result: VersionedRecord<T> & { conflict: boolean } = { value, revision: 0, conflict: false };
+  const request = store.get(key);
+  request.onsuccess = () => {
+    const current = request.result as StoredRecord | undefined;
+    const currentRevision = current?.revision ?? 0;
+    if (expectedRevision !== undefined && currentRevision !== expectedRevision) {
+      result = { value: current?.value as T | undefined, revision: currentRevision, conflict: true };
+      return;
+    }
+    result = { value, revision: currentRevision + 1, conflict: false };
+    store.put({ key, value, revision: result.revision } satisfies StoredRecord);
+  };
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось сохранить данные."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Сохранение отменено."));
   });
-  // Notify other open tabs only after IndexedDB confirms the transaction.
-  if (typeof BroadcastChannel !== "undefined") {
+  if (!result.conflict && typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
-    channel.postMessage({ key, value });
+    channel.postMessage({ key, value, revision: result.revision });
     channel.close();
   }
+  return result;
 }
 
 async function readAllRecords(): Promise<Record<string, unknown>> {
@@ -274,13 +292,17 @@ export function usePersistentState<T>(
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const skipNextWrite = useRef(false);
+  const revision = useRef(0);
 
   useEffect(() => {
     let active = true;
     const load = async (resetMissing = false) => {
       try {
-        const saved = await readRecord<T>(key);
-        if (active) setValue(saved !== undefined ? saved : resetMissing ? initialValue : current => current);
+        const saved = await readRecordState<T>(key);
+        if (active) {
+          revision.current = saved.revision;
+          setValue(saved.value !== undefined ? saved.value : resetMissing ? initialValue : current => current);
+        }
         if (active) setError(null);
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "Не удалось загрузить локальные данные.");
@@ -300,9 +322,10 @@ export function usePersistentState<T>(
     const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("life-maps:records") : undefined;
     if (channel) {
       channel.onmessage = event => {
-        const message = event.data as { key?: unknown; value?: unknown };
-        if (message?.key !== key) return;
-        // Do not echo a remote update back to other tabs as a new local write.
+        const message = event.data as { key?: unknown; value?: unknown; revision?: unknown };
+        if (message?.key !== key || typeof message.revision !== "number" || message.revision <= revision.current) return;
+        // Ignore stale/out-of-order notifications; apply only a newer committed revision.
+        revision.current = message.revision;
         skipNextWrite.current = true;
         setValue(message.value as T);
       };
