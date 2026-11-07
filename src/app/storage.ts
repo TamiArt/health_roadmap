@@ -293,9 +293,14 @@ export function usePersistentState<T>(
   const [error, setError] = useState<string | null>(null);
   const skipNextWrite = useRef<{ value: T } | null>(null);
   const revision = useRef(0);
+  const writeQueue = useRef<Promise<void>>(Promise.resolve());
+  const updateGeneration = useRef(0);
 
   useEffect(() => {
     let active = true;
+    updateGeneration.current += 1;
+    revision.current = 0;
+    skipNextWrite.current = null;
     const load = async (resetMissing = false) => {
       try {
         const saved = await readRecordState<T>(key);
@@ -326,6 +331,7 @@ export function usePersistentState<T>(
         if (message?.key !== key || typeof message.revision !== "number" || message.revision <= revision.current) return;
         // Ignore stale/out-of-order notifications; apply only a newer committed revision.
         revision.current = message.revision;
+        updateGeneration.current += 1;
         const incomingValue = message.value as T;
         skipNextWrite.current = { value: incomingValue };
         setValue(incomingValue);
@@ -345,7 +351,19 @@ export function usePersistentState<T>(
       skipNextWrite.current = null;
       if (remoteUpdate.value === value) return;
     }
-    void writeRecord(key, value).catch(cause => {
+    const generation = updateGeneration.current;
+    writeQueue.current = writeQueue.current.then(async () => {
+      // Ignore queued writes made obsolete by a remote update or key change.
+      if (generation !== updateGeneration.current) return;
+      const result = await writeRecord(key, value, revision.current);
+      revision.current = result.revision;
+      if (result.conflict) {
+        updateGeneration.current += 1;
+        const winningValue = result.value as T;
+        skipNextWrite.current = { value: winningValue };
+        setValue(winningValue);
+      }
+    }).catch(cause => {
       setError(cause instanceof Error ? cause.message : "Не удалось сохранить локальные данные.");
     });
   }, [key, value, ready, error]);
