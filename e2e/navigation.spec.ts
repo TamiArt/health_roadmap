@@ -631,13 +631,13 @@ test("keeps lab measurements isolated between child profiles after switching and
   await saveChildMeasurement("Второй профиль — изоляция", "9.2");
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
-  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  // The profile component remains mounted while hidden, so its expanded stage is preserved.
   await expect(page.getByText("12.1 г/л", { exact: true })).toBeVisible();
   await expect(page.getByText("9.2 г/л", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
-  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  // Its stage is also still expanded from the initial save.
   await expect(page.getByText("9.2 г/л", { exact: true })).toBeVisible();
   await expect(page.getByText("12.1 г/л", { exact: true })).toHaveCount(0);
 
