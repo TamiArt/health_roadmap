@@ -47,8 +47,26 @@ describe("local backup schema", () => {
     expect(isAllowedRecordKey("childHealth:child-1:toothData")).toBe(true);
     expect(isAllowedRecordKey("labUploads")).toBe(true);
     expect(isAllowedRecordKey("childHealth:child-1:labUploads")).toBe(true);
+    expect(isAllowedRecordKey("labMeasurements")).toBe(true);
+    expect(isAllowedRecordKey("childHealth:child-1:labMeasurements")).toBe(true);
     expect(isAllowedRecordKey("childHealth:child-1:privateNotes")).toBe(false);
     expect(isAllowedRecordKey("credentials")).toBe(false);
+  });
+
+  it("preserves manually entered lab measurements and rejects malformed measurement records", () => {
+    const measurement = { id: "measurement-1", date: "2026-11-06", value: "5.4", unit: "ммоль/л" };
+    const backup: BackupPayload = {
+      format: BACKUP_FORMAT,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      exportedAt: "2026-11-06T00:00:00.000Z",
+      records: { labMeasurements: { cbc: [measurement] }, "childHealth:child-1:labMeasurements": { ferritin: [measurement] } },
+    };
+
+    expect(migrateBackup(backup).records.labMeasurements).toEqual({ cbc: [measurement] });
+    expect(() => migrateBackup({ ...backup, records: { labMeasurements: { cbc: [{ ...measurement, date: "2026-02-30" }] } } }))
+      .toThrow("Повреждены значения анализов");
+    expect(() => migrateBackup({ ...backup, records: { labMeasurements: { cbc: "5.4" } } }))
+      .toThrow("Повреждены значения анализов");
   });
 
   it("round-trips binary attachments through the JSON backup representation", async () => {
