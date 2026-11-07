@@ -454,6 +454,44 @@ test("restoring a backup cannot be overwritten by a tab with an uncommitted init
   await staleTab.close();
 });
 
+test("backup restore refreshes records in other open tabs", async ({ page, context }) => {
+  await page.goto("/");
+  const otherTab = await context.newPage();
+  await otherTab.goto("/");
+  await otherTab.getByRole("button", { name: /^Все события/ }).click();
+  await expect(otherTab.getByText("Восстановленное в другой вкладке", { exact: true })).toHaveCount(0);
+
+  const backup = {
+    format: "life-maps-backup",
+    schemaVersion: 1,
+    exportedAt: "2026-11-07T00:00:00.000Z",
+    records: {
+      lifeEvents: [{
+        id: "cross-tab-restored",
+        year: 2026,
+        title: "Восстановленное в другой вкладке",
+        description: "Обновление через BroadcastChannel",
+        category: "personal",
+        emoji: "✨",
+        milestone: true,
+      }],
+      familyMembers: [],
+      children: [],
+      familyEvents: [],
+      vaccineStatuses: {},
+    },
+  };
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+    name: "cross-tab-restore.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await expect(page.getByRole("status")).toContainText("Данные восстановлены", { timeout: 10000 });
+  await expect(otherTab.getByText("Восстановленное в другой вкладке", { exact: true })).toBeVisible({ timeout: 10000 });
+  await otherTab.close();
+});
+
 test("a stale tab cannot resurrect a record removed by backup restore", async ({ page, context }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Изменить" }).click();
