@@ -271,7 +271,17 @@ test("validates child creation without creating an empty profile", async ({ page
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
 
   await expect(page.getByText("Проверка валидации", { exact: true })).toHaveCount(0);
+  await page.getByPlaceholder("Имя").fill("   ");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2027");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Укажите имя ребёнка");
+  await expect(page.getByText("Проверка валидации", { exact: true })).toHaveCount(0);
+
   await page.getByPlaceholder("Имя").fill("Проверка валидации");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("от 1900 до 2026");
+  await expect(page.getByText("Проверка валидации", { exact: true })).toHaveCount(0);
+
   await page.getByPlaceholder("Год рождения (2022)").fill("2021");
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
   await expect(page.getByText("Проверка валидации", { exact: true }).first()).toBeVisible();
