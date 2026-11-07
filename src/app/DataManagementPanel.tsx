@@ -51,7 +51,7 @@ export function DataManagementPanel({
   }
 
   return (
-    <section aria-label="Резервное копирование" className="pointer-events-none fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2">
+    <section aria-label="Резервное копирование" className="pointer-events-none fixed bottom-20 right-4 z-40 sm:bottom-4 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2">
       <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur">
         <button type="button" onClick={() => void handleExport()} disabled={busy || !storageReady || !!storageError}
           className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50">
