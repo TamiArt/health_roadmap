@@ -215,3 +215,10 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - The listener is closed during hook cleanup. Browsers without `BroadcastChannel` continue to use the existing local IndexedDB behavior, without cross-tab live updates.
 - E2E now opens a second browser tab, edits a lab measurement in the first tab, and verifies the second tab receives the new value/date before reload.
 - Full CI for this revision is pending.
+
+
+## Stale-write protection — 2026-11-07
+- IndexedDB records now carry a monotonically increasing `revision`. Legacy records without this field remain readable and are treated as revision `0`; no data migration or destructive rewrite is required.
+- `writeRecord` performs a compare-and-write in a single `readwrite` transaction. If the stored revision differs from the caller's expected revision, the transaction does not write and returns the already committed value/revision.
+- The hook adopts the winning committed value on conflict instead of overwriting it. BroadcastChannel messages include revisions; older or duplicate messages are ignored.
+- E2E asserts the revision metadata exists and has advanced after creating and editing a manual lab result. Full CI for this revision is pending.
