@@ -615,10 +615,11 @@ test("keeps lab measurements isolated between child profiles after switching and
   async function saveChildMeasurement(profileName: string, value: string) {
     await page.getByRole("button", { name: new RegExp(`Открыть профиль ребёнка ${profileName}, 5 лет`) }).click();
     await page.getByRole("button", { name: /Дошкольник/ }).click();
-    const bloodCount = page.getByText("ОАК", { exact: true }).first();
-    await expect(bloodCount).toBeVisible();
-    const testRow = bloodCount.locator("xpath=ancestor::div[contains(@class,'px-4')][1]");
-    await testRow.getByRole("button", { name: "+ Значение" }).click();
+    // The main health section and other child profiles stay mounted but hidden.
+    // Target the visible action rather than the first matching hidden "ОАК" label.
+    const addMeasurement = page.locator("button:visible").filter({ hasText: "+ Значение" }).first();
+    await expect(addMeasurement).toBeVisible();
+    await addMeasurement.click();
     await page.getByLabel("Значение результата").fill(value);
     await page.getByLabel("Единицы измерения").fill("г/л");
     await page.getByRole("button", { name: "Сохранить результат" }).click();
