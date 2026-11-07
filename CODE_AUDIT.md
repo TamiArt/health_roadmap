@@ -236,3 +236,9 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - Writes from one hook are serialized through a promise queue. Each queued operation reads the latest committed revision when it executes, so rapid local updates do not race using the same revision.
 - A generation counter invalidates queued writes after a newer remote notification or storage-key change. The conflict E2E now exercises the wired hook path and checks the stale edit is rejected.
 - This correction is important: earlier documentation described the intended compare-and-write behavior before it was fully connected to the UI persistence path. Treat the feature as verified only after the current CI passes.
+
+
+### Conflict-test calibration — 2026-11-07
+- The first conflict E2E failed because it assumed a newly created record would have exactly revision `2`. The app legitimately advances revisions more than once during initial persistence/Strict Mode lifecycle, so the exact count was not a valid invariant.
+- Updated the test to capture the settled stale tab's actual revision, then require the first tab's committed revision to be greater before submitting the stale edit. This tests ordering, not an implementation-specific counter value.
+- The failed run had TypeScript, structure, dependency audit and unit tests green; Playwright had 21 passing tests and this single failing scenario. Production build was skipped because E2E failed.
