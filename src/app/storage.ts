@@ -46,12 +46,21 @@ function openDatabase(): Promise<IDBDatabase> {
         database.createObjectStore(STORE_NAME, { keyPath: "key" });
       }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => {
+        // Release this tab's connection so another tab can upgrade the schema.
+        database.close();
+        databasePromise = undefined;
+      };
+      resolve(database);
+    };
     request.onerror = () => {
       databasePromise = undefined;
       reject(request.error ?? new Error("Не удалось открыть локальную базу данных."));
     };
-    request.onblocked = () => reject(new Error("Обновление локальной базы заблокировано другой вкладкой."));
+    // "blocked" is a waiting state, not a terminal error. Keep the request
+    // pending; an older tab may close its connection and let this open succeed.
   });
   return databasePromise;
 }
