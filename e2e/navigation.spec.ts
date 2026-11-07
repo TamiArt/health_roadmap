@@ -475,7 +475,6 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await staleTab.getByRole("tab", { name: "Анализы" }).click();
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(staleTab.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
-  await staleTab.waitForTimeout(200);
   const staleRevision = await staleTab.evaluate(() => new Promise<number>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
     request.onerror = () => reject(request.error);
@@ -486,6 +485,18 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
       read.onerror = () => reject(read.error);
     };
   }));
+  // Merely opening a tab must not create a new revision by re-saving the
+  // snapshot it just loaded.
+  await expect.poll(async () => staleTab.evaluate(() => new Promise<number>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get("labMeasurements");
+      read.onsuccess = () => resolve(read.result?.revision ?? 0);
+      read.onerror = () => reject(read.error);
+    };
+  }))).toBe(staleRevision);
 
   await page.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
   await page.getByLabel("Значение результата").fill("6.1");
