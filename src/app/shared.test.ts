@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { childAgeStages, childAgeVaccines, createId } from "./shared";
+import { childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger } from "./shared";
 import { LAB_TEST_ASSIGNMENTS, LAB_TEST_CONCEPTS, LIFE_STAGES } from "./data";
 
 describe("childAgeStages", () => {
@@ -89,5 +89,23 @@ describe("lab test catalogue", () => {
       "a10", "a4", "a5", "a9", "ai1", "ai2", "ai3", "fe2", "r1", "r11",
       "r12", "r13", "r2", "r3", "r4", "r5", "r6", "s4", "s6", "th3", "ya9",
     ]);
+  });
+});
+
+
+describe("form validation helpers", () => {
+  it("rejects empty, whitespace-only, decimal and out-of-range integer values", () => {
+    expect(parseBoundedInteger("", 0, 120)).toBeNull();
+    expect(parseBoundedInteger("   ", 0, 120)).toBeNull();
+    expect(parseBoundedInteger("1.5", 0, 120)).toBeNull();
+    expect(parseBoundedInteger("-1", 0, 120)).toBeNull();
+    expect(parseBoundedInteger("121", 0, 120)).toBeNull();
+    expect(parseBoundedInteger("27", 0, 120)).toBe(27);
+  });
+
+  it("accepts only non-empty trimmed text within the configured length", () => {
+    expect(isValidRequiredText("  ", 80)).toBe(false);
+    expect(isValidRequiredText(" A ", 80)).toBe(true);
+    expect(isValidRequiredText("x".repeat(81), 80)).toBe(false);
   });
 });
