@@ -396,7 +396,9 @@ export function usePersistentState<T>(
       if (result.conflict) {
         setConflict(true);
         updateGeneration.current += 1;
-        const winningValue = result.value as T;
+        // A restore may intentionally remove this key. In that case use
+        // the hook's initial value instead of passing undefined into React state.
+        const winningValue = result.value !== undefined ? result.value as T : initialValue;
         skipNextWrite.current = { value: winningValue };
         setValue(winningValue);
       } else {
