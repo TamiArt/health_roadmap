@@ -290,6 +290,7 @@ export function usePersistentState<T>(
 ): [T, Dispatch<SetStateAction<T>>, boolean, string | null] {
   const [value, setValue] = useState<T>(initialValue);
   const [ready, setReady] = useState(false);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const skipNextWrite = useRef<{ value: T } | null>(null);
   const revision = useRef(0);
@@ -309,7 +310,13 @@ export function usePersistentState<T>(
         const saved = await readRecordState<T>(key);
         if (active) {
           revision.current = saved.revision;
-          setValue(saved.value !== undefined ? saved.value : resetMissing ? initialValue : current => current);
+          // Loading an existing record is not a user edit. Do not write the
+          // loaded snapshot back: that would create a needless revision and
+          // can make another tab's otherwise-current revision look stale.
+          const loadedValue = saved.value !== undefined ? saved.value : initialValue;
+          skipNextWrite.current = { value: loadedValue };
+          setValue(loadedValue);
+          setLoadedKey(key);
         }
         if (active) setError(null);
       } catch (cause) {
@@ -348,7 +355,7 @@ export function usePersistentState<T>(
   }, [key]);
 
   useEffect(() => {
-    if (!ready || error) return;
+    if (!ready || error || loadedKey !== key) return;
     if (skipNextWrite.current) {
       const remoteUpdate = skipNextWrite.current;
       skipNextWrite.current = null;
@@ -369,7 +376,7 @@ export function usePersistentState<T>(
     }).catch(cause => {
       setError(cause instanceof Error ? cause.message : "Не удалось сохранить локальные данные.");
     });
-  }, [key, value, ready, error]);
+  }, [key, value, ready, loadedKey, error]);
 
   return [value, setValue, ready, error];
 }
