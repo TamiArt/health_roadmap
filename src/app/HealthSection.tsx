@@ -2,7 +2,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
 import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type VaccineRecord, type VaccineStatus } from "./data";
-import { childAgeVaccines, createId } from "./shared";
+import { childAgeVaccines, createId, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
@@ -31,10 +31,13 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
     fileRef.current?.click();
   }
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; const id = pendingId.current;
-    if (!file || !id) return;
-    if (file.size > 15 * 1024 * 1024) {
-      setUploadError("Размер одного файла не должен превышать 15 МБ.");
+    const file = e.target.files?.[0];
+    const id = pendingId.current;
+    pendingId.current = null;
+    if (!file || !id) { e.target.value = ""; return; }
+    const validationError = validateLabUpload(file);
+    if (validationError) {
+      setUploadError(validationError);
       e.target.value = "";
       return;
     }
@@ -44,7 +47,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
       name:file.name,
       date:new Date().toLocaleDateString("ru-RU"),
       blob:file,
-      isPdf:file.type==="application/pdf",
+      isPdf:file.name.toLowerCase().endsWith(".pdf"),
     };
     setUploads(prev => ({ ...prev, [id]:[...(prev[id]??[]), result] }));
     e.target.value="";
@@ -59,7 +62,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
 
   return (
     <div>
-      <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} />
+      <input ref={fileRef} type="file" aria-label="Загрузить результат анализа" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif,.pdf" className="hidden" onChange={handleFile} />
       {(uploadError || uploadsError) && <p role="alert" className="mb-3 text-xs text-red-600">{uploadError ?? uploadsError}</p>}
       {!stages && (
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
