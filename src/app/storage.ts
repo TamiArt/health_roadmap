@@ -167,6 +167,18 @@ function validateRecordValue(key: string, value: unknown): void {
   }
 
   if (!isPlainRecord(value)) throw new Error(`Повреждена запись данных: ${key}`);
+  if (key === "labMeasurements" || key.endsWith(":labMeasurements")) {
+    for (const [testId, measurements] of Object.entries(value)) {
+      if (!Array.isArray(measurements) || measurements.some(item => {
+        if (!isPlainRecord(item) || typeof item.id !== "string" || typeof item.value !== "string" ||
+            typeof item.unit !== "string" || typeof item.date !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(item.date)) return true;
+        const date = new Date(item.date + "T00:00:00");
+        return Number.isNaN(date.getTime()) || date.getFullYear() !== Number(item.date.slice(0,4)) ||
+          date.getMonth()+1 !== Number(item.date.slice(5,7)) || date.getDate() !== Number(item.date.slice(8,10));
+      })) throw new Error(`Повреждены значения анализов для исследования ${testId}.`);
+    }
+  }
+
   if (key === "labUploads" || key.endsWith(":labUploads")) {
     for (const [testId, uploads] of Object.entries(value)) {
       if (!Array.isArray(uploads) || uploads.some(item => {
