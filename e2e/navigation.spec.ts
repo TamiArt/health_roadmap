@@ -464,6 +464,14 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await page.getByRole("button", { name: "Сохранить результат" }).click();
   await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
   await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
+
+  const secondTab = await page.context().newPage();
+  await secondTab.goto("/");
+  await secondTab.getByRole("button", { name: "Здоровье" }).click();
+  await secondTab.getByRole("tab", { name: "Анализы" }).click();
+  await secondTab.getByRole("button", { name: "Базовые — при рождении" }).click();
+  await expect(secondTab.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+
   await page.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
   await expect(page.getByText("Редактирование результата анализа")).toBeVisible();
   await page.getByLabel("Значение результата").fill("<0.1");
@@ -472,6 +480,9 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await expect(page.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
   await expect(page.getByText("07.11.2026", { exact: true })).toBeVisible();
   await expect(page.getByText("5.4 ммоль/л", { exact: true })).toHaveCount(0);
+  await expect(secondTab.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect(secondTab.getByText("07.11.2026", { exact: true })).toBeVisible();
+  await secondTab.close();
   await page.reload();
   await page.getByRole("button", { name: "Здоровье" }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
