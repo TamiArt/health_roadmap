@@ -302,6 +302,9 @@ export function usePersistentState<T>(
     revision.current = 0;
     skipNextWrite.current = null;
     const load = async (resetMissing = false) => {
+      // Invalidate pending writes before initial load or backup restoration.
+      updateGeneration.current += 1;
+      skipNextWrite.current = null;
       try {
         const saved = await readRecordState<T>(key);
         if (active) {
