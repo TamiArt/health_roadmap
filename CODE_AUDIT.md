@@ -201,3 +201,9 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - Cancel clears edit mode without mutating the stored record. Deletion remains a separate action.
 - Extended the Playwright scenario to edit a saved result, change its date, and assert that the previous value is no longer rendered.
 - The preceding revision (`f9d4f109`) passed the complete CI pipeline, including E2E and production build. CI for this edit is running separately.
+
+
+### E2E assertion correction — 2026-11-07
+- The first edit-flow E2E revision correctly changed the stored value from `5.4` to `<0.1`, but its post-reload assertions still expected the original value/date. The failure was a stale test expectation, not an observed IndexedDB write failure.
+- Updated the post-reload assertions to expect `<0.1 ммоль/л` on `07.11.2026` and to verify that `5.4 ммоль/л` is absent.
+- Re-run the full CI pipeline for the corrected test before treating this path as verified.
