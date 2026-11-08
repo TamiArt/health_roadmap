@@ -27,7 +27,9 @@ export default function App() {
     Object.fromEntries(VACCINES.map(v => [v.id, v.status]))
   );
 
-  const [children, , childrenReady] = usePersistentState<Child[]>("children", []);\n\n  function navigateTo(nextSection: Section) {
+  const [children, , childrenReady] = usePersistentState<Child[]>("children", []);
+
+  function navigateTo(nextSection: Section) {
     setVisitedSections(previous => {
       if (previous.has(nextSection)) return previous;
       return new Set(previous).add(nextSection);
