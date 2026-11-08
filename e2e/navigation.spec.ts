@@ -245,6 +245,37 @@ test("keeps all primary sections within a tablet viewport", async ({ page }) => 
   }
 });
 
+test("keeps primary sections within extra-narrow mobile viewports", async ({ page }) => {
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 740 });
+    await page.goto("/");
+
+    for (const section of ["Карта жизни", "Здоровье", "Семья", "Аналитика"]) {
+      await page.getByRole("button", { name: section }).click();
+      const dimensions = await page.locator("main").evaluate(element => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+      expect(
+        dimensions.scrollWidth,
+        `Horizontal overflow in section "${section}" at ${width}px: ${JSON.stringify(dimensions)}`,
+      ).toBeLessThanOrEqual(dimensions.clientWidth);
+    }
+  }
+});
+
+test("provides a keyboard skip link to the main content", async ({ page }) => {
+  await page.goto("/");
+  const skipLink = page.getByRole("link", { name: "Перейти к основному содержимому" });
+
+  await page.keyboard.press("Tab");
+  await expect(skipLink).toBeFocused();
+  await expect(skipLink).toBeVisible();
+  await expect(skipLink).toHaveAttribute("href", "#main-content");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main")).toBeFocused();
+});
+
 test("supports keyboard activation of primary navigation", async ({ page }) => {
   await page.goto("/");
   const healthButton = page.getByRole("button", { name: "Здоровье" });
