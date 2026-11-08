@@ -1,20 +1,38 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { usePersistentState } from "./storage";
 import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
 import { VACCINES, type Section, type VaccineStatus } from "./data";
-import { AnalyticsSection } from "./AnalyticsSection";
-import { FamilySection } from "./FamilySection";
-import { HealthSection } from "./HealthSection";
-import { LifeMapSection } from "./LifeMapSection";
 import { Sidebar } from "./Sidebar";
+
+const LifeMapSection = lazy(() => import("./LifeMapSection").then(module => ({ default: module.LifeMapSection })));
+const HealthSection = lazy(() => import("./HealthSection").then(module => ({ default: module.HealthSection })));
+const FamilySection = lazy(() => import("./FamilySection").then(module => ({ default: module.FamilySection })));
+const AnalyticsSection = lazy(() => import("./AnalyticsSection").then(module => ({ default: module.AnalyticsSection })));
+
+function SectionFallback() {
+  return (
+    <div role="status" className="p-8 text-sm text-muted-foreground">
+      Загрузка раздела…
+    </div>
+  );
+}
 
 export default function App() {
   const [section, setSection] = useState<Section>("map");
+  const [visitedSections, setVisitedSections] = useState<Set<Section>>(() => new Set(["map"]));
   const [vaccineStatuses, setVaccineStatuses, storageReady, storageError] = usePersistentState<Record<string, VaccineStatus>>(
     "vaccineStatuses",
     Object.fromEntries(VACCINES.map(v => [v.id, v.status]))
   );
+
+  function navigateTo(nextSection: Section) {
+    setVisitedSections(previous => {
+      if (previous.has(nextSection)) return previous;
+      return new Set(previous).add(nextSection);
+    });
+    setSection(nextSection);
+  }
 
   if (!storageReady) {
     return (
@@ -26,24 +44,32 @@ export default function App() {
 
   return (
     <div className="flex h-screen flex-col sm:flex-row bg-background overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
-      <Sidebar active={section} onSelect={setSection} />
+      <Sidebar active={section} onSelect={navigateTo} />
       <main
         className="order-first sm:order-last min-h-0 min-w-0 flex-1 overflow-y-auto"
         style={{ backgroundImage: "radial-gradient(circle, rgba(44,95,90,0.045) 1px, transparent 1px)", backgroundSize: "26px 26px" }}
       >
         <DataManagementPanel storageReady={storageReady} storageError={storageError} />
-        <motion.div hidden={section !== "map"} initial={false} animate={section === "map" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-          <LifeMapSection />
-        </motion.div>
-        <motion.div hidden={section !== "health"} initial={false} animate={section === "health" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-          <HealthSection vaccineStatuses={vaccineStatuses} setVaccineStatuses={setVaccineStatuses} />
-        </motion.div>
-        <motion.div hidden={section !== "family"} initial={false} animate={section === "family" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-          <FamilySection />
-        </motion.div>
-        <motion.div hidden={section !== "analytics"} initial={false} animate={section === "analytics" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-          <AnalyticsSection vaccineStatuses={vaccineStatuses} onNavigate={setSection} />
-        </motion.div>
+        {visitedSections.has("map") && (
+          <motion.div hidden={section !== "map"} initial={false} animate={section === "map" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
+            <Suspense fallback={<SectionFallback />}><LifeMapSection /></Suspense>
+          </motion.div>
+        )}
+        {visitedSections.has("health") && (
+          <motion.div hidden={section !== "health"} initial={false} animate={section === "health" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
+            <Suspense fallback={<SectionFallback />}><HealthSection vaccineStatuses={vaccineStatuses} setVaccineStatuses={setVaccineStatuses} /></Suspense>
+          </motion.div>
+        )}
+        {visitedSections.has("family") && (
+          <motion.div hidden={section !== "family"} initial={false} animate={section === "family" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
+            <Suspense fallback={<SectionFallback />}><FamilySection /></Suspense>
+          </motion.div>
+        )}
+        {visitedSections.has("analytics") && (
+          <motion.div hidden={section !== "analytics"} initial={false} animate={section === "analytics" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
+            <Suspense fallback={<SectionFallback />}><AnalyticsSection vaccineStatuses={vaccineStatuses} onNavigate={navigateTo} /></Suspense>
+          </motion.div>
+        )}
       </main>
     </div>
   );
