@@ -1,3 +1,6 @@
+export { LIFE_STAGES, LAB_TEST_CONCEPTS, LAB_TEST_ASSIGNMENTS, LAB_TEST_STAGE_DEFINITIONS } from "./labCatalog";
+export type { LabTest, LabTestConcept, LabTestAssignment, LabTestGender, LabTestStageDefinition, LifeStage } from "./labCatalog";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type Section = "map" | "health" | "family" | "analytics";
@@ -30,38 +33,6 @@ export const URGENCY_CFG: Record<Urgency, { label: string; bg: string; text: str
 export interface LifeEvent {
   id: string; year: number; title: string; description: string;
   category: Category; emoji: string; milestone?: boolean;
-}
-
-export interface LabTest {
-  /** Unique assignment ID within the catalogue. */
-  id: string;
-  /** Stable identity shared by age-specific assignments of the same test concept. */
-  conceptId?: string;
-  name: string;
-  what: string;
-  frequency: string;
-  gender: "all" | "f" | "m";
-  priority?: "r";
-}
-
-export interface LabTestConcept {
-  id: string;
-  name: string;
-  what: string;
-  gender: "all" | "f" | "m";
-  priority?: "r";
-}
-
-export interface LabTestAssignment {
-  id: string;
-  conceptId: string;
-  stageId: string;
-  frequency: string;
-}
-
-export interface LifeStage {
-  id: string; label: string; age: string;
-  current?: boolean; pinned?: boolean; tests: LabTest[];
 }
 
 export interface UploadedResult {
@@ -132,193 +103,10 @@ export const HEALTH_ROADMAP = [
 
 // ─── Lab stages ───────────────────────────────────────────────────────────────
 
-export const LIFE_STAGES: LifeStage[] = [
-  {
-    id:"base", label:"Базовые — при рождении", age:"нужны каждому", pinned:true,
-    tests:[
-      { id:"b1", gender:"all", frequency:"Однократно",
-        name:"Группа крови и резус-фактор",
-        what:"Критически важно при переливаниях, операциях и беременности" },
-      { id:"b2", gender:"all", frequency:"3–5 день жизни",
-        name:"Неонатальный скрининг (пяточный тест)",
-        what:"ФКУ, врождённый гипотиреоз, галактоземия, АГС, муковисцидоз" },
-      { id:"b3", gender:"all", frequency:"Однократно в роддоме",
-        name:"Аудиологический скрининг (слух)",
-        what:"Проверка слуха до выписки из роддома" },
-      { id:"b4", gender:"all", frequency:"В 1 мес",
-        name:"УЗИ тазобедренных суставов",
-        what:"Скрининг дисплазии ТБС; при раннем выявлении лечится без операции" },
-    ],
-  },
-  {
-    id:"newborn", label:"Новорождённый", age:"0–12 мес",
-    tests:[
-      { id:"n3", gender:"all", frequency:"В 1 мес и в 12 мес",
-        name:"ОАК (общий анализ крови)",
-        what:"Гемоглобин, эритроциты, лейкоциты — исключение анемии и инфекций" },
-      { id:"n4", gender:"all", frequency:"В 12 месяцев",
-        name:"ОАМ (общий анализ мочи)",
-        what:"Белок, глюкоза, лейкоциты — состояние почек и мочевыводящих путей" },
-    ],
-  },
-  {
-    id:"early_child", label:"Дошкольник", age:"1–6 лет",
-    tests:[
-      { id:"ec1", conceptId:"cbc", gender:"all", frequency:"Ежегодно",
-        name:"ОАК", what:"Гемоглобин, лейкоцитарная формула — анемия, воспаление" },
-      { id:"ec2", conceptId:"urinalysis", gender:"all", frequency:"Ежегодно",
-        name:"ОАМ", what:"Состояние почек; скрытые инфекции у детей часто бессимптомны" },
-      { id:"ec3", conceptId:"glucose", gender:"all", frequency:"В 3 и 6 лет",
-        name:"Глюкоза крови натощак", what:"Скрининг диабета 1 типа; норма 3,3–5,5 ммоль/л" },
-      { id:"ec4", conceptId:"ferritin", gender:"all", frequency:"В 1, 3 и 6 лет",
-        name:"Ферритин", what:"Запасы железа — скрытый дефицит у 30–40% дошкольников" },
-    ],
-  },
-  {
-    id:"school", label:"Школьник", age:"6–17 лет",
-    tests:[
-      { id:"s1", conceptId:"cbc", gender:"all", frequency:"Ежегодно",
-        name:"ОАК", what:"Гемоглобин, лейкоцитарная формула, тромбоциты, СОЭ" },
-      { id:"s2", conceptId:"urinalysis", gender:"all", frequency:"Ежегодно",
-        name:"ОАМ", what:"Почки, мочевыводящие пути; скрытый пиелонефрит у девочек" },
-      { id:"s3", conceptId:"glucose", gender:"all", frequency:"Каждые 3 года",
-        name:"Глюкоза натощак", what:"Ранняя диагностика диабета" },
-      { id:"s4", conceptId:"lipid-profile", gender:"all", frequency:"Однократно в 9–12 лет", priority:"r",
-        name:"Липидный профиль", what:"При семейном анамнезе ССЗ или ожирении" },
-      { id:"s5", conceptId:"iron-studies", gender:"f", frequency:"Ежегодно с 12 лет",
-        name:"Ферритин и сывороточное железо", what:"С началом менструаций — до 20% школьниц имеют скрытую анемию" },
-      { id:"s6", conceptId:"tsh", gender:"all", frequency:"Однократно в 13–15 лет", priority:"r",
-        name:"ТТГ", what:"Аутоиммунный тиреоидит часто дебютирует в подростковом возрасте" },
-    ],
-  },
-  {
-    id:"reproductive", label:"Репродуктивное здоровье ♀", age:"17–45+ лет",
-    tests:[
-      { id:"r1", gender:"f", frequency:"3–5 день цикла", priority:"r",
-        name:"ФСГ", what:"Оценка овариального резерва; повышен при истощении яичников" },
-      { id:"r2", gender:"f", frequency:"3–5 день цикла", priority:"r",
-        name:"ЛГ", what:"Регуляция овуляции; ЛГ/ФСГ > 2–3 — признак СПКЯ" },
-      { id:"r3", gender:"f", frequency:"3–5 день цикла", priority:"r",
-        name:"Эстрадиол (Е2)", what:"Основной женский половой гормон" },
-      { id:"r4", gender:"f", frequency:"21 день цикла", priority:"r",
-        name:"Прогестерон", what:"Подтверждение овуляции; снижен при ановуляции" },
-      { id:"r5", gender:"f", frequency:"Любой день цикла", priority:"r",
-        name:"Пролактин", what:"Гиперпролактинемия нарушает овуляцию" },
-      { id:"r6", gender:"f", frequency:"Любой день цикла", priority:"r",
-        name:"АМГ", what:"Наиболее точный маркер овариального резерва" },
-      { id:"r11", gender:"f", frequency:"Ежегодно / перед беременностью", priority:"r",
-        name:"ТТГ + АТ-ТПО", what:"Аутоиммунный тиреоидит — частая причина нарушений цикла" },
-      { id:"r12", gender:"f", frequency:"Однократно (перед беременностью)", priority:"r",
-        name:"Краснуха IgG", what:"Отсутствие иммунитета → пороки развития плода" },
-      { id:"r13", gender:"f", frequency:"Однократно (перед беременностью)", priority:"r",
-        name:"Токсоплазмоз IgG/IgM", what:"Первичный токсоплазмоз при беременности — поражение мозга плода" },
-    ],
-  },
-  {
-    id:"young_adult", label:"Молодой взрослый", age:"17–30 лет", current:true,
-    tests:[
-      { id:"ya1", conceptId:"cbc", gender:"all", frequency:"Ежегодно", name:"ОАК", what:"Гемоглобин, лейкоцитарная формула, тромбоциты, СОЭ" },
-      { id:"ya2", conceptId:"urinalysis", gender:"all", frequency:"Ежегодно", name:"ОАМ", what:"Белок, глюкоза, лейкоциты, эритроциты" },
-      { id:"ya3", conceptId:"blood-chemistry", gender:"all", frequency:"Ежегодно", name:"Биохимия крови", what:"АЛТ, АСТ, билирубин, мочевина, креатинин" },
-      { id:"ya4", conceptId:"glucose", gender:"all", frequency:"Ежегодно", name:"Глюкоза натощак", what:"Диагностика диабета; норма строго < 6,1 ммоль/л" },
-      { id:"ya5", conceptId:"lipid-profile", gender:"all", frequency:"Каждые 5 лет", name:"Липидный профиль", what:"Ранние признаки атеросклероза выявляются в 20–25 лет" },
-      { id:"ya6", conceptId:"tsh", gender:"all", frequency:"Каждые 2–3 года", name:"ТТГ", what:"Скрытый гипотиреоз — частая причина усталости у молодых женщин" },
-      { id:"ya7", conceptId:"ferritin", gender:"f", frequency:"Ежегодно", name:"Ферритин", what:"Менструальные потери → хронический дефицит у каждой четвёртой" },
-      { id:"ya8", conceptId:"vitamin-d", gender:"all", frequency:"Ежегодно", name:"Витамин D (25-OH)", what:"Дефицит у 60–80% жителей северной России" },
-      { id:"ya9", gender:"all", frequency:"Каждые 3 года", priority:"r", name:"Витамин B12", what:"Дефицит у вегетарианцев, при приёме метформина" },
-      { id:"ya10", gender:"all", frequency:"Однократно", name:"ВИЧ (Anti-HIV 1/2)", what:"ВОЗ рекомендует однократное обследование всем взрослым" },
-      { id:"ya11", gender:"all", frequency:"Однократно", name:"Гепатиты B и C", what:"Хронический гепатит С бессимптомен годами, ведёт к циррозу" },
-      { id:"ya12", gender:"f", frequency:"Каждые 3 года (с 21 года)", name:"ПАП-тест", what:"Выявление предраковых изменений шейки матки" },
-      { id:"ya13", gender:"f", frequency:"С 25 лет", name:"ВПЧ высокого риска (16/18 типы)", what:"Причина 99% случаев рака шейки матки" },
-    ],
-  },
-  {
-    id:"adult", label:"Взрослый", age:"30–45 лет",
-    tests:[
-      { id:"a11", conceptId:"chest-imaging", gender:"all", frequency:"Ежегодно для взрослых",
-        name:"Флюорография / рентген грудной клетки",
-        what:"Скрининг туберкулёза и патологии лёгких; обязателен ежегодно по закону РФ" },
-      { id:"a1", conceptId:"cbc", gender:"all", frequency:"Ежегодно", name:"ОАК", what:"Полная гематологическая картина" },
-      { id:"a2", conceptId:"urinalysis", gender:"all", frequency:"Ежегодно", name:"ОАМ", what:"Почки, скрытая патология" },
-      { id:"a3", conceptId:"blood-chemistry", gender:"all", frequency:"Ежегодно", name:"Биохимия крови", what:"АЛТ, АСТ, функция органов-мишеней" },
-      { id:"a4", gender:"all", frequency:"Ежегодно с 35 лет", priority:"r", name:"HbA1c", what:"Средний уровень глюкозы за 3 месяца; норма < 5,7%" },
-      { id:"a5", conceptId:"lipid-profile", gender:"all", frequency:"Каждые 3–5 лет", priority:"r", name:"Липидный профиль", what:"Атеросклероз активно прогрессирует в 30–40 лет" },
-      { id:"a6", conceptId:"thyroid-panel", gender:"all", frequency:"Каждые 2–3 года", name:"ТТГ, Т3 св., Т4 св.", what:"Гипотиреоз — у каждой 10-й женщины после 35 лет" },
-      { id:"a7", conceptId:"ferritin", gender:"f", frequency:"Ежегодно", name:"Ферритин", what:"Репродуктивный возраст — основной период истощения запасов железа" },
-      { id:"a8", conceptId:"vitamin-d", gender:"all", frequency:"Ежегодно", name:"Витамин D", what:"Дефицит связан с риском онкологии, аутоиммунных заболеваний" },
-      { id:"a9", gender:"f", frequency:"Каждые 5 лет", priority:"r", name:"ВПЧ + ПАП-тест", what:"Совместный скрининг рака шейки матки" },
-      { id:"a10", gender:"m", frequency:"Ежегодно с 45 лет", priority:"r", name:"ПСА", what:"Ранняя диагностика рака простаты" },
-    ],
-  },
-  {
-    id:"thrombosis", label:"Тромбоз и свёртываемость", age:"от 20 лет",
-    tests:[
-      { id:"th1", gender:"all", frequency:"По показаниям (ОК, беременность, операция)",
-        name:"D-димер", what:"Маркер активного тромбообразования. Норма < 500 нг/мл" },
-      { id:"th2", gender:"all", frequency:"Перед операциями, при антикоагулянтах",
-        name:"Коагулограмма (МНО, АПТВ, фибриноген)", what:"Оценка всей системы свёртывания" },
-      { id:"th3", gender:"all", frequency:"Каждые 3–5 лет", priority:"r",
-        name:"Гомоцистеин", what:"Независимый фактор риска тромбозов, инфаркта, инсульта" },
-    ],
-  },
-  {
-    id:"iron_deficit", label:"Дефицит железа", age:"от 15 лет",
-    tests:[
-      { id:"fe1", gender:"all", frequency:"Ежегодно (особенно женщины)",
-        name:"Ферритин", what:"Норма > 30 мкг/л. Снижается до падения гемоглобина" },
-      { id:"fe2", gender:"all", frequency:"При сниженном ферритине", priority:"r",
-        name:"Сывороточное железо + ОЖСС", what:"Насыщение трансферрина < 16% подтверждает дефицит" },
-    ],
-  },
-  {
-    id:"autoimmune", label:"Аутоиммунные маркеры", age:"по показаниям",
-    tests:[
-      { id:"ai1", gender:"all", frequency:"По показаниям (суставы, сыпь, усталость)", priority:"r",
-        name:"АНА (антинуклеарные антитела)", what:"Скрининговый маркер СКВ, склеродермии" },
-      { id:"ai2", gender:"all", frequency:"По показаниям (признаки РА)", priority:"r",
-        name:"АЦЦП (анти-CCP)", what:"Наиболее специфичный маркер ревматоидного артрита (>95%)" },
-      { id:"ai3", gender:"all", frequency:"По показаниям", priority:"r",
-        name:"Ревматоидный фактор (РФ)", what:"Классический маркер РА; менее специфичен, чем АЦЦП" },
-    ],
-  },
-];
+// The normalized laboratory catalogue is defined in ./labCatalog.
 
 // ─── Vaccines ─────────────────────────────────────────────────────────────────
 
-
-/**
- * Normalized catalogue read model:
- * - LabTestConcept describes what the test is.
- * - LabTestAssignment describes where/when it appears.
- * LIFE_STAGES remains the backwards-compatible UI grouping.
- */
-export const LAB_TEST_CONCEPTS: LabTestConcept[] = (() => {
-  const concepts = new Map<string, LabTestConcept>();
-  for (const stage of LIFE_STAGES) {
-    for (const test of stage.tests) {
-      const id = test.conceptId ?? test.id;
-      if (!concepts.has(id)) {
-        concepts.set(id, {
-          id,
-          name: test.name,
-          what: test.what,
-          gender: test.gender,
-          ...(test.priority ? { priority: test.priority } : {}),
-        });
-      }
-    }
-  }
-  return [...concepts.values()];
-})();
-
-export const LAB_TEST_ASSIGNMENTS: LabTestAssignment[] = LIFE_STAGES.flatMap(stage =>
-  stage.tests.map(test => ({
-    id: test.id,
-    conceptId: test.conceptId ?? test.id,
-    stageId: stage.id,
-    frequency: test.frequency,
-  }))
-);
 
 export const VACCINES: VaccineRecord[] = [
   { id:"hepb", mandatory:true, status:"done", minAge:0,

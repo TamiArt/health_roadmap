@@ -50,6 +50,28 @@ describe("createId", () => {
 });
 
 describe("lab test catalogue", () => {
+  it("uses concepts and assignments as the canonical source for the UI stage projection", () => {
+    expect(LAB_TEST_CONCEPTS).toHaveLength(42);
+    expect(LAB_TEST_ASSIGNMENTS).toHaveLength(57);
+    expect(LAB_TEST_CONCEPTS.every(concept =>
+      LAB_TEST_ASSIGNMENTS.some(assignment => assignment.conceptId === concept.id)
+    )).toBe(true);
+
+    const projected = LIFE_STAGES.flatMap(stage => stage.tests);
+    expect(projected).toHaveLength(LAB_TEST_ASSIGNMENTS.length);
+    expect(projected.map(test => test.id)).toEqual(LAB_TEST_ASSIGNMENTS.map(assignment => assignment.id));
+    expect(projected.every(test => test.conceptId.length > 0)).toBe(true);
+  });
+
+  it("keeps age-specific presentation overrides on assignments", () => {
+    const schoolCbc = LAB_TEST_ASSIGNMENTS.find(assignment => assignment.id === "s1");
+    const preschoolCbc = LAB_TEST_ASSIGNMENTS.find(assignment => assignment.id === "ec1");
+    expect(schoolCbc?.what).toContain("тромбоциты");
+    expect(preschoolCbc?.what).toContain("анемия");
+    expect(LIFE_STAGES.find(stage => stage.id === "school")?.tests.find(test => test.id === "s1")?.what)
+      .toBe(schoolCbc?.what);
+  });
+
   it("keeps normalized concept and age-assignment identities consistent", () => {
     const conceptIds = new Set(LAB_TEST_CONCEPTS.map(concept => concept.id));
 
