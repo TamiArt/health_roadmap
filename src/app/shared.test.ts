@@ -67,7 +67,8 @@ describe("lab test catalogue", () => {
     const schoolCbc = LAB_TEST_ASSIGNMENTS.find(assignment => assignment.id === "s1");
     const preschoolCbc = LAB_TEST_ASSIGNMENTS.find(assignment => assignment.id === "ec1");
     expect(schoolCbc?.what).toContain("тромбоциты");
-    expect(preschoolCbc?.what).toContain("анемия");
+    expect(LIFE_STAGES.find(stage => stage.id === "early_child")?.tests.find(test => test.id === "ec1")?.what)
+      .toContain("анемия");
     expect(LIFE_STAGES.find(stage => stage.id === "school")?.tests.find(test => test.id === "s1")?.what)
       .toBe(schoolCbc?.what);
   });
