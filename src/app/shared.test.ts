@@ -65,7 +65,6 @@ describe("lab test catalogue", () => {
 
   it("keeps age-specific presentation overrides on assignments", () => {
     const schoolCbc = LAB_TEST_ASSIGNMENTS.find(assignment => assignment.id === "s1");
-    const preschoolCbc = LAB_TEST_ASSIGNMENTS.find(assignment => assignment.id === "ec1");
     expect(schoolCbc?.what).toContain("тромбоциты");
     expect(LIFE_STAGES.find(stage => stage.id === "early_child")?.tests.find(test => test.id === "ec1")?.what)
       .toContain("анемия");
