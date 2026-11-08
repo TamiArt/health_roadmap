@@ -698,9 +698,8 @@ test("deleting a child profile removes its health records and keeps tombstone re
   }), measurementKey);
 
   await page.getByRole("button", { name: "Изменить" }).click();
-  await page.getByRole("button", { name: "Удалить профиль ребёнка Профиль для удаления" }).click();
   page.once("dialog", dialog => dialog.accept());
-  // The confirmation is opened by the click; accepting is registered before the next dialog in browsers.
+  await page.getByRole("button", { name: "Удалить профиль ребёнка Профиль для удаления" }).click();
   await expect(page.getByText("Профиль для удаления", { exact: true })).toHaveCount(0);
   await expect.poll(() => page.evaluate((key) => new Promise<{ value: unknown; revision: number }>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
