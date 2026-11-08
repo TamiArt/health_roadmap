@@ -6,7 +6,6 @@ import { buildDentalSummary, buildRecentMeasurements, buildVaccineSummary } from
 import type { Child, DentalRecord, LabMeasurement, Section, UploadedResult, VaccineStatus } from "./models";
 import { childAgeVaccines, CURRENT_YEAR } from "./shared";
 import { usePersistentState } from "./storage";
-import { URGENCY_CFG } from "./analyticsData";
 
 type ProfileProps = { child?: Child };
 
