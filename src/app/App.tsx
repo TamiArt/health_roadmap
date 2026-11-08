@@ -3,7 +3,7 @@ import { usePersistentState } from "./storage";
 import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
 import { VACCINES } from "./healthData";
-import type { Section, VaccineStatus } from "./models";
+import type { Child, Section, VaccineStatus } from "./models";
 import { Sidebar } from "./Sidebar";
 
 const LifeMapSection = lazy(() => import("./LifeMapSection").then(module => ({ default: module.LifeMapSection })));
@@ -27,7 +27,7 @@ export default function App() {
     Object.fromEntries(VACCINES.map(v => [v.id, v.status]))
   );
 
-  function navigateTo(nextSection: Section) {
+  const [children, , childrenReady] = usePersistentState<Child[]>("children", []);\n\n  function navigateTo(nextSection: Section) {
     setVisitedSections(previous => {
       if (previous.has(nextSection)) return previous;
       return new Set(previous).add(nextSection);
@@ -35,7 +35,7 @@ export default function App() {
     setSection(nextSection);
   }
 
-  if (!storageReady) {
+  if (!storageReady || !childrenReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-8 text-sm text-muted-foreground">
         Подключение локальной базы данных…
@@ -76,7 +76,7 @@ export default function App() {
         )}
         {visitedSections.has("analytics") && (
           <motion.div hidden={section !== "analytics"} initial={false} animate={section === "analytics" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-            <Suspense fallback={<SectionFallback />}><AnalyticsSection vaccineStatuses={vaccineStatuses} onNavigate={navigateTo} /></Suspense>
+            <Suspense fallback={<SectionFallback />}><AnalyticsSection children={children} onNavigate={navigateTo} /></Suspense>
           </motion.div>
         )}
       </main>
