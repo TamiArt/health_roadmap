@@ -425,9 +425,9 @@ export function HealthSection({
     <div className="p-8 max-w-xl">
       <h1 className="text-2xl font-bold text-foreground mb-1" style={{ fontFamily:"'Playfair Display', serif" }}>Навигатор здоровья</h1>
       <p className="text-sm text-muted-foreground mb-5">Профилактика и медицинская история</p>
-      <div role="tablist" aria-label="Разделы навигатора здоровья" className="flex gap-1 bg-muted p-1 rounded-lg mb-7">
+      <div role="tablist" aria-label="Разделы навигатора здоровья" className="flex flex-wrap gap-1 bg-muted p-1 rounded-lg mb-7">
         {tabs.map(([id,label]) => (
-          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} onClick={() => setTab(id)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
+          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} onClick={() => setTab(id)} className={`min-w-0 flex-1 basis-[calc(50%-0.25rem)] sm:basis-0 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
 
@@ -488,7 +488,7 @@ export function HealthSection({
         </div>
       </div>
       <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab/></div>
-      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab/></div>
+      {tab === "history" && <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab/></div>}
       <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
       <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
     </div>
