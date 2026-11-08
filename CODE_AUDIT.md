@@ -353,3 +353,10 @@ The build still emits a non-blocking Vite chunk-size warning (main JS chunk appr
 - Verified on commit `093490caa146796988af4ad76a9a1491d8486c2b`: TypeScript, structure, dependency audit, unit tests, all 27 Playwright E2E tests and production build passed (Actions run [42476313438](https://github.com/TamiArt/health_roadmap/actions/runs/42476313438)).
 - Emitted production chunks: initial JS entry 316.97 kB (gzip 102.52 kB); lazy Analytics chunk 409.76 kB (gzip 113.64 kB); HealthSection 26.50 kB, FamilySection 14.74 kB, LifeMapSection 9.83 kB. The initial entry is reduced from the previous approximately 780 kB bundle warning to 316.97 kB. The analytics chunk remains large but is fetched only when the user first opens Analytics; optimize its internal chart dependencies separately if needed.
 - Existing E2E tests confirm navigation, persistence of visited section state, and mobile/tablet layout after lazy loading. No Vite chunk-size threshold was raised to mask the warning.
+
+## Accessibility and narrow mobile viewport follow-up — 2026-11-08
+- Added a keyboard-visible skip link that moves focus directly to the main content landmark.
+- Added a consistent visible focus outline for interactive controls when reached with keyboard navigation.
+- Added Playwright coverage for horizontal overflow across all primary sections at 320 px and 360 px, in addition to the existing 390 px mobile and 768 px tablet checks.
+- Added an E2E test verifying skip-link focus, visibility, target and resulting main-content focus.
+- Full CI verification is pending for this revision.
