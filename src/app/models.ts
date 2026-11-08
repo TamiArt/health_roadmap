@@ -3,6 +3,7 @@ export type Section = "map" | "health" | "family" | "analytics";
 export type Category = "personal" | "education" | "career" | "travel" | "health" | "family" | "achievement";
 export type VaccineStatus = "done" | "due" | "overdue" | "not_applicable";
 export type ToothStatus = "healthy" | "caries" | "filled" | "crown" | "implant" | "extracted" | "treatment";
+export interface DentalRecord { status: ToothStatus; note: string; }
 export type Urgency = "critical" | "important" | "routine" | "ok";
 
 export interface LifeEvent {
