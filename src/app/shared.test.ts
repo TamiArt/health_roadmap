@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, validateLabMeasurement, validateLabUpload } from "./shared";
-import { LAB_TEST_ASSIGNMENTS, LAB_TEST_CONCEPTS, LIFE_STAGES } from "./data";
+import { LAB_TEST_ASSIGNMENTS, LAB_TEST_CONCEPTS, LIFE_STAGES } from "./labCatalog";
 
 describe("childAgeStages", () => {
   it.each([
