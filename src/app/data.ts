@@ -1,13 +1,18 @@
+export type {
+  Section, Category, VaccineStatus, ToothStatus, Urgency, LifeEvent,
+  UploadedResult, LabMeasurement, VaccineRecord, Child, FamilyMember,
+  FamilyEvent, HealthRoadmapCheck, HealthRoadmapStage, QualityDataPoint
+} from "./models";
+import type {
+  Category, FamilyEvent, FamilyMember, HealthRoadmapStage, LifeEvent,
+  QualityDataPoint, Urgency, VaccineRecord
+} from "./models";
+
 export { LIFE_STAGES, LAB_TEST_CONCEPTS, LAB_TEST_ASSIGNMENTS, LAB_TEST_STAGE_DEFINITIONS } from "./labCatalog";
 export type { LabTest, LabTestConcept, LabTestAssignment, LabTestGender, LabTestStageDefinition, LifeStage } from "./labCatalog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type Section = "map" | "health" | "family" | "analytics";
-export type Category = "personal" | "education" | "career" | "travel" | "health" | "family" | "achievement";
-export type VaccineStatus = "done" | "due" | "overdue" | "not_applicable";
-export type ToothStatus = "healthy" | "caries" | "filled" | "crown" | "implant" | "extracted" | "treatment";
-export type Urgency = "critical" | "important" | "routine" | "ok";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -30,38 +35,7 @@ export const URGENCY_CFG: Record<Urgency, { label: string; bg: string; text: str
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
-export interface LifeEvent {
-  id: string; year: number; title: string; description: string;
-  category: Category; emoji: string; milestone?: boolean;
-}
-
-export interface UploadedResult {
-  id: string;
-  name: string;
-  date: string;
-  blob: Blob;
-  isPdf: boolean;
-}
-
 /** A manually entered measurement for one lab-test assignment. */
-export interface LabMeasurement {
-  id: string;
-  /** Date the sample was collected / test was performed (local YYYY-MM-DD). */
-  date: string;
-  /** Preserve the original entered representation, including qualitative values or comparators. */
-  value: string;
-  unit: string;
-}
-
-export interface VaccineRecord {
-  id: string; name: string; protects: string; schedule: string;
-  mandatory: boolean; status: VaccineStatus; note: string; minAge?: number;
-}
-
-export interface Child {
-  id: string; name: string; birthYear: number; emoji: string;
-}
-
 // ─── Life Events ──────────────────────────────────────────────────────────────
 
 export const LIFE_EVENTS_INIT: LifeEvent[] = [
@@ -75,7 +49,7 @@ export const LIFE_EVENTS_INIT: LifeEvent[] = [
 
 // ─── Health roadmap ───────────────────────────────────────────────────────────
 
-export const HEALTH_ROADMAP = [
+export const HEALTH_ROADMAP: HealthRoadmapStage[] = [
   { age: 18, label: "18 лет", done: false, current: false,
     checks: [
       { name: "Профилактический осмотр", done: false, reason: "Демонстрационный пункт для примера плана" },
@@ -178,12 +152,12 @@ export const VACCINES: VaccineRecord[] = [
 
 // ─── Family data ──────────────────────────────────────────────────────────────
 
-export const FAMILY_MEMBERS_INIT = [
+export const FAMILY_MEMBERS_INIT: FamilyMember[] = [
   { id:"demo-member-1", name:"Пример взрослого", relation:"Партнёр", age:32, emoji:"👤" },
   { id:"demo-member-2", name:"Пример родственника", relation:"Родитель", age:58, emoji:"👩" },
 ];
 
-export const FAMILY_EVENTS_INIT = [
+export const FAMILY_EVENTS_INIT: FamilyEvent[] = [
   { id:"demo-event-1", date:"Лето 2024", title:"Семейное событие", emoji:"💍" },
   { id:"demo-event-2", date:"Весна 2000", title:"День рождения", emoji:"🎂" },
   { id:"demo-event-3", date:"Осень 2003", title:"Памятная дата", emoji:"👶" },
@@ -191,7 +165,7 @@ export const FAMILY_EVENTS_INIT = [
 
 // ─── Health quality data ──────────────────────────────────────────────────────
 
-export const QUALITY_DATA = [
+export const QUALITY_DATA: QualityDataPoint[] = [
   { year:"2018", value:62 }, { year:"2019", value:70 },
   { year:"2020", value:55 }, { year:"2021", value:74 },
   { year:"2022", value:80 }, { year:"2023", value:84 },

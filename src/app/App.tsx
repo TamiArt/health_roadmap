@@ -2,7 +2,8 @@ import { lazy, Suspense, useState } from "react";
 import { usePersistentState } from "./storage";
 import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
-import { VACCINES, type Section, type VaccineStatus } from "./data";
+import { VACCINES } from "./data";
+import type { Section, VaccineStatus } from "./models";
 import { Sidebar } from "./Sidebar";
 
 const LifeMapSection = lazy(() => import("./LifeMapSection").then(module => ({ default: module.LifeMapSection })));

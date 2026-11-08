@@ -1,5 +1,7 @@
 import { Check, Pencil, Trash2 } from "lucide-react";
-import { LIFE_STAGES, VACCINES, type LifeStage, type VaccineRecord } from "./data";
+import { LIFE_STAGES, VACCINES } from "./data";
+import type { LifeStage } from "./labCatalog";
+import type { VaccineRecord } from "./models";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
