@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { usePersistentState } from "./storage";
 import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
-import { VACCINES } from "./data";
+import { VACCINES } from "./healthData";
 import type { Section, VaccineStatus } from "./models";
 import { Sidebar } from "./Sidebar";
 
