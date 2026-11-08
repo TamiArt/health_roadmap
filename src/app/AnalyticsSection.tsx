@@ -125,16 +125,17 @@ function ProfileAnalytics({ child }: ProfileProps) {
 export function AnalyticsSection({ children, onNavigate }: { children: Child[]; onNavigate: (section: Section) => void }) {
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const selectedChild = children.find(child => child.id === selectedChildId);
-  const profileKey = selectedChild?.id ?? "adult";
+  const activeChildId = selectedChild?.id ?? null;
+  const profileKey = activeChildId ?? "adult";
 
   return (
     <div className="p-5 sm:p-8 max-w-3xl">
       <h1 className="text-2xl font-bold text-foreground mb-1" style={{fontFamily:"'Playfair Display', serif"}}>Аналитика здоровья</h1>
       <p className="text-sm text-muted-foreground mb-5">Сводка по сохранённым данным выбранного профиля</p>
       <div className="flex flex-wrap gap-2 mb-5" aria-label="Выбор профиля для аналитики">
-        <button type="button" aria-pressed={!selectedChildId} onClick={() => setSelectedChildId(null)} className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${!selectedChildId ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground"}`}>Взрослый профиль</button>
+        <button type="button" aria-pressed={!activeChildId} onClick={() => setSelectedChildId(null)} className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${!activeChildId ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground"}`}>Взрослый профиль</button>
         {children.map(child => (
-          <button key={child.id} type="button" aria-pressed={selectedChildId === child.id} onClick={() => setSelectedChildId(child.id)} className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${selectedChildId === child.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground"}`}>{child.emoji} {child.name}</button>
+          <button key={child.id} type="button" aria-pressed={activeChildId === child.id} onClick={() => setSelectedChildId(child.id)} className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${activeChildId === child.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground"}`}>{child.emoji} {child.name}</button>
         ))}
       </div>
       {selectedChildId && !selectedChild && (
