@@ -371,4 +371,4 @@
 - [x] Добавлен единый видимый индикатор клавиатурного фокуса для ссылок, кнопок и полей ввода.
 - [x] Добавлены Playwright проверки отсутствия горизонтального переполнения всех основных разделов при ширине 320 и 360 px.
 - [x] Добавлен E2E сценарий клавиатурной активации skip-link и передачи фокуса основному содержимому.
-- [ ] Подтвердить полный CI: TypeScript, структура, dependency audit, unit, E2E и production build.
+- [x] Полный CI для коммита `10c50280e19df0d96a9cad9e5d3a0fa9b3be2fdd`: TypeScript, структура, dependency audit, unit tests (28/28), Playwright E2E (29/29) и production build — success. [GitHub Actions run 42476983116](https://github.com/TamiArt/health_roadmap/actions/runs/42476983116).
