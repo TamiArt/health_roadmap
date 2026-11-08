@@ -730,20 +730,37 @@ export const LAB_TEST_ASSIGNMENTS: LabTestAssignment[] = [
 
 const conceptsById = new Map(LAB_TEST_CONCEPTS.map(concept => [concept.id, concept]));
 
-/** Compatibility projection for the current UI, derived from canonical records. */
-export const LIFE_STAGES: LifeStage[] = LAB_TEST_STAGE_DEFINITIONS.map(stage => ({
-  ...stage,
-  tests: LAB_TEST_ASSIGNMENTS.filter(assignment => assignment.stageId === stage.id).map(assignment => {
-    const concept = conceptsById.get(assignment.conceptId);
-    if (!concept) throw new Error(`Unknown lab-test concept "${assignment.conceptId}" in assignment "${assignment.id}".`);
-    return {
-      id: assignment.id,
-      conceptId: assignment.conceptId,
-      name: assignment.name ?? concept.name,
-      what: assignment.what ?? concept.what,
-      frequency: assignment.frequency,
-      gender: assignment.gender ?? concept.gender,
-      ...(assignment.priority ? { priority: assignment.priority } : {})
-    };
-  })
-}));
+/** Build a UI read model from canonical concept and assignment records. */
+function projectLabStage(stage: LabTestStageDefinition): LifeStage {
+  return {
+    ...stage,
+    tests: LAB_TEST_ASSIGNMENTS.filter(assignment => assignment.stageId === stage.id).map(assignment => {
+      const concept = conceptsById.get(assignment.conceptId);
+      if (!concept) throw new Error(`Unknown lab-test concept "${assignment.conceptId}" in assignment "${assignment.id}".`);
+      return {
+        id: assignment.id,
+        conceptId: assignment.conceptId,
+        name: assignment.name ?? concept.name,
+        what: assignment.what ?? concept.what,
+        frequency: assignment.frequency,
+        gender: assignment.gender ?? concept.gender,
+        ...(assignment.priority ? { priority: assignment.priority } : {})
+      };
+    })
+  };
+}
+
+/** Select read models by stage ID without exposing the full compatibility array. */
+export function getLabStages(stageIds?: readonly string[]): LifeStage[] {
+  const selected = stageIds ? new Set(stageIds) : null;
+  return LAB_TEST_STAGE_DEFINITIONS
+    .filter(stage => !selected || selected.has(stage.id))
+    .map(projectLabStage);
+}
+
+export function getLabStage(stageId: string): LifeStage | undefined {
+  return getLabStages([stageId])[0];
+}
+
+/** Backward-compatible full read model for legacy consumers and tests. */
+export const LIFE_STAGES: LifeStage[] = getLabStages();
