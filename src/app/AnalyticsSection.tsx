@@ -1,7 +1,8 @@
 import { motion } from "motion/react";
 import { AlertTriangle, Clock } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { QUALITY_DATA, URGENCY_CFG, VACCINES } from "./data";
+import { QUALITY_DATA, URGENCY_CFG } from "./analyticsData";
+import { VACCINES } from "./healthData";
 import type { Section, Urgency, VaccineStatus } from "./models";
 
 // ─── Analytics — Health Focus ─────────────────────────────────────────────────
