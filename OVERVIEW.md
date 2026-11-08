@@ -85,7 +85,7 @@ src/
 
 ## Проверка качества
 
-Последняя подтверждённая GitHub Actions ревизия: `b816cc6f99f104c3e568b2a4ddb13800dbbf71cd`.
+Последняя подтверждённая GitHub Actions ревизия: `c095d9d5a8f3f896014f6c18b3d3425dbc456f7f`.
 
 - `npm run typecheck` — строгая проверка TypeScript.
 - `npm test` — Vitest, 30 тестов.

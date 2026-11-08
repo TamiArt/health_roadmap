@@ -6,7 +6,7 @@
 
 - Рабочая ветка: `feat/storage-profile-isolation-tests`.
 - Базовая ветка `main` используется только для чтения; прямые изменения запрещены.
-- Последняя проверенная ревизия: `b816cc6f99f104c3e568b2a4ddb13800dbbf71cd`.
+- Последняя проверенная ревизия: `c095d9d5a8f3f896014f6c18b3d3425dbc456f7f`.
 - Стек: React 18, TypeScript, Vite, Tailwind CSS 4, Vitest, Playwright.
 - Основные разделы: Карта жизни, Здоровье, Семья, Аналитика.
 - Данные приложения хранятся локально в IndexedDB. Backend, авторизация, серверная база и межустройственная синхронизация не реализованы.
@@ -14,7 +14,7 @@
 
 ### Проверка последней ревизии
 
-GitHub Actions run [42480869966](https://github.com/TamiArt/health_roadmap/actions/runs/42480869966) завершился успешно:
+GitHub Actions run [42481134766](https://github.com/TamiArt/health_roadmap/actions/runs/42481134766) завершился успешно:
 
 - TypeScript — success.
 - Проверка структуры (не более 1500 строк на исходный файл) — success.

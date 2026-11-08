@@ -4,7 +4,7 @@
 
 - Репозиторий: `TamiArt/health_roadmap`.
 - Рабочая ветка: `feat/storage-profile-isolation-tests`.
-- Проверенная ревизия: `b816cc6f99f104c3e568b2a4ddb13800dbbf71cd`.
+- Проверенная ревизия: `c095d9d5a8f3f896014f6c18b3d3425dbc456f7f`.
 - Объём: архитектура моделей, каталог лабораторных исследований, интеграция типов в feature-компоненты, регрессионные тесты и актуальность документации.
 - Изменения выполнялись только в feature-ветке; `main` не изменялась.
 
@@ -71,7 +71,7 @@
 
 ## Проверки CI
 
-GitHub Actions run [42480869966](https://github.com/TamiArt/health_roadmap/actions/runs/42480869966), commit `b816cc6f99f104c3e568b2a4ddb13800dbbf71cd`, завершился успешно:
+GitHub Actions run [42481134766](https://github.com/TamiArt/health_roadmap/actions/runs/42481134766), commit `c095d9d5a8f3f896014f6c18b3d3425dbc456f7f`, завершился успешно:
 
 - TypeScript — success.
 - Проверка структуры — success (лимит 1500 строк).
