@@ -71,7 +71,7 @@
 
 ## Проверки CI
 
-GitHub Actions run [42481134766](https://github.com/TamiArt/health_roadmap/actions/runs/42481134766), commit `c095d9d5a8f3f896014f6c18b3d3425dbc456f7f`, завершился успешно:
+GitHub Actions run [42483013514](https://github.com/TamiArt/health_roadmap/actions/runs/42483013514), commit `258895bc870debf2ce83a15680e97607f39dcc37`, завершился успешно:
 
 - TypeScript — success.
 - Проверка структуры — success (лимит 1500 строк).
