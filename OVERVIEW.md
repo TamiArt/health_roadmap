@@ -44,8 +44,13 @@ src/
 │   ├── AnalyticsSection.tsx
 │   ├── models.ts             # общие доменные типы, включая DentalRecord
 │   ├── labCatalog.ts         # канонические концепты, назначения и read-model selectors
-│   ├── lifeMapData.ts       # конфигурация карты жизни и её фикстуры\n│   ├── healthData.ts        # дорожная карта и справочник вакцинации\n│   ├── familyData.ts        # семейные фикстуры\n│   ├── analyticsData.ts     # аналитическая конфигурация и demo-значения\n│   ├── data.ts              # совместимый barrel для старых импортов
-│   ├── domainData.test.ts    # проверки границ доменных фикстур\n│   ├── shared.tsx            # общие helpers и UI-компоненты
+│   ├── lifeMapData.ts        # категории и фикстуры карты жизни
+│   ├── healthData.ts         # дорожная карта и вакцинация
+│   ├── familyData.ts         # семейные фикстуры
+│   ├── analyticsData.ts      # аналитическая конфигурация и demo-значения
+│   ├── data.ts               # совместимый barrel
+│   ├── domainData.test.ts    # проверки доменных фикстур
+│   ├── shared.tsx            # общие helpers и UI-компоненты
 │   ├── storage.ts            # IndexedDB и версионированные записи
 │   └── DataManagementPanel.tsx
 └── styles/
@@ -60,7 +65,8 @@ src/
 - `LAB_TEST_CONCEPTS` содержит 42 канонических концепта исследования.
 - `LAB_TEST_ASSIGNMENTS` содержит 57 возрастных/тематических назначений.
 - `LAB_TEST_STAGE_DEFINITIONS` содержит метаданные 10 этапов.
-- `getLabStages()` и `getLabStage()` формируют read-model по запросу из канонических сущностей.\n- `LIFE_STAGES` сохранён для обратной совместимости; feature-компоненты используют селекторы.
+- `getLabStages()` и `getLabStage()` формируют read-model по запросу из канонических сущностей.
+- `LIFE_STAGES` сохранён для обратной совместимости; feature-компоненты используют селекторы.
 - Идентификаторы назначений стабильны и используются как ключи сохранённых результатов.
 
 ### Общие доменные модели
@@ -85,7 +91,7 @@ src/
 
 ## Проверка качества
 
-Последняя подтверждённая GitHub Actions ревизия: `258895bc870debf2ce83a15680e97607f39dcc37`.
+Последняя подтверждённая кодовая ревизия: `258895bc870debf2ce83a15680e97607f39dcc37`.
 
 - `npm run typecheck` — строгая проверка TypeScript.
 - `npm test` — Vitest, 36 тестов.
