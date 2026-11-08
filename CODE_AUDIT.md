@@ -321,3 +321,26 @@ Base: `main` at `f877d4c69f46ce145c5f7264452cffe3f067d49b`. This section superse
 - Вместо физического удаления создаются revision tombstones: устаревшая вкладка не сможет восстановить данные удалённого профиля.
 - После транзакции изменения рассылаются через BroadcastChannel; подписанные хуки принимают tombstone и сбрасывают состояние к начальному значению.
 - Добавлен E2E-сценарий с сохранённым результатом анализа, подтверждением удаления и проверкой tombstone/revision.
+
+## Local data integrity workstream — 2026-11-08
+
+The following implementation is verified on `feat/storage-profile-isolation-tests` at `ff3324dc68cf6244cf8a30f4bba47090a75bbe5d`:
+
+- Per-record revision compare-and-write is performed inside one IndexedDB readwrite transaction. Stale writes are rejected and the current committed value is adopted by the stale tab.
+- Local write queues are serialized; pending writes are invalidated when a newer cross-tab state or a storage-key change arrives. Loading an existing record no longer causes a spurious write/revision increment.
+- Backup restore increments revisions, writes tombstones for keys omitted from the backup, excludes tombstones from exported JSON, and broadcasts restore so other tabs reload.
+- Child health records use child-scoped keys. E2E verifies different measurements remain isolated across profile switching and reload.
+- Deleting a child profile now requires confirmation. Its associated health records are atomically replaced by revision tombstones; other tabs receive the tombstones and reset their local view. A failed cleanup leaves the profile intact and reports an error.
+- Playwright covers stale backup restore, cross-tab restore refresh, child profile isolation, child deletion/tombstones, stale-write rejection, and cross-tab measurement editing.
+
+### Final verification
+
+GitHub Actions run [42475574306](https://github.com/TamiArt/health_roadmap/actions/runs/42475574306), commit `ff3324dc68cf6244cf8a30f4bba47090a75bbe5d`, completed successfully:
+- TypeScript check — success
+- Project structure check — success
+- Dependency audit — success
+- Unit tests — success
+- Playwright E2E — **27 passed**
+- Production build — success
+
+The build still emits a non-blocking Vite chunk-size warning (main JS chunk approximately 780 kB minified). This is recorded as a separate performance follow-up, not a failure of this data-integrity workstream. Manual testing on physical devices, tablet visual review and full screen-reader review remain outstanding. This verification does not establish production-ready status.
