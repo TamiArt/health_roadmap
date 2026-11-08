@@ -172,7 +172,7 @@ export function FamilySection() {
               <motion.div key={child.id} initial={{ opacity:0,scale:.95 }} animate={{ opacity:1,scale:1 }}
                 className="relative bg-card border border-primary/15 rounded-xl p-4 text-center hover:border-primary/40 hover:shadow-sm transition-all group"
               >
-                {editMode && <div className="absolute top-1.5 right-1.5 z-10"><DelBtn onClick={()=>void deleteChild(child)}/></div>}
+                {editMode && <div className="absolute top-1.5 right-1.5 z-10"><DelBtn ariaLabel={`Удалить профиль ребёнка ${child.name}`} onClick={()=>void deleteChild(child)}/></div>}
                 <button type="button" disabled={editMode} aria-haspopup="true" aria-label={`Открыть профиль ребёнка ${child.name}, ${age} лет`} onClick={() => setViewingChild(child)} className="w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-default">
                   <div className="text-3xl mb-2">{child.emoji}</div>
                   <p className="text-xs font-semibold text-foreground">{child.name}</p>
