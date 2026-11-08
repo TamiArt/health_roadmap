@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, validateLabMeasurement, validateLabUpload } from "./shared";
-import { LAB_TEST_ASSIGNMENTS, LAB_TEST_CONCEPTS, LIFE_STAGES } from "./labCatalog";
+import { getLabStage, getLabStages, LAB_TEST_ASSIGNMENTS, LAB_TEST_CONCEPTS, LIFE_STAGES } from "./labCatalog";
 
 describe("childAgeStages", () => {
   it.each([
@@ -46,6 +46,21 @@ describe("createId", () => {
 
     expect(ids.every(id => id.length > 0)).toBe(true);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("lab catalogue selectors", () => {
+  it("selects only requested stages while preserving canonical assignment IDs", () => {
+    const selected = getLabStages(["base", "newborn"]);
+    expect(selected.map(stage => stage.id)).toEqual(["base", "newborn"]);
+    expect(selected.flatMap(stage => stage.tests.map(test => test.id))).toEqual(
+      LIFE_STAGES.filter(stage => ["base", "newborn"].includes(stage.id)).flatMap(stage => stage.tests.map(test => test.id))
+    );
+  });
+
+  it("returns undefined for an unknown stage", () => {
+    expect(getLabStage("missing-stage")).toBeUndefined();
+    expect(getLabStage("school")?.id).toBe("school");
   });
 });
 
