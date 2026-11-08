@@ -7,6 +7,7 @@ import type { LifeStage } from "./labCatalog";
 import type { DentalRecord, ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
 import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
+import { MedicalHistoryTab } from "./MedicalHistoryTab";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
 
@@ -411,9 +412,9 @@ export function HealthSection({
   vaccineStatuses: Record<string, VaccineStatus>;
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
 }) {
-  const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental">("roadmap");
+  const [tab, setTab] = useState<"roadmap"|"tests"|"history"|"vaccines"|"dental">("roadmap");
   const tabsId = useId();
-  const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"]] as const;
+  const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["history","История"],["vaccines","Прививки"],["dental","Стоматолог"]] as const;
   const [openIdx, setOpenIdx] = useState<number|null>(3);
   const [toothData, setToothData, toothDataReady, toothDataError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
 
@@ -487,6 +488,7 @@ export function HealthSection({
         </div>
       </div>
       <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab/></div>
+      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab/></div>
       <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
       <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
     </div>
