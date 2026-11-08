@@ -2,7 +2,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
 import { HEALTH_ROADMAP, VACCINES } from "./healthData";
-import { LIFE_STAGES } from "./labCatalog";
+import { getLabStages } from "./labCatalog";
 import type { LifeStage } from "./labCatalog";
 import type { DentalRecord, ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
 import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
@@ -36,7 +36,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   useEffect(() => () => {
     objectUrls.forEach(url => URL.revokeObjectURL(url));
   }, [objectUrls]);
-  const allStages = stages ?? LIFE_STAGES;
+  const allStages = stages ?? getLabStages();
   const currentDate = new Date();
   const todayIsoDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,"0")}-${String(currentDate.getDate()).padStart(2,"0")}`;
 
