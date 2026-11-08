@@ -12,7 +12,7 @@ import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
 
 function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   const age = CURRENT_YEAR - child.birthYear;
-  const [tab, setTab] = useState<"tests"|"vaccines"|"dental">("tests");
+  const [tab, setTab] = useState<"tests"|"history"|"vaccines"|"dental">("tests");
   const tabsId = useId();
   const [vaccineStatuses, setVaccineStatuses, vaccineReady, vaccineError] = usePersistentState<Record<string,VaccineStatus>>(
     `childHealth:${child.id}:vaccineStatuses`,
