@@ -4,9 +4,11 @@
 
 - Репозиторий: `TamiArt/health_roadmap`.
 - Рабочая ветка: `feat/storage-profile-isolation-tests`.
-- Проверенная кодовая ревизия: `258895bc870debf2ce83a15680e97607f39dcc37`.
+- Проверенная кодовая ревизия: `aaf51ce67a67795388ccb7ae2202afc5be43f494`.
 - Объём: доменные модели, лабораторный каталог, конфигурации и фикстуры, read-model selectors, тесты и документация.
 - Изменения выполнялись только в feature-ветке; `main` не изменялась.
+
+Последняя правка `aaf51ce` устраняет рассогласование выбранного профиля после удаления ребёнка: аналитика и `aria-pressed` используют один вычисленный `activeChildId`; при отсутствии выбранного ребёнка показывается взрослый профиль и предупреждение. Для этой ревизии CI run [42484103875](https://github.com/TamiArt/health_roadmap/actions/runs/42484103875) ещё выполняется; typecheck, проверка структуры и dependency audit прошли, unit-тесты находятся в работе.
 
 ## Результат аудита
 
@@ -85,7 +87,7 @@
 
 ## Проверки CI
 
-GitHub Actions run [42483013514](https://github.com/TamiArt/health_roadmap/actions/runs/42483013514), commit `258895bc870debf2ce83a15680e97607f39dcc37`, завершился успешно:
+GitHub Actions run [42483013514](https://github.com/TamiArt/health_roadmap/actions/runs/42483013514), commit `aaf51ce67a67795388ccb7ae2202afc5be43f494`, завершился успешно:
 
 - TypeScript — success.
 - Проверка структуры — success (лимит 1500 строк).
