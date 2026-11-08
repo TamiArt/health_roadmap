@@ -4,7 +4,7 @@
 
 - Репозиторий: `TamiArt/health_roadmap`.
 - Рабочая ветка: `feat/storage-profile-isolation-tests`.
-- Последняя полностью проверенная базовая ревизия: `c095d9d5a8f3f896014f6c18b3d3425dbc456f7f`.\n- Текущая ревизия доменного разделения: `9129983f649309cf3a1dd9d5d3dde41e9c0c8eef` (CI выполняется; итог ещё не подтверждён).
+- Проверенная ревизия: `258895bc870debf2ce83a15680e97607f39dcc37`.
 - Объём: архитектура моделей, каталог лабораторных исследований, интеграция типов в feature-компоненты, регрессионные тесты и актуальность документации.
 - Изменения выполнялись только в feature-ветке; `main` не изменялась.
 
@@ -76,7 +76,7 @@ GitHub Actions run [42481134766](https://github.com/TamiArt/health_roadmap/actio
 - TypeScript — success.
 - Проверка структуры — success (лимит 1500 строк).
 - Dependency audit — 0 уязвимостей уровня high и выше.
-- Unit tests — **30 passed**.
+- Unit tests — **36 passed**.
 - Playwright E2E — **29 passed**.
 - Production build — success.
 
