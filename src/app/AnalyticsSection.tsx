@@ -1,182 +1,148 @@
-import { motion } from "motion/react";
-import { AlertTriangle, Clock } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { QUALITY_DATA, URGENCY_CFG } from "./analyticsData";
+import { useMemo, useState } from "react";
+import { AlertTriangle, CalendarDays, FileText, Syringe, Activity, Baby, UserRound } from "lucide-react";
 import { VACCINES } from "./healthData";
-import type { Section, Urgency, VaccineStatus } from "./models";
+import { getLabStages } from "./labCatalog";
+import { buildDentalSummary, buildRecentMeasurements, buildVaccineSummary } from "./analyticsModel";
+import type { Child, DentalRecord, LabMeasurement, Section, UploadedResult, VaccineStatus } from "./models";
+import { childAgeVaccines, CURRENT_YEAR } from "./shared";
+import { usePersistentState } from "./storage";
+import { URGENCY_CFG } from "./analyticsData";
 
-// ─── Analytics — Health Focus ─────────────────────────────────────────────────
+type ProfileProps = { child?: Child };
 
-interface HealthPriority {
-  area: string; detail: string; urgency: Urgency; action: string;
-}
+function ProfileAnalytics({ child }: ProfileProps) {
+  const age = child ? Math.max(0, CURRENT_YEAR - child.birthYear) : undefined;
+  const vaccines = child ? childAgeVaccines(age ?? 0) : VACCINES;
+  const prefix = child ? `childHealth:${child.id}:` : "";
+  const vaccineKey = child ? `${prefix}vaccineStatuses` : "vaccineStatuses";
+  const dentalKey = child ? `${prefix}toothData` : "adultToothData";
+  const uploadsKey = child ? `${prefix}labUploads` : "labUploads";
+  const measurementsKey = child ? `${prefix}labMeasurements` : "labMeasurements";
 
-function buildPriorities(vaccineStatuses: Record<string, VaccineStatus>): HealthPriority[] {
-  const items: HealthPriority[] = [];
-  VACCINES.filter(v => vaccineStatuses[v.id]==="overdue").forEach(v => {
-    items.push({ area:`Вакцинация: ${v.name}`, detail:v.protects, urgency:"critical", action:"Записаться на прививку" });
-  });
-  items.push(
-    { area:"Гинеколог — ежегодный осмотр", detail:"ПАП-тест, осмотр, УЗИ малого таза. Выявляет рак шейки матки на ранней стадии", urgency:"critical", action:"Записаться к гинекологу" },
-    { area:"Ферритин + ОАК", detail:"Женщины репродуктивного возраста теряют железо ежемесячно. Скрытый дефицит — у 30% женщин", urgency:"important", action:"Сдать кровь натощак" },
-    { area:"Витамин D (25-OH)", detail:"Дефицит у 60–80% жителей Петербурга. Влияет на иммунитет, кости, настроение", urgency:"important", action:"Сдать 25-OH витамин D" },
+  const [vaccineStatuses, , vaccineReady, vaccineError] = usePersistentState<Record<string, VaccineStatus>>(
+    vaccineKey, Object.fromEntries(vaccines.map(vaccine => [vaccine.id, vaccine.status]))
   );
-  VACCINES.filter(v => vaccineStatuses[v.id]==="due" && v.mandatory).forEach(v => {
-    items.push({ area:`Вакцинация: ${v.name}`, detail:v.protects, urgency:"important", action:"Запланировать прививку" });
-  });
-  items.push(
-    { area:"ТТГ + АТ-ТПО", detail:"Аутоиммунный тиреоидит дебютирует в 20–35 лет. Проверяется раз в 2–3 года", urgency:"routine", action:"Сдать ТТГ, АТ-ТПО" },
-    { area:"Стоматолог (плановый)", detail:"Рекомендован каждые 6 месяцев. Профилактика дешевле лечения", urgency:"routine", action:"Записаться к стоматологу" },
-    { area:"ОАК + Биохимия + Глюкоза", detail:"Ежегодный обязательный минимум для оценки состояния организма", urgency:"ok", action:"Сданы — продолжайте ежегодно!" },
-    { area:"ВПЧ + ПАП-тест", detail:"Пройден. Следующий — через 3 года. Рак шейки матки полностью предотвратим", urgency:"ok", action:"Следующий в 2027" },
-  );
-  const order: Urgency[] = ["critical","important","routine","ok"];
-  return items.sort((a,b) => order.indexOf(a.urgency)-order.indexOf(b.urgency));
-}
+  const [measurements, , measurementsReady, measurementsError] = usePersistentState<Record<string, LabMeasurement[]>>(measurementsKey, {});
+  const [uploads, , uploadsReady, uploadsError] = usePersistentState<Record<string, UploadedResult[]>>(uploadsKey, {});
+  const [dentalRecords, , dentalReady, dentalError] = usePersistentState<Record<number, DentalRecord>>(dentalKey, {});
 
-export function AnalyticsSection({
-  vaccineStatuses, onNavigate,
-}: {
-  vaccineStatuses: Record<string, VaccineStatus>;
-  onNavigate: (s: Section) => void;
-}) {
-  const priorities = buildPriorities(vaccineStatuses);
-  const done    = VACCINES.filter(v => vaccineStatuses[v.id]==="done").length;
-  const total   = VACCINES.length;
-  const overdue = VACCINES.filter(v => vaccineStatuses[v.id]==="overdue").length;
-  const dueMandatory = VACCINES.filter(v => vaccineStatuses[v.id]==="due" && v.mandatory).length;
-  const critCount = priorities.filter(p => p.urgency==="critical").length;
-  const impCount  = priorities.filter(p => p.urgency==="important").length;
+  const testNames = useMemo(() => {
+    const names = new Map<string, string>();
+    getLabStages().forEach(stage => stage.tests.forEach(test => names.set(test.id, test.name)));
+    return names;
+  }, []);
+  const vaccineSummary = buildVaccineSummary(vaccines, vaccineStatuses);
+  const dentalSummary = buildDentalSummary(dentalRecords);
+  const recentMeasurements = buildRecentMeasurements(measurements, testNames, 6);
+  const measurementCount = Object.values(measurements).reduce((total, items) => total + items.length, 0);
+  const uploadCount = Object.values(uploads).reduce((total, items) => total + items.length, 0);
 
-  const stageInfo = [
-    { stage:"Молодой взрослый (17–30 лет)", current:true, focus:"Репродуктивное здоровье, формирование привычек профилактики, скрининг хронических заболеваний" },
-    { stage:"Взрослый (30–45 лет)",         current:false, focus:"Кардиоваскулярный скрининг, гормональный фон, онкологическая настороженность" },
-    { stage:"Средний возраст (45–60 лет)",  current:false, focus:"Менопауза, сахарный диабет 2 типа, остеопороз, онкомаркеры" },
-    { stage:"Пожилой (60+ лет)",            current:false, focus:"Деменция, ССЗ, ХБП, поддержание функциональности" },
+  const errors = [vaccineError, measurementsError, uploadsError, dentalError].filter(Boolean);
+  if (!vaccineReady || !measurementsReady || !uploadsReady || !dentalReady) {
+    return <div role="status" className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">Загрузка данных профиля…</div>;
+  }
+  if (errors.length) return <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">{errors[0]}</div>;
+
+  const metrics = [
+    { label: "Прививки выполнены", value: `${vaccineSummary.done}/${vaccineSummary.total}`, detail: vaccineSummary.overdue ? `${vaccineSummary.overdue} со статусом «просрочено»` : `${vaccineSummary.due} ожидают`, icon: Syringe },
+    { label: "Результаты анализов", value: String(measurementCount), detail: `${Object.keys(measurements).filter(id => (measurements[id] ?? []).length > 0).length} исследований с записями`, icon: Activity },
+    { label: "Загруженные файлы", value: String(uploadCount), detail: "Файлы результатов в профиле", icon: FileText },
+    { label: "Стоматологические записи", value: String(dentalSummary.recorded), detail: dentalSummary.attention ? `${dentalSummary.attention} записей со статусом, отличным от «здоров»` : "Нет отмеченных проблемных статусов", icon: UserRound },
   ];
 
   return (
-    <div className="p-8 max-w-3xl">
-      <h1 className="text-2xl font-bold text-foreground mb-1" style={{ fontFamily:"'Playfair Display', serif" }}>Аналитика здоровья</h1>
-      <p className="text-sm text-muted-foreground mb-7">Что нужно вашему здоровью прямо сейчас · 27 лет</p>
-
-      {/* Stage banner */}
-      <div className="bg-primary/8 border border-primary/20 rounded-2xl p-5 mb-6">
-        <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wider mb-1">Текущий период жизни</p>
-        <p className="text-lg font-bold text-foreground mb-1" style={{ fontFamily:"'Playfair Display', serif" }}>Молодой взрослый · 17–30 лет</p>
-        <p className="text-sm text-muted-foreground mb-4">Репродуктивное здоровье, профилактика хронических заболеваний, формирование правильных привычек</p>
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            [String(critCount), "критично", "bg-red-50 border-red-200 text-red-700"],
-            [String(impCount),  "важно",    "bg-amber-50 border-amber-200 text-amber-700"],
-            [`${done}/${total}`,"прививок", "bg-emerald-50 border-emerald-200 text-emerald-700"],
-          ].map(([v,l,cls]) => (
-            <div key={l} className={`rounded-xl p-3 text-center border ${cls}`}>
-              <div className="text-xl font-bold" style={{ fontFamily:"'DM Mono', monospace" }}>{v}</div>
-              <div className="text-[10px] font-medium mt-0.5">{l}</div>
-            </div>
-          ))}
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+        <div className="flex items-center gap-2 text-primary mb-1">
+          {child ? <Baby size={16}/> : <UserRound size={16}/>}
+          <span className="text-xs font-semibold uppercase tracking-wide">{child ? "Детский профиль" : "Взрослый профиль"}</span>
         </div>
+        <h2 className="text-lg font-bold text-foreground">{child ? child.name : "Мои данные"}</h2>
+        <p className="text-xs text-muted-foreground mt-1">{child ? `Возраст: ${age} · год рождения: ${child.birthYear}` : "Показатели рассчитаны по данным, сохранённым во взрослом профиле."}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-        {/* Priority list – wider */}
-        <div className="lg:col-span-3">
-          <p className="text-sm font-semibold text-foreground mb-4">Приоритеты здоровья — от срочного к плановому</p>
-          <div className="space-y-2.5">
-            {priorities.map((p, i) => {
-              const cfg = URGENCY_CFG[p.urgency];
-              return (
-                <motion.div key={i} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*0.04 }}
-                  className={`rounded-xl border p-4 ${cfg.bg} ${cfg.border}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${cfg.dot}`}/>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className={`text-sm font-semibold ${cfg.text}`}>{p.area}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${cfg.bg} ${cfg.text} ${cfg.border}`}>{cfg.label}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-1.5">{p.detail}</p>
-                      <p className={`text-xs font-medium ${cfg.text}`}>→ {p.action}</p>
-                    </div>
-                    <button onClick={() => onNavigate("health")} className={`shrink-0 text-xs px-2.5 py-1.5 rounded-lg border ${cfg.border} ${cfg.text} hover:opacity-80 transition-opacity whitespace-nowrap`}>
-                      Раздел →
-                    </button>
-                  </div>
-                </motion.div>
-              );
-            })}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {metrics.map(({label,value,detail,icon:Icon}) => (
+          <div key={label} className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs font-medium text-muted-foreground">{label}</span>
+              <Icon size={15} className="text-primary shrink-0"/>
+            </div>
+            <p className="text-2xl font-bold text-foreground" style={{fontFamily:"'DM Mono', monospace"}}>{value}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{detail}</p>
           </div>
+        ))}
+      </div>
+
+      <section className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Syringe size={15} className="text-primary"/>
+          <h3 className="text-sm font-semibold text-foreground">Статусы вакцинации</h3>
         </div>
+        <div className="h-2.5 rounded-full bg-muted overflow-hidden mb-3">
+          <div className="h-full rounded-full bg-primary transition-all" style={{width:`${vaccineSummary.total ? vaccineSummary.done / vaccineSummary.total * 100 : 0}%`}}/>
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          <span><strong className="text-foreground">{vaccineSummary.done}</strong> выполнено</span>
+          <span><strong className="text-foreground">{vaccineSummary.due}</strong> ожидает</span>
+          <span><strong className="text-foreground">{vaccineSummary.overdue}</strong> просрочено</span>
+          <span><strong className="text-foreground">{vaccineSummary.notApplicable}</strong> не применяется</span>
+        </div>
+        {vaccineSummary.overdue > 0 && (
+          <p className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0"/> Это только сохранённые в приложении статусы, а не проверка медицинских показаний или актуальности календаря.
+          </p>
+        )}
+      </section>
 
-        {/* Right column */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Vaccination meter */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <p className="text-sm font-semibold text-foreground mb-1">Вакцинация</p>
-            <p className="text-xs text-muted-foreground mb-3">Национальный календарь + рекомендованные</p>
-            <div className="h-2.5 bg-muted rounded-full overflow-hidden mb-2">
-              <motion.div initial={{ width:0 }} animate={{ width:`${Math.round(done/total*100)}%`}} transition={{ duration:1, ease:"easeOut" }} className="h-full bg-primary rounded-full"/>
-            </div>
-            <div className="flex justify-between text-xs text-muted-foreground mb-3">
-              <span>{done} из {total}</span>
-              <span className="font-bold text-foreground" style={{ fontFamily:"'DM Mono', monospace" }}>{Math.round(done/total*100)}%</span>
-            </div>
-            {overdue>0 && (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2">
-                <AlertTriangle size={12} className="text-red-500 shrink-0"/>
-                <p className="text-xs text-red-700">{overdue} просроченных</p>
-              </div>
-            )}
-            {dueMandatory>0 && (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                <Clock size={12} className="text-amber-500 shrink-0"/>
-                <p className="text-xs text-amber-700">{dueMandatory} обязательных ожидают</p>
-              </div>
-            )}
-          </div>
-
-          {/* Health score */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-baseline justify-between mb-1">
-              <p className="text-sm font-semibold text-foreground">Динамика здоровья</p>
-              <span className="text-sm font-bold text-primary" style={{ fontFamily:"'DM Mono', monospace" }}>88</span>
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">Субъективная оценка (0–100)</p>
-            <ResponsiveContainer width="100%" height={120}>
-              <AreaChart data={QUALITY_DATA} margin={{ top:5, right:5, bottom:0, left:-22 }}>
-                <defs>
-                  <linearGradient id="hGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2C5F5A" stopOpacity={0.18}/>
-                    <stop offset="95%" stopColor="#2C5F5A" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="year" tick={{ fontSize:9, fontFamily:"'DM Mono', monospace", fill:"#7A8592" }}/>
-                <YAxis domain={[40,100]} tick={{ fontSize:9, fontFamily:"'DM Mono', monospace", fill:"#7A8592" }}/>
-                <Tooltip contentStyle={{ background:"#fff", border:"1px solid rgba(26,37,53,0.10)", borderRadius:"8px", fontSize:"11px" }}/>
-                <Area type="monotone" dataKey="value" name="Оценка" stroke="#2C5F5A" strokeWidth={2} fill="url(#hGrad)" dot={{ r:3, fill:"#2C5F5A", strokeWidth:0 }} activeDot={{ r:4 }}/>
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Life stage roadmap */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <p className="text-sm font-semibold text-foreground mb-4">Здоровье по периодам жизни</p>
-            <div className="space-y-3">
-              {stageInfo.map((s, i) => (
-                <div key={i} className={`rounded-xl p-3 border ${s.current?"bg-primary/8 border-primary/25":"border-border bg-muted/30"}`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    {s.current && <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-semibold">Сейчас</span>}
-                    <span className={`text-xs font-semibold ${s.current?"text-primary":"text-muted-foreground"}`}>{s.stage}</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">{s.focus}</p>
+      <section className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <CalendarDays size={15} className="text-primary"/>
+          <h3 className="text-sm font-semibold text-foreground">Последние результаты анализов</h3>
+        </div>
+        {recentMeasurements.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-3">В этом профиле пока нет сохранённых результатов анализов.</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {recentMeasurements.map(item => (
+              <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-foreground">{item.testName}</p>
+                  <p className="text-[10px] text-muted-foreground">{new Date(`${item.date}T00:00:00`).toLocaleDateString("ru-RU")}</p>
                 </div>
-              ))}
-            </div>
+                <span className="text-sm font-semibold text-foreground" style={{fontFamily:"'DM Mono', monospace"}}>{item.value}{item.unit ? ` ${item.unit}` : ""}</span>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
+        <p className="mt-2 text-[10px] text-muted-foreground">Показаны введённые вручную значения. Результаты из загруженных файлов автоматически не распознаются.</p>
+      </section>
+
+      <p className="text-[10px] text-muted-foreground">Сводка отражает только записи, сохранённые в выбранном профиле. Она не рассчитывает общий балл здоровья и не формирует диагнозы или персональные медицинские рекомендации.</p>
+    </div>
+  );
+}
+
+export function AnalyticsSection({ children, onNavigate }: { children: Child[]; onNavigate: (section: Section) => void }) {
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const selectedChild = children.find(child => child.id === selectedChildId);
+  const profileKey = selectedChild?.id ?? "adult";
+
+  return (
+    <div className="p-5 sm:p-8 max-w-3xl">
+      <h1 className="text-2xl font-bold text-foreground mb-1" style={{fontFamily:"'Playfair Display', serif"}}>Аналитика здоровья</h1>
+      <p className="text-sm text-muted-foreground mb-5">Сводка по сохранённым данным выбранного профиля</p>
+      <div className="flex flex-wrap gap-2 mb-5" aria-label="Выбор профиля для аналитики">
+        <button type="button" aria-pressed={!selectedChildId} onClick={() => setSelectedChildId(null)} className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${!selectedChildId ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground"}`}>Взрослый профиль</button>
+        {children.map(child => (
+          <button key={child.id} type="button" aria-pressed={selectedChildId === child.id} onClick={() => setSelectedChildId(child.id)} className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${selectedChildId === child.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground"}`}>{child.emoji} {child.name}</button>
+        ))}
       </div>
+      {selectedChildId && !selectedChild && (
+        <p role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Выбранный профиль больше не существует. Показан взрослый профиль.</p>
+      )}
+      <ProfileAnalytics key={profileKey} child={selectedChild}/>
+      <button type="button" onClick={() => onNavigate("health")} className="mt-5 text-xs font-medium text-primary hover:underline">Открыть раздел «Здоровье» →</button>
     </div>
   );
 }
