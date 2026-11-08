@@ -344,3 +344,10 @@ GitHub Actions run [42475574306](https://github.com/TamiArt/health_roadmap/actio
 - Production build — success
 
 The build still emits a non-blocking Vite chunk-size warning (main JS chunk approximately 780 kB minified). This is recorded as a separate performance follow-up, not a failure of this data-integrity workstream. Manual testing on physical devices, tablet visual review and full screen-reader review remain outstanding. This verification does not establish production-ready status.
+
+## Initial bundle optimization — 2026-11-08
+
+- The four primary feature sections are now loaded through dynamic imports on first visit rather than being eagerly included in the initial application entry.
+- Visited sections remain mounted and are hidden when inactive, preserving the existing session-state behavior while allowing unvisited sections to stay unloaded.
+- A visible, accessible loading status is shown while a section's chunk is being fetched.
+- Verification of chunk sizes and the full CI pipeline is pending for commit `097920e3562740953042885a3d6198c11763961a`. Do not treat the Vite chunk warning as resolved until the emitted bundle report confirms the initial entry is below the prior approximately 780 kB size.
