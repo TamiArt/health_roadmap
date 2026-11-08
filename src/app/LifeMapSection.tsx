@@ -2,7 +2,7 @@ import { useState } from "react";
 import { usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { Pencil, Plus } from "lucide-react";
-import { CATEGORY_CONFIG, LIFE_EVENTS_INIT } from "./data";
+import { CATEGORY_CONFIG, LIFE_EVENTS_INIT } from "./lifeMapData";
 import type { Category, LifeEvent } from "./models";
 import { CURRENT_YEAR, createId, isValidRequiredText, parseBoundedInteger, DelBtn, EditToggle, INP, SEL } from "./shared";
 
