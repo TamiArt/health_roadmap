@@ -25,7 +25,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   const stages = childAgeStages(age);
   const agePeriod = age<1?"Новорождённый":age<6?"Дошкольник":age<18?"Школьник":"Взрослый";
 
-  const tabs: Array<["tests"|"history"|"vaccines"|"dental", string]> = [["tests","Анализы"],["vaccines","Прививки"]];
+  const tabs: Array<["tests"|"history"|"vaccines"|"dental", string]> = [["tests","Анализы"],["history","История"],["vaccines","Прививки"]];
   if (age>=5) tabs.push(["dental","Стоматолог"]);
 
   if (!vaccineReady || !toothReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка данных профиля…</div>;
