@@ -4,7 +4,7 @@ import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } fr
 import { HEALTH_ROADMAP, VACCINES } from "./healthData";
 import { LIFE_STAGES } from "./labCatalog";
 import type { LifeStage } from "./labCatalog";
-import type { ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
+import type { DentalRecord, ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
 import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 
@@ -329,7 +329,7 @@ function toothLabel(n: number) {
 export function DentalTab({
   data, onChange,
 }: {
-  data: Record<number, { status:ToothStatus; note:string }>;
+  data: Record<number, DentalRecord>;
   onChange: (d: Record<number, { status:ToothStatus; note:string }>) => void;
 }) {
   const [selected, setSelected] = useState<number|null>(null);
