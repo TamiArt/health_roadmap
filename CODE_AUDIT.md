@@ -359,4 +359,4 @@ The build still emits a non-blocking Vite chunk-size warning (main JS chunk appr
 - Added a consistent visible focus outline for interactive controls when reached with keyboard navigation.
 - Added Playwright coverage for horizontal overflow across all primary sections at 320 px and 360 px, in addition to the existing 390 px mobile and 768 px tablet checks.
 - Added an E2E test verifying skip-link focus, visibility, target and resulting main-content focus.
-- Full CI verification is pending for this revision.
+- Full CI passed on commit `10c50280e19df0d96a9cad9e5d3a0fa9b3be2fdd` (Actions run [42476983116](https://github.com/TamiArt/health_roadmap/actions/runs/42476983116)): TypeScript, project structure, dependency audit, unit tests (28 passed), Playwright E2E (29 passed) and production build.
