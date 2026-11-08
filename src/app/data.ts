@@ -11,9 +11,6 @@ import type {
 export { LIFE_STAGES, LAB_TEST_CONCEPTS, LAB_TEST_ASSIGNMENTS, LAB_TEST_STAGE_DEFINITIONS } from "./labCatalog";
 export type { LabTest, LabTestConcept, LabTestAssignment, LabTestGender, LabTestStageDefinition, LifeStage } from "./labCatalog";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 export const CATEGORY_CONFIG: Record<Category, { label: string; bg: string; text: string }> = {
@@ -33,9 +30,6 @@ export const URGENCY_CFG: Record<Urgency, { label: string; bg: string; text: str
   ok:        { label: "Норма",     bg: "bg-emerald-50",  text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500" },
 };
 
-// ─── Interfaces ───────────────────────────────────────────────────────────────
-
-/** A manually entered measurement for one lab-test assignment. */
 // ─── Life Events ──────────────────────────────────────────────────────────────
 
 export const LIFE_EVENTS_INIT: LifeEvent[] = [
