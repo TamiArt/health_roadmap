@@ -39,6 +39,10 @@ npm run build
 
 Сборка создаётся Vite в каталоге `dist/`.
 
+## Дорожная карта разработки
+
+Актуальный поэтапный план, критерии завершения и журнал выполненных работ находятся в [TECHNICAL_ROADMAP.md](./TECHNICAL_ROADMAP.md).
+
 ## Технологии и UI
 
 React 18, TypeScript, Vite, Tailwind CSS 4, Motion, Recharts, Lucide, Vitest и Playwright. Интерфейс реализован непосредственно в feature-компонентах на JSX и Tailwind CSS. Неиспользуемый каталог шаблонных shadcn/Radix-компонентов удалён; приложение не зависит от Figma UI-блоков или Figma runtime.
