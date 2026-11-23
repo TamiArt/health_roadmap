@@ -581,3 +581,69 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   }));
   expect(storedRevision).toBeGreaterThanOrEqual(2);
 });
+
+
+test("adds medical events, monitoring items and multi-indicator lab history", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье" }).click();
+
+  await page.getByRole("tab", { name: "События", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByLabel("Дата", { exact: true }).fill("2025-04-12");
+  await page.getByLabel("Тип события").selectOption("fracture");
+  await page.getByLabel("Название события").fill("E2E перелом");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+  await expect(page.getByText("E2E перелом", { exact: true })).toBeVisible();
+
+  await page.getByRole("tab", { name: "На контроле", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByLabel("Название контроля").fill("E2E глюкоза");
+  await page.getByLabel("Следующая проверка").fill("2026-12-01");
+  await page.getByLabel("Интервал в днях").fill("90");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+  await expect(page.getByText("E2E глюкоза", { exact: true })).toBeVisible();
+
+  await page.getByRole("tab", { name: "История", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить анализ", exact: true }).click();
+  await page.getByLabel("Название анализа").fill("E2E биохимия");
+  await page.getByLabel("Дата анализа").fill("2025-04-12");
+  await page.getByLabel("Название показателя 1").fill("Глюкоза");
+  await page.getByLabel("Значение показателя 1").fill("5.2");
+  await page.getByLabel("Единица измерения 1").fill("ммоль/л");
+  await page.getByRole("button", { name: "Показатель" }).click();
+  await page.getByLabel("Название показателя 2").fill("Креатинин");
+  await page.getByLabel("Значение показателя 2").fill("72");
+  await page.getByLabel("Единица измерения 2").fill("мкмоль/л");
+  await page.getByRole("button", { name: "Прикрепить документ" }).click();
+  await page.locator('input[type="file"]').last().setInputFiles({
+    name: "first-result.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 first"),
+  });
+  await page.getByRole("button", { name: "Сохранить анализ" }).click();
+  await expect(page.getByText("E2E биохимия", { exact: true })).toBeVisible();
+  await expect(page.getByText("Креатинин", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "first-result.pdf" })).toBeVisible();
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Заменить прикреплённый документ" }).click();
+  await page.locator('input[type="file"]').last().setInputFiles({
+    name: "replacement-result.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 replacement"),
+  });
+  await expect(page.getByRole("link", { name: "replacement-result.pdf" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "first-result.pdf" })).toHaveCount(0);
+});
+
+test("adds a family date with annual recurrence and reminder settings", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить дату" }).click();
+  await page.getByPlaceholder("Название события").fill("E2E годовщина");
+  await page.getByLabel("Дата памятного события").fill("2025-06-15");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await expect(page.getByText("E2E годовщина", { exact: true })).toBeVisible();
+  await expect(page.getByText("2025-06-15", { exact: true })).toBeVisible();
+});
