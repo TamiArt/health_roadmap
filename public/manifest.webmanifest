@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "Life Maps — карта жизни, здоровья и семьи",
+  "short_name": "Life Maps",
+  "description": "Личная карта жизненных событий, семейных дат и медицинской истории.",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F2EEE4",
+  "theme_color": "#064b46",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
