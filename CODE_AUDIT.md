@@ -38,6 +38,9 @@ The workflow is pinned to `ubuntu-24.04` with Node.js 22. The repository current
 
 The CI browser-install step is `npx playwright install --with-deps chromium`. The latest CI run `45174097271` completed successfully: TypeScript, structure validation, dependency audit, 53 unit tests, Chromium installation, all 34 E2E scenarios and production build passed. The run used commit `f740bbf7`.
 
+- Investigated `The operation was canceled` in the TypeScript step: run `45173518658` was explicitly marked `cancelled`; `npm run typecheck` had started and was interrupted about 2.3 seconds later, with no TypeScript diagnostics. The workflow's `concurrency.cancel-in-progress: true` was the cause: a newer push canceled the active run. This was not a `tsc` type/syntax failure, timeout, or OOM.
+- Changed CI concurrency to `cancel-in-progress: false` so an active typecheck/build is not terminated by a newer push. A pending run may still be superseded by GitHub, but the running validation completes. `package.json`, TypeScript configuration, and the `tsc --noEmit` command were intentionally left unchanged.
+
 If the runner is intentionally moved to Ubuntu 26.04, update `@playwright/test` and its lockfile to at least 1.61.0 before changing the runner. Do not update only `package.json` while leaving `package-lock.json` on 1.56.1.
 
 ## Known remaining work
