@@ -26,6 +26,13 @@ export interface MonitoringReminder {
   time: string;
 }
 
+export interface MonitoringMeasurement {
+  id: string;
+  date: string;
+  value: number;
+  unit: string;
+}
+
 export interface HealthMonitoringItem {
   id: string;
   name: string;
@@ -36,6 +43,7 @@ export interface HealthMonitoringItem {
   lastCheckedDate: string;
   notes: string;
   reminder: MonitoringReminder;
+  measurements?: MonitoringMeasurement[];
 }
 
 export interface LabIndicatorValue {
