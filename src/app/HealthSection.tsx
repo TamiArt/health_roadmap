@@ -334,8 +334,8 @@ function toothLabel(n: number) {
 export function DentalTab({
   data, onChange,
 }: {
-  data: Record<number, { status:ToothStatus; note:string }>;
-  onChange: (d: Record<number, { status:ToothStatus; note:string }>) => void;
+  data: Record<number, DentalRecord>;
+  onChange: (d: Record<number, DentalRecord>) => void;
 }) {
   const [selected, setSelected] = useState<number|null>(null);
   const [note, setNote] = useState("");
