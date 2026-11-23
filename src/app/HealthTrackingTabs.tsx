@@ -109,7 +109,7 @@ export function MonitoringTab({ storageKey = "healthMonitoring" }: { storageKey?
   const [formError, setFormError] = useState<string | null>(null);
   const [readingDrafts, setReadingDrafts] = useState<Record<string, { date: string; value: string }>>({});
   const reminders = useMemo(() => items.map(item => ({
-    id: item.id, title: item.name, date: item.nextDueDate,
+    id: item.id, title: item.name, notificationTitle: "Напоминание о проверке", date: item.nextDueDate,
     enabled: item.reminder.enabled, leadDays: item.reminder.leadDays,
     time: item.reminder.time,
   })), [items]);
