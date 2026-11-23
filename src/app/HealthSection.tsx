@@ -1,11 +1,15 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
-import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type LabMeasurement, type VaccineRecord, type VaccineStatus } from "./data";
+import { HEALTH_ROADMAP, VACCINES } from "./healthData";
+import { getLabStages } from "./labCatalog";
+import type { LifeStage } from "./labCatalog";
+import type { ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
 import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
+import { MedicalHistoryTab } from "./MedicalHistoryTab";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
 
@@ -35,7 +39,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   useEffect(() => () => {
     objectUrls.forEach(url => URL.revokeObjectURL(url));
   }, [objectUrls]);
-  const allStages = stages ?? LIFE_STAGES;
+  const allStages = stages ?? getLabStages();
   const currentDate = new Date();
   const todayIsoDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,"0")}-${String(currentDate.getDate()).padStart(2,"0")}`;
 
@@ -497,7 +501,7 @@ export function HealthSection({
       <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
       <div id={`${tabsId}-panel-events`} role="tabpanel" aria-labelledby={`${tabsId}-tab-events`} hidden={tab !== "events"}><HealthEventsTab/></div>
       <div id={`${tabsId}-panel-monitoring`} role="tabpanel" aria-labelledby={`${tabsId}-tab-monitoring`} hidden={tab !== "monitoring"}><MonitoringTab/></div>
-      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><LabResultsTab/></div>
+      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab/><div className="mt-6"><LabResultsTab/></div></div>
     </div>
   );
 }
