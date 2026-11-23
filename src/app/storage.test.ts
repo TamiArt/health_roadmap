@@ -79,6 +79,59 @@ describe("local backup schema", () => {
     expect(await decoded.labUploads.report.text()).toBe("test result file");
   });
 
+  it("migrates legacy child-profile records and preserves every attachment", async () => {
+    const encodedBlob = { __lifeMapsBlob: true, mimeType: "application/pdf", base64: btoa("child report") };
+    const measurement = { id: "child-measurement", date: "2026-11-06", value: "5.4", unit: "ммоль/л" };
+    const legacy: BackupPayload = {
+      format: BACKUP_FORMAT,
+      schemaVersion: 0,
+      exportedAt: "2026-01-01T00:00:00.000Z",
+      records: {
+        children: [{ id: "child-1", name: "Ребёнок" }],
+        "childHealth:child-1:vaccineStatuses": { vaccineA: "done" },
+        "childHealth:child-1:toothData": { 11: { status: "healthy", note: "запись" } },
+        "childHealth:child-1:labUploads": { cbc: [{ id: "upload-1", name: "child.pdf", blob: encodedBlob }] },
+        "childHealth:child-1:labMeasurements": { cbc: [measurement] },
+        "childHealth:child-1:healthEvents": [{ id: "event-1", date: "2026-11-06", title: "Осмотр" }],
+        "childHealth:child-1:healthMonitoring": [{
+          id: "monitor-1", name: "Контроль", kind: "measurement", unit: "ммоль/л",
+          intervalDays: null, nextDueDate: "2026-12-06", lastCheckedDate: "2026-11-06",
+          notes: "", reminder: { enabled: false, leadDays: 0, time: "09:00" },
+          measurements: [{ id: "reading-1", date: "2026-11-06", value: 5.4, unit: "ммоль/л" }],
+        }],
+        "childHealth:child-1:labResultEntries": [{
+          id: "lab-1", testId: "cbc", testName: "Общий анализ", date: "2026-11-06",
+          indicators: [{ id: "hb", name: "Гемоглобин", value: 125, unit: "г/л" }],
+          document: { id: "document-1", name: "result.pdf", mimeType: "application/pdf", blob: encodedBlob },
+          notes: "",
+        }],
+        healthEvents: [{ id: "adult-event", date: "2026-11-06", title: "Взрослая запись" }],
+      },
+    };
+
+    const migrated = migrateBackup(legacy);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.records["childHealth:child-1:healthEvents"]).toEqual(legacy.records["childHealth:child-1:healthEvents"]);
+    expect(migrated.records["childHealth:child-1:labMeasurements"]).toEqual({ cbc: [measurement] });
+
+    const decoded = await decodeBackupValue(migrated.records) as Record<string, any>;
+    const upload = decoded["childHealth:child-1:labUploads"].cbc[0].blob as Blob;
+    const labDocument = decoded["childHealth:child-1:labResultEntries"][0].document.blob as Blob;
+    expect(await upload.text()).toBe("child report");
+    expect(await labDocument.text()).toBe("child report");
+    expect(decoded.healthEvents[0].id).toBe("adult-event");
+  });
+
+  it("rejects malformed child-profile keys and child lab attachments", () => {
+    expect(isAllowedRecordKey("childHealth:../other:healthEvents")).toBe(false);
+    expect(() => migrateBackup({
+      format: BACKUP_FORMAT,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      exportedAt: "2026-01-01T00:00:00.000Z",
+      records: { "childHealth:child-1:labUploads": { cbc: [{ id: "bad", blob: { nope: true } }] } },
+    })).toThrow("Повреждены вложения");
+  });
+
   it("rejects backups created by a newer unsupported schema", () => {
     expect(() => migrateBackup({
       format: BACKUP_FORMAT,
