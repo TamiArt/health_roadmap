@@ -82,7 +82,7 @@ function daysUntil(date: string): number {
   return Math.round((due.getTime() - current.getTime()) / 86400000);
 }
 
-function ReminderPermission({ enabled, onEnable }: { enabled: boolean; onEnable: (value: boolean) => void }) {
+export function ReminderPermission({ enabled, onEnable }: { enabled: boolean; onEnable: (value: boolean) => void }) {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported"
   );
