@@ -31,8 +31,8 @@ function DateInput({ value, onChange }: { value: string; onChange: (value: strin
   return <input aria-label="Дата" type="date" value={value} onChange={event => onChange(event.target.value)} className={INP} />;
 }
 
-export function HealthEventsTab() {
-  const [events, setEvents, ready, error] = usePersistentState<HealthEvent[]>("healthEvents", []);
+export function HealthEventsTab({ storageKey = "healthEvents" }: { storageKey?: string }) {
+  const [events, setEvents, ready, error] = usePersistentState<HealthEvent[]>(storageKey, []);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ date: today(), kind: "other" as HealthEventKind, title: "", description: "", facility: "" });
   const [formError, setFormError] = useState<string | null>(null);
@@ -99,8 +99,8 @@ export function ReminderPermission({ enabled, onEnable }: { enabled: boolean; on
   return <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/60 p-3"><div className="min-w-0"><p className="text-xs font-medium">Уведомления браузера</p><p className="text-[10px] text-muted-foreground">{permission === "unsupported" ? "Браузер не поддерживает уведомления" : permission === "denied" ? "Разрешение запрещено в настройках браузера" : enabled ? "Разрешены" : "Выключены"}</p></div><button type="button" onClick={toggle} disabled={permission === "unsupported" || permission === "denied"} className="rounded-lg border px-3 py-1.5 text-xs disabled:opacity-40">{enabled ? "Выключить" : "Разрешить"}</button></div>;
 }
 
-export function MonitoringTab() {
-  const [items, setItems, ready, error] = usePersistentState<HealthMonitoringItem[]>("healthMonitoring", []);
+export function MonitoringTab({ storageKey = "healthMonitoring" }: { storageKey?: string }) {
+  const [items, setItems, ready, error] = usePersistentState<HealthMonitoringItem[]>(storageKey, []);
   const [editing, setEditing] = useState(false);
   const [notificationSettings, setNotificationSettings, notificationSettingsReady] = usePersistentState<{ enabled: boolean }>("notificationSettings", { enabled: false });
   const notificationsEnabled = notificationSettings.enabled;
