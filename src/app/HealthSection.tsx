@@ -436,19 +436,8 @@ export function HealthSection({
       </div>
 
       <div id={`${tabsId}-panel-roadmap`} role="tabpanel" aria-labelledby={`${tabsId}-tab-roadmap`} hidden={tab !== "roadmap"}>
-        <div className="mb-8 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
-          {[
-            { emoji:"📅", val:"Гинеколог",  sub:"Рекомендован сейчас",  label:"Следующий визит"    },
-            { emoji:"✅", val:"Стоматолог",  sub:"Ноябрь 2024",          label:"Последнее посещение"},
-            { emoji:"⚠️", val:"4 пункта",   sub:"Этого возраста",       label:"Требует внимания"   },
-          ].map(c => (
-            <div key={c.label} className="bg-card border border-border rounded-xl p-3.5">
-              <div className="text-2xl mb-2">{c.emoji}</div>
-              <div className="text-xs font-semibold text-foreground">{c.val}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">{c.label}</div>
-              <div className="text-[10px] text-muted-foreground">{c.sub}</div>
-            </div>
-          ))}
+        <div className="mb-8 rounded-xl border border-primary/15 bg-primary/5 p-4 text-xs leading-relaxed text-muted-foreground">
+          Справочные ориентиры по возрастным этапам. Это не персональный медицинский план: актуальные обследования и сроки лучше согласовать с лечащим врачом.
         </div>
         <div className="relative pl-4">
           <div className="absolute left-4 top-4 bottom-4 w-px bg-border"/>
