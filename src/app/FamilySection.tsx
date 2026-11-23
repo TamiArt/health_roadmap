@@ -2,11 +2,13 @@ import { useId, useMemo, useState } from "react";
 import { deleteChildHealthRecords, usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
-import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT, type Child, type ToothStatus, type VaccineStatus } from "./data";
+import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT } from "./familyData";
+import type { Child, ToothStatus, VaccineStatus } from "./models";
 import { CURRENT_YEAR, childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, DelBtn, EditToggle, INP } from "./shared";
 import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
 import { HealthEventsTab, MonitoringTab, ReminderPermission } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
+import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { useBrowserReminders } from "./useBrowserReminders";
 import { isIsoDate, type FamilyDate } from "./healthRecords";
 
@@ -54,7 +56,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
       <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f" storageKey={`childHealth:${child.id}:labUploads`}/></div>
       <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age}/></div>
       {age>=5 && <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>}
-      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><LabResultsTab storageKey={`childHealth:${child.id}:labResultEntries`}/></div>
+      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab storagePrefix={`childHealth:${child.id}:`}/><div className="mt-6"><LabResultsTab storageKey={`childHealth:${child.id}:labResultEntries`}/></div></div>
       <div id={`${tabsId}-panel-events`} role="tabpanel" aria-labelledby={`${tabsId}-tab-events`} hidden={tab !== "events"}><HealthEventsTab storageKey={`childHealth:${child.id}:healthEvents`}/></div>
       <div id={`${tabsId}-panel-monitoring`} role="tabpanel" aria-labelledby={`${tabsId}-tab-monitoring`} hidden={tab !== "monitoring"}><MonitoringTab storageKey={`childHealth:${child.id}:healthMonitoring`}/></div>
     </div>
