@@ -209,12 +209,15 @@ function validateRecordValue(key: string, value: unknown): void {
       throw new Error(`В списке ${key} обнаружена некорректная запись.`);
     }
     if (key === "healthMonitoring" || key.endsWith(":healthMonitoring")) {
-      if (value.some(item => !isPlainRecord(item) || !Array.isArray(item.measurements ?? []) ||
-          (item.measurements ?? []).some(reading => !isPlainRecord(reading) || typeof reading.id !== "string" ||
-            typeof reading.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(reading.date) ||
-            typeof reading.value !== "number" || !Number.isFinite(reading.value) || typeof reading.unit !== "string"))) {
-        throw new Error(`Повреждена история значений в списке ${key}.`);
-      }
+      const hasInvalidMeasurements = value.some(item => {
+        if (!isPlainRecord(item)) return true;
+        const readings: unknown = item.measurements ?? [];
+        if (!Array.isArray(readings)) return true;
+        return readings.some((reading: unknown) => !isPlainRecord(reading) || typeof reading.id !== "string" ||
+          typeof reading.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(reading.date) ||
+          typeof reading.value !== "number" || !Number.isFinite(reading.value) || typeof reading.unit !== "string");
+      });
+      if (hasInvalidMeasurements) throw new Error(`Повреждена история значений в списке ${key}.`);
     }
     return;
   }
