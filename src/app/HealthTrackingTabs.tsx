@@ -28,8 +28,8 @@ const EVENT_TYPES: Array<[HealthEventKind, string]> = [
   ["other", "Другое"],
 ];
 
-function DateInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return <input aria-label="Дата" type="date" value={value} onChange={event => onChange(event.target.value)} className={INP} />;
+function DateInput({ value, onChange, ariaLabel = "Дата" }: { value: string; onChange: (value: string) => void; ariaLabel?: string }) {
+  return <input aria-label={ariaLabel} type="date" value={value} onChange={event => onChange(event.target.value)} className={INP} />;
 }
 
 export function HealthEventsTab({ storageKey = "healthEvents" }: { storageKey?: string }) {
@@ -159,7 +159,7 @@ export function MonitoringTab({ storageKey = "healthMonitoring" }: { storageKey?
     {editing && <div className="space-y-2 rounded-xl border border-primary/20 bg-card p-4">
       <input aria-label="Название контроля" value={form.name} maxLength={100} onChange={event => setForm(value => ({ ...value, name: event.target.value }))} placeholder="Например, глюкоза крови или цитология" className={INP}/>
       <div className="grid grid-cols-2 gap-2"><select aria-label="Тип контроля" value={form.kind} onChange={event => setForm(value => ({ ...value, kind: event.target.value as HealthMonitoringItem["kind"] }))} className={INP}><option value="measurement">Показатель</option><option value="periodic-check">Периодическая проверка</option></select><input aria-label="Единица измерения" value={form.unit} maxLength={24} onChange={event => setForm(value => ({ ...value, unit: event.target.value }))} placeholder="Единица (ммоль/л)" className={INP}/></div>
-      <div className="grid grid-cols-2 gap-2"><label className="text-xs text-muted-foreground">Следующая проверка<DateInput value={form.nextDueDate} onChange={nextDueDate => setForm(value => ({ ...value, nextDueDate }))}/></label><label className="text-xs text-muted-foreground">Интервал, дней<input aria-label="Интервал в днях" type="number" min="1" max="3650" value={form.intervalDays} onChange={event => setForm(value => ({ ...value, intervalDays: event.target.value }))} className={INP}/></label></div>
+      <div className="grid grid-cols-2 gap-2"><label className="text-xs text-muted-foreground">Следующая проверка<DateInput ariaLabel="Следующая проверка" value={form.nextDueDate} onChange={nextDueDate => setForm(value => ({ ...value, nextDueDate }))}/></label><label className="text-xs text-muted-foreground">Интервал, дней<input aria-label="Интервал в днях" type="number" min="1" max="3650" value={form.intervalDays} onChange={event => setForm(value => ({ ...value, intervalDays: event.target.value }))} className={INP}/></label></div>
       <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.reminderEnabled} onChange={event => setForm(value => ({ ...value, reminderEnabled: event.target.checked }))}/> Напоминать о проверке</label>
       <div className="grid grid-cols-2 gap-2"><label className="text-xs text-muted-foreground">За сколько дней<input aria-label="Дней до срока" type="number" min="0" max="365" value={form.leadDays} onChange={event => setForm(value => ({ ...value, leadDays: event.target.value }))} className={INP}/></label><label className="text-xs text-muted-foreground">Время<input aria-label="Время напоминания" type="time" value={form.time} onChange={event => setForm(value => ({ ...value, time: event.target.value }))} className={INP}/></label></div>
       <textarea aria-label="Заметки к контролю" value={form.notes} maxLength={1000} onChange={event => setForm(value => ({ ...value, notes: event.target.value }))} placeholder="Заметки (необязательно)" rows={2} className={INP}/>
