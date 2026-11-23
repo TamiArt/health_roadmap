@@ -41,7 +41,7 @@ npm run build
 
 ## Дорожная карта разработки
 
-Актуальный поэтапный план, критерии завершения и журнал выполненных работ находятся в [TECHNICAL_ROADMAP.md](./TECHNICAL_ROADMAP.md).
+Актуальный поэтапный план, критерии завершения и журнал выполненных работ находятся в [TECHNICAL_ROADMAP.md](./TECHNICAL_ROADMAP.md). Стратегические этапы улучшения продукта и их приоритеты описаны в [APP_IMPROVEMENT_ROADMAP.md](./APP_IMPROVEMENT_ROADMAP.md).
 
 ## Технологии и UI
 
