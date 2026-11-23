@@ -29,6 +29,7 @@ const ALLOWED_KEYS = new Set([
   "healthEvents",
   "healthMonitoring",
   "labResultEntries",
+  "notificationSettings",
 ]);
 
 export function isAllowedRecordKey(key: string): boolean {
