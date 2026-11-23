@@ -676,3 +676,61 @@ test("aggregates health events and monitoring dates in the unified calendar", as
   await expect(page.getByText("E2E событие для календаря", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Проверка: E2E проверка для календаря", { exact: true })).toBeVisible();
 });
+
+
+test("deleting a child profile removes its health records and keeps tombstone revisions", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByPlaceholder("Имя").fill("Профиль для удаления");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Профиль для удаления/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  await page.locator("button:visible").filter({ hasText: "+ Значение" }).first().click();
+  await page.getByLabel("Значение результата").fill("14.7");
+  await page.getByLabel("Единицы измерения").fill("г/л");
+  await page.getByRole("button", { name: "Сохранить результат" }).click();
+  await expect(page.getByText("14.7 г/л", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+
+  const childId = await page.evaluate(() => new Promise<string>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get("children");
+      read.onsuccess = () => resolve(read.result.value.find((child: { name: string }) => child.name === "Профиль для удаления").id);
+      read.onerror = () => reject(read.error);
+    };
+  }));
+  const key = `childHealth:${childId}:labMeasurements`;
+  const previousRevision = await page.evaluate(key => new Promise<number>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get(key);
+      read.onsuccess = () => resolve(read.result.revision);
+      read.onerror = () => reject(read.error);
+    };
+  }), key);
+
+  await page.getByRole("button", { name: "Изменить" }).click();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Удалить профиль ребёнка Профиль для удаления" }).click();
+  await expect(page.getByText("Профиль для удаления", { exact: true })).toHaveCount(0);
+  await expect.poll(() => page.evaluate(key => new Promise<{ value: unknown; revision: number }>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get(key);
+      read.onsuccess = () => resolve({ value: read.result.value, revision: read.result.revision });
+      read.onerror = () => reject(read.error);
+    };
+  }), key)).toEqual({ value: undefined, revision: previousRevision + 1 });
+});
