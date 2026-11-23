@@ -12,13 +12,13 @@ const NAV_ITEMS = [
 export function Sidebar({ active, onSelect }: { active: Section; onSelect: (section: Section) => void }) {
   return (
     <aside className="order-last sm:order-first flex h-[calc(4.25rem+env(safe-area-inset-bottom))] w-full shrink-0 flex-row border-t border-border bg-card pb-[env(safe-area-inset-bottom)] sm:h-screen sm:w-56 sm:flex-col sm:border-r sm:border-t-0 sm:pb-0">
-      <a href="#main-content" className="hidden items-center gap-3 border-b border-border px-5 py-4 sm:flex">
+      <div className="hidden items-center gap-3 border-b border-border px-5 py-4 sm:flex">
         <img src="/icon.svg" alt="" aria-hidden="true" className="h-9 w-9 rounded-xl" />
         <span>
           <span className="block font-bold leading-tight text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>Life Maps</span>
           <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">Навигатор жизни</span>
         </span>
-      </a>
+      </div>
       <nav aria-label="Основная навигация" className="flex min-w-0 flex-1 flex-row items-stretch justify-around gap-1 px-1 py-1 sm:flex-col sm:items-stretch sm:justify-start sm:gap-1.5 sm:p-2.5">
         {NAV_ITEMS.map(({ id, label, mobileLabel, Icon }) => {
           const selected = active === id;
