@@ -60,7 +60,7 @@ export function LifeMapSection() {
             <p className="text-sm text-muted-foreground">Сохранённые события и важные этапы</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            {[[String(CURRENT_YEAR - 1997),"лет"],[String(milestones),"ключевых"]].map(([v,l]) => (
+            {[[String(milestones),"ключевых"]].map(([v,l]) => (
               <div key={l} className="text-right">
                 <div className="text-xl font-bold text-foreground" style={{ fontFamily:"'DM Mono', monospace" }}>{v}</div>
                 <div className="text-[11px] text-muted-foreground">{l}</div>
