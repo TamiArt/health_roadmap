@@ -36,7 +36,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   if (vaccineError || toothError) return <div role="alert" className="p-8 text-sm text-red-600">{vaccineError ?? toothError}</div>;
 
   return (
-    <div className="p-8 max-w-xl">
+    <div className="mx-auto w-full max-w-xl p-4 sm:p-8">
       <button onClick={onBack} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft size={13}/> Вернуться к семье
       </button>
@@ -128,7 +128,7 @@ export function FamilySection() {
 
   return (
     <>
-    <div hidden={!!viewingChild} className="p-8 max-w-xl">
+    <div hidden={!!viewingChild} className="mx-auto w-full max-w-xl p-4 sm:p-8">
       <div className="flex items-start justify-between mb-7">
         <div>
           <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily:"'Playfair Display', serif" }}>Семья</h1>
