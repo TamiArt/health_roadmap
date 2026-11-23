@@ -1,4 +1,4 @@
-import { BarChart2, Compass, Heart, Map, Settings, Users } from "lucide-react";
+import { BarChart2, CalendarDays, Compass, Heart, Map, Settings, Users } from "lucide-react";
 import type { Section } from "./data";
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { id:"map",       label:"Карта жизни",  Icon: Map      },
   { id:"health",    label:"Здоровье",     Icon: Heart    },
   { id:"family",    label:"Семья",        Icon: Users    },
+  { id:"calendar",  label:"Календарь",    Icon: CalendarDays },
   { id:"analytics", label:"Аналитика",    Icon: BarChart2},
 ] as const;
 

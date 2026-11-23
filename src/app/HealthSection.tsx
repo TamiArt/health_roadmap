@@ -1,9 +1,15 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
-import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type LabMeasurement, type VaccineRecord, type VaccineStatus } from "./data";
+import { HEALTH_ROADMAP, VACCINES } from "./healthData";
+import { getLabStages } from "./labCatalog";
+import type { LifeStage } from "./labCatalog";
+import type { DentalRecord, ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
 import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
+import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
+import { LabResultsTab } from "./LabResultsTab";
+import { MedicalHistoryTab } from "./MedicalHistoryTab";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
 
@@ -33,7 +39,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   useEffect(() => () => {
     objectUrls.forEach(url => URL.revokeObjectURL(url));
   }, [objectUrls]);
-  const allStages = stages ?? LIFE_STAGES;
+  const allStages = stages ?? getLabStages();
   const currentDate = new Date();
   const todayIsoDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,"0")}-${String(currentDate.getDate()).padStart(2,"0")}`;
 
@@ -61,7 +67,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
       blob:file,
       isPdf:file.name.toLowerCase().endsWith(".pdf"),
     };
-    setUploads(prev => ({ ...prev, [id]:[...(prev[id]??[]), result] }));
+    setUploads(prev => ({ ...prev, [id]:[...(prev[id] ?? []), result] }));
     e.target.value="";
   }
 
@@ -100,7 +106,9 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   }
 
   function removeUpload(testId: string, uploadId: string) {
-    setUploads(prev => ({ ...prev, [testId]:(prev[testId]??[]).filter(upload => upload.id!==uploadId) }));
+    const upload = (uploads[testId] ?? []).find(item => item.id === uploadId);
+    if (!upload || !window.confirm(`Удалить документ «${upload.name}»?`)) return;
+    setUploads(prev => ({ ...prev, [testId]:(prev[testId]??[]).filter(item => item.id!==uploadId) }));
   }
 
   const visibleStages = allStages.filter(s => s.tests.some(t => t.gender==="all" || t.gender===gender));
@@ -326,8 +334,8 @@ function toothLabel(n: number) {
 export function DentalTab({
   data, onChange,
 }: {
-  data: Record<number, { status:ToothStatus; note:string }>;
-  onChange: (d: Record<number, { status:ToothStatus; note:string }>) => void;
+  data: Record<number, DentalRecord>;
+  onChange: (d: Record<number, DentalRecord>) => void;
 }) {
   const [selected, setSelected] = useState<number|null>(null);
   const [note, setNote] = useState("");
@@ -408,9 +416,9 @@ export function HealthSection({
   vaccineStatuses: Record<string, VaccineStatus>;
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
 }) {
-  const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental">("roadmap");
+  const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental"|"events"|"monitoring"|"history">("roadmap");
   const tabsId = useId();
-  const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"]] as const;
+  const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"],["events","События"],["monitoring","На контроле"],["history","История"]] as const;
   const [openIdx, setOpenIdx] = useState<number|null>(3);
   const [toothData, setToothData, toothDataReady, toothDataError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
 
@@ -421,9 +429,9 @@ export function HealthSection({
     <div className="p-8 max-w-xl">
       <h1 className="text-2xl font-bold text-foreground mb-1" style={{ fontFamily:"'Playfair Display', serif" }}>Навигатор здоровья</h1>
       <p className="text-sm text-muted-foreground mb-5">Профилактика и медицинская история</p>
-      <div role="tablist" aria-label="Разделы навигатора здоровья" className="flex gap-1 bg-muted p-1 rounded-lg mb-7">
+      <div role="tablist" aria-label="Разделы навигатора здоровья" className="flex flex-wrap gap-1 bg-muted p-1 rounded-lg mb-7">
         {tabs.map(([id,label]) => (
-          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} onClick={() => setTab(id)} className={`flex-1 py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
+          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} onClick={() => setTab(id)} className={`flex-1 min-w-[88px] py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
 
@@ -486,6 +494,9 @@ export function HealthSection({
       <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab/></div>
       <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
       <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
+      <div id={`${tabsId}-panel-events`} role="tabpanel" aria-labelledby={`${tabsId}-tab-events`} hidden={tab !== "events"}><HealthEventsTab/></div>
+      <div id={`${tabsId}-panel-monitoring`} role="tabpanel" aria-labelledby={`${tabsId}-tab-monitoring`} hidden={tab !== "monitoring"}><MonitoringTab/></div>
+      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab/><div className="mt-6"><LabResultsTab/></div></div>
     </div>
   );
 }

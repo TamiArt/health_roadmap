@@ -13,11 +13,14 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Do not terminate an active typecheck/build when a newer commit is pushed.
+  # GitHub may replace a pending run, but the running CI is allowed to finish.
+  cancel-in-progress: false
 
 jobs:
   production-build:
-    runs-on: ubuntu-latest
+    # Ubuntu 24.04 is pinned: Playwright 1.56.1 has no Ubuntu 26.04 browser package.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

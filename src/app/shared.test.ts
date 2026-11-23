@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, validateLabMeasurement, validateLabUpload } from "./shared";
 import { LAB_TEST_ASSIGNMENTS, LAB_TEST_CONCEPTS, LIFE_STAGES } from "./data";
+import { getLabStage, getLabStages } from "./labCatalog";
 
 describe("childAgeStages", () => {
   it.each([
@@ -137,5 +138,36 @@ describe("medical attachment validation", () => {
     expect(validateLabUpload({ name: "empty.pdf", type: "application/pdf", size: 0 })).toBe("Файл пустой.");
     expect(validateLabUpload({ name: "large.pdf", type: "application/pdf", size: 15 * 1024 * 1024 + 1 })).toContain("15 МБ");
     expect(validateLabUpload({ name: "limit.pdf", type: "application/pdf", size: 15 * 1024 * 1024 })).toBeNull();
+  });
+});
+
+
+describe("canonical laboratory catalogue selectors", () => {
+  it("selects only requested stages while preserving canonical assignment IDs", () => {
+    const stages = getLabStages(["early_child", "school"]);
+    expect(stages.map(stage => stage.id)).toEqual(["early_child", "school"]);
+    const assignmentIds = new Set(LAB_TEST_ASSIGNMENTS.map(assignment => assignment.id));
+    expect(stages.flatMap(stage => stage.tests).every(test => assignmentIds.has(test.id))).toBe(true);
+  });
+
+  it("returns undefined for an unknown stage", () => {
+    expect(getLabStage("unknown-stage")).toBeUndefined();
+  });
+
+  it("uses concepts and assignments as the canonical source for stage projections", () => {
+    const stage = getLabStage("early_child");
+    expect(stage).toBeDefined();
+    const expectedIds = LAB_TEST_ASSIGNMENTS.filter(assignment => assignment.stageId === "early_child").map(assignment => assignment.id);
+    expect(stage?.tests.map(test => test.id)).toEqual(expectedIds);
+  });
+});
+
+
+describe("age-specific laboratory presentation", () => {
+  it("keeps presentation overrides on assignments rather than shared concepts", () => {
+    const schoolCbc = LAB_TEST_ASSIGNMENTS.find(assignment => assignment.id === "s1");
+    expect(schoolCbc?.what).toContain("тромбоциты");
+    expect(LIFE_STAGES.find(stage => stage.id === "early_child")?.tests.find(test => test.id === "ec1")?.what).toContain("анемия");
+    expect(LIFE_STAGES.find(stage => stage.id === "school")?.tests.find(test => test.id === "s1")?.what).toBe(schoolCbc?.what);
   });
 });

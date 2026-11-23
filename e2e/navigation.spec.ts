@@ -34,7 +34,7 @@ test("rejects unsupported lab attachments and accepts a valid PDF", async ({ pag
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
 
   await page.getByRole("button", { name: "Файл" }).first().click();
-  await page.locator('input[type="file"][accept^="application/pdf"]').setInputFiles({
+  await page.locator('input[aria-label="Загрузить результат анализа"]').setInputFiles({
     name: "unsafe.svg",
     mimeType: "image/svg+xml",
     buffer: Buffer.from("<svg></svg>"),
@@ -42,7 +42,7 @@ test("rejects unsupported lab attachments and accepts a valid PDF", async ({ pag
   await expect(page.getByRole("alert")).toContainText("Поддерживаются только");
 
   await page.getByRole("button", { name: "Файл" }).first().click();
-  await page.locator('input[type="file"][accept^="application/pdf"]').setInputFiles({
+  await page.locator('input[aria-label="Загрузить результат анализа"]').setInputFiles({
     name: "lab-result.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4 test"),
@@ -391,8 +391,8 @@ test("exports a backup and restores data from a validated backup", async ({ page
   await page.getByRole("button", { name: "Здоровье" }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(page.getByText("A(II) Rh+", { exact: true })).toBeVisible();
-  await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("A(II) Rh+", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("06.11.2026", { exact: true }).first()).toBeVisible();
 });
 
 test("shows a validation error for an invalid backup and keeps the app usable", async ({ page }) => {
@@ -462,7 +462,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByLabel("Значение результата").fill("5.4");
   await page.getByLabel("Единицы измерения").fill("ммоль/л");
   await page.getByRole("button", { name: "Сохранить результат" }).click();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
 
   const staleTab = await page.context().newPage();
   // Disable live notifications in this tab to deterministically exercise the
@@ -474,7 +474,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await staleTab.getByRole("button", { name: "Здоровье" }).click();
   await staleTab.getByRole("tab", { name: "Анализы" }).click();
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(staleTab.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
   const staleRevision = await staleTab.evaluate(() => new Promise<number>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
     request.onerror = () => reject(request.error);
@@ -501,7 +501,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
   await page.getByLabel("Значение результата").fill("6.1");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
-  await expect(page.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect.poll(async () => page.evaluate(() => new Promise<number>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
     request.onerror = () => reject(request.error);
@@ -520,13 +520,13 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   // The stale write is rejected, the tab adopts the committed winner,
   // and the user is explicitly told that their attempted edit was not saved.
   await expect(staleTab.getByRole("status").filter({ hasText: "ваше изменение не сохранено" })).toBeVisible();
-  await expect(staleTab.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect(staleTab.getByText("7.2 ммоль/л", { exact: true })).toHaveCount(0);
   await staleTab.reload();
   await staleTab.getByRole("button", { name: "Здоровье" }).click();
   await staleTab.getByRole("tab", { name: "Анализы" }).click();
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(staleTab.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect(staleTab.getByText("7.2 ммоль/л", { exact: true })).toHaveCount(0);
   await staleTab.close();
 });
@@ -541,34 +541,34 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await page.getByLabel("Значение результата").fill("5.4");
   await page.getByLabel("Единицы измерения").fill("ммоль/л");
   await page.getByRole("button", { name: "Сохранить результат" }).click();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("06.11.2026", { exact: true }).first()).toBeVisible();
 
   const secondTab = await page.context().newPage();
   await secondTab.goto("/");
   await secondTab.getByRole("button", { name: "Здоровье" }).click();
   await secondTab.getByRole("tab", { name: "Анализы" }).click();
   await secondTab.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(secondTab.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  await expect(secondTab.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
 
   await page.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
   await expect(page.getByText("Редактирование результата анализа")).toBeVisible();
   await page.getByLabel("Значение результата").fill("<0.1");
   await page.getByLabel("Дата анализа").fill("2026-11-07");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
-  await expect(page.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("07.11.2026", { exact: true })).toBeVisible();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toHaveCount(0);
-  await expect(secondTab.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
-  await expect(secondTab.getByText("07.11.2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("<0.1 ммоль/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("07.11.2026", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toHaveCount(0);
+  await expect(secondTab.getByText("<0.1 ммоль/л", { exact: true }).first()).toBeVisible();
+  await expect(secondTab.getByText("07.11.2026", { exact: true }).first()).toBeVisible();
   await secondTab.close();
   await page.reload();
   await page.getByRole("button", { name: "Здоровье" }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(page.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("07.11.2026", { exact: true })).toBeVisible();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("<0.1 ммоль/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("07.11.2026", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toHaveCount(0);
   const storedRevision = await page.evaluate(() => new Promise<number>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
     request.onerror = () => reject(request.error);
@@ -580,4 +580,533 @@ test("saves and reloads manually entered lab measurements with date and unit", a
     };
   }));
   expect(storedRevision).toBeGreaterThanOrEqual(2);
+});
+
+
+test("adds medical events, monitoring items and multi-indicator lab history", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье" }).click();
+
+  await page.getByRole("tab", { name: "События", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByLabel("Дата", { exact: true }).fill("2025-04-12");
+  await page.getByLabel("Тип события").selectOption("fracture");
+  await page.getByLabel("Название события").fill("E2E перелом");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+  await expect(page.getByText("E2E перелом", { exact: true })).toBeVisible();
+
+  await page.getByRole("tab", { name: "На контроле", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByLabel("Название контроля").fill("E2E глюкоза");
+  await page.getByLabel("Следующая проверка").fill("2026-12-01");
+  await page.getByLabel("Интервал в днях").fill("90");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+  await expect(page.getByText("E2E глюкоза", { exact: true })).toBeVisible();
+  await page.getByLabel("Значение E2E глюкоза").fill("5.4");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+  await expect(page.getByText("5.4", { exact: true }).first()).toBeVisible();
+
+  await page.getByRole("tab", { name: "История", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить анализ", exact: true }).click();
+  await page.getByLabel("Название анализа").fill("E2E биохимия");
+  await page.getByLabel("Дата анализа").fill("2025-04-12");
+  await page.getByLabel("Название показателя 1").fill("Глюкоза");
+  await page.getByLabel("Значение показателя 1").fill("5.2");
+  await page.getByLabel("Единица измерения 1").fill("ммоль/л");
+  await page.getByRole("button", { name: "Показатель" }).click();
+  await page.getByLabel("Название показателя 2").fill("Креатинин");
+  await page.getByLabel("Значение показателя 2").fill("72");
+  await page.getByLabel("Единица измерения 2").fill("мкмоль/л");
+  await page.getByRole("button", { name: "Прикрепить документ" }).click();
+  await page.locator('input[aria-label="Выбрать документ анализа"]').setInputFiles({
+    name: "first-result.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 first"),
+  });
+  await page.getByRole("button", { name: "Сохранить анализ" }).click();
+  await expect(page.getByText("E2E биохимия", { exact: true })).toBeVisible();
+  await expect(page.getByText("Креатинин", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "first-result.pdf" })).toBeVisible();
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Заменить прикреплённый документ" }).click();
+  await page.locator('input[aria-label="Выбрать документ для замены"]').setInputFiles({
+    name: "replacement-result.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 replacement"),
+  });
+  await expect(page.getByRole("link", { name: "replacement-result.pdf" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "first-result.pdf" })).toHaveCount(0);
+});
+
+test("adds a family date with annual recurrence and reminder settings", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить дату" }).click();
+  await page.getByPlaceholder("Название события").fill("E2E годовщина");
+  await page.getByLabel("Дата памятного события").fill("2025-06-15");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await expect(page.getByText("E2E годовщина", { exact: true })).toBeVisible();
+  await expect(page.getByText("2025-06-15", { exact: true })).toBeVisible();
+});
+
+
+test("aggregates health events and monitoring dates in the unified calendar", async ({ page }) => {
+  await page.goto("/");
+  const today = await page.evaluate(() => {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  });
+
+  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("tab", { name: "События", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByLabel("Дата", { exact: true }).fill(today);
+  await page.getByLabel("Название события").fill("E2E событие для календаря");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+
+  await page.getByRole("tab", { name: "На контроле", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByLabel("Название контроля").fill("E2E проверка для календаря");
+  await page.getByLabel("Следующая проверка").fill(today);
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+
+  await page.getByRole("button", { name: "Календарь" }).click();
+  await expect(page.getByRole("button", { name: "Календарь" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { name: "Календарь" })).toBeVisible();
+  const calendar = page.locator("section").filter({ has: page.getByRole("heading", { name: "Календарь" }) });
+  await expect(calendar.getByText("E2E событие для календаря", { exact: true })).toBeVisible();
+  await expect(calendar.getByText("Проверка: E2E проверка для календаря", { exact: true })).toBeVisible();
+});
+
+
+test("deleting a child profile removes its health records and keeps tombstone revisions", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByPlaceholder("Имя").fill("Профиль для удаления");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Профиль для удаления/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  await page.locator("button:visible").filter({ hasText: "+ Значение" }).first().click();
+  await page.getByLabel("Значение результата").fill("14.7");
+  await page.getByLabel("Единицы измерения").fill("г/л");
+  await page.getByRole("button", { name: "Сохранить результат" }).click();
+  await expect(page.getByText("14.7 г/л", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+
+  const childId = await page.evaluate(() => new Promise<string>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get("children");
+      read.onsuccess = () => resolve(read.result.value.find((child: { name: string }) => child.name === "Профиль для удаления").id);
+      read.onerror = () => reject(read.error);
+    };
+  }));
+  const key = `childHealth:${childId}:labMeasurements`;
+  const previousRevision = await page.evaluate(key => new Promise<number>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get(key);
+      read.onsuccess = () => resolve(read.result.revision);
+      read.onerror = () => reject(read.error);
+    };
+  }), key);
+
+  await page.getByRole("button", { name: "Изменить" }).click();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Удалить профиль ребёнка Профиль для удаления" }).click();
+  await expect(page.getByText("Профиль для удаления", { exact: true })).toHaveCount(0);
+  await expect.poll(() => page.evaluate(key => new Promise<{ value: unknown; revision: number }>((resolve, reject) => {
+    const request = indexedDB.open("life-maps", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const transaction = request.result.transaction("app-records", "readonly");
+      const read = transaction.objectStore("app-records").get(key);
+      read.onsuccess = () => resolve({ value: read.result.value, revision: read.result.revision });
+      read.onerror = () => reject(read.error);
+    };
+  }), key)).toEqual({ value: undefined, revision: previousRevision + 1 });
+});
+
+
+test("keeps primary sections within extra-narrow mobile viewports", async ({ page }) => {
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 740 });
+    await page.goto("/");
+
+    for (const section of ["Карта жизни", "Здоровье", "Семья", "Аналитика"]) {
+      await page.getByRole("button", { name: section }).click();
+      const dimensions = await page.locator("main").evaluate(element => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+      expect(
+        dimensions.scrollWidth,
+        `Horizontal overflow in section "${section}" at ${width}px: ${JSON.stringify(dimensions)}`,
+      ).toBeLessThanOrEqual(dimensions.clientWidth);
+    }
+  }
+});
+
+test("provides a keyboard skip link to the main content", async ({ page }) => {
+  await page.goto("/");
+  const skipLink = page.getByRole("link", { name: "Перейти к основному содержимому" });
+
+  await page.keyboard.press("Tab");
+  await expect(skipLink).toBeFocused();
+  await expect(skipLink).toBeVisible();
+  await expect(skipLink).toHaveAttribute("href", "#main-content");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main")).toBeFocused();
+});
+
+test("restoring a backup cannot be overwritten by a tab with an uncommitted initial snapshot", async ({ page, context }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Экспорт" })).toBeEnabled();
+
+  const staleTab = await context.newPage();
+  await staleTab.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", { configurable: true, value: undefined });
+  });
+  await staleTab.goto("/");
+  await expect(staleTab.getByRole("button", { name: "Экспорт" })).toBeEnabled();
+
+  // Neither tab has written the default lifeEvents value yet: both hold
+  // revision 0 in memory, which exposed the restore/reset-to-zero race.
+  const backup = {
+    format: "life-maps-backup",
+    schemaVersion: 1,
+    exportedAt: "2026-11-07T00:00:00.000Z",
+    records: {
+      lifeEvents: [{
+        id: "restore-wins",
+        year: 2026,
+        title: "Событие из резервной копии",
+        description: "Должно сохраниться после конфликта",
+        category: "personal",
+        emoji: "✨",
+        milestone: true,
+      }],
+      familyMembers: [],
+      children: [],
+      familyEvents: [],
+      vaccineStatuses: {},
+    },
+  };
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+    name: "restore-race.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await expect(page.getByRole("status")).toContainText("Данные восстановлены", { timeout: 10000 });
+
+  await staleTab.getByRole("button", { name: "Изменить" }).click();
+  await staleTab.getByRole("button", { name: "Добавить событие" }).click();
+  await staleTab.getByPlaceholder("Год (2025)").fill("2026");
+  await staleTab.getByPlaceholder("Название события").fill("Устаревшая запись из другой вкладки");
+  await staleTab.getByRole("button", { name: "Добавить", exact: true }).click();
+  await staleTab.getByRole("button", { name: /^Все события/ }).click();
+
+  await expect(staleTab.getByText("Событие из резервной копии", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("Устаревшая запись из другой вкладки", { exact: true })).toHaveCount(0);
+
+  await staleTab.reload();
+  await staleTab.getByRole("button", { name: /^Все события/ }).click();
+  await expect(staleTab.getByText("Событие из резервной копии", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("Устаревшая запись из другой вкладки", { exact: true })).toHaveCount(0);
+  await staleTab.close();
+});
+
+test("backup restore refreshes records in other open tabs", async ({ page, context }) => {
+  await page.goto("/");
+  const otherTab = await context.newPage();
+  await otherTab.goto("/");
+  await otherTab.getByRole("button", { name: /^Все события/ }).click();
+  await expect(otherTab.getByText("Восстановленное в другой вкладке", { exact: true })).toHaveCount(0);
+
+  const backup = {
+    format: "life-maps-backup",
+    schemaVersion: 1,
+    exportedAt: "2026-11-07T00:00:00.000Z",
+    records: {
+      lifeEvents: [{
+        id: "cross-tab-restored",
+        year: 2026,
+        title: "Восстановленное в другой вкладке",
+        description: "Обновление через BroadcastChannel",
+        category: "personal",
+        emoji: "✨",
+        milestone: true,
+      }],
+      familyMembers: [],
+      children: [],
+      familyEvents: [],
+      vaccineStatuses: {},
+    },
+  };
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+    name: "cross-tab-restore.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await expect(page.getByRole("status")).toContainText("Данные восстановлены", { timeout: 10000 });
+  await expect(otherTab.getByText("Восстановленное в другой вкладке", { exact: true })).toBeVisible({ timeout: 10000 });
+  await otherTab.close();
+});
+
+test("a stale tab cannot resurrect a record removed by backup restore", async ({ page, context }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить событие" }).click();
+  await page.getByPlaceholder("Год (2025)").fill("2026");
+  await page.getByPlaceholder("Название события").fill("Событие до восстановления");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: /^Все события/ }).click();
+  await expect(page.getByText("Событие до восстановления", { exact: true })).toBeVisible();
+
+  const staleTab = await context.newPage();
+  await staleTab.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", { configurable: true, value: undefined });
+  });
+  await staleTab.goto("/");
+  await staleTab.getByRole("button", { name: /^Все события/ }).click();
+  await expect(staleTab.getByText("Событие до восстановления", { exact: true })).toBeVisible();
+
+  const backup = {
+    format: "life-maps-backup",
+    schemaVersion: 1,
+    exportedAt: "2026-11-07T00:00:00.000Z",
+    records: {
+      familyMembers: [],
+      children: [],
+      familyEvents: [],
+      vaccineStatuses: {},
+    },
+  };
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+    name: "remove-life-events.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await expect(page.getByRole("status")).toContainText("Данные восстановлены", { timeout: 10000 });
+
+  await staleTab.getByRole("button", { name: "Изменить" }).click();
+  await staleTab.getByRole("button", { name: "Добавить событие" }).click();
+  await staleTab.getByPlaceholder("Год (2025)").fill("2026");
+  await staleTab.getByPlaceholder("Название события").fill("Устаревшая попытка воскресить запись");
+  await staleTab.getByRole("button", { name: "Добавить", exact: true }).click();
+  await staleTab.getByRole("button", { name: /^Все события/ }).click();
+
+  await expect(staleTab.getByText("Событие до восстановления", { exact: true })).toHaveCount(0);
+  await expect(staleTab.getByText("Устаревшая попытка воскресить запись", { exact: true })).toHaveCount(0);
+  await expect(staleTab.getByRole("button", { name: "Добавить событие" })).toBeVisible();
+  await staleTab.close();
+});
+
+test("keeps lab measurements isolated between child profiles after switching and reload", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+
+  for (const name of ["Первый профиль — изоляция", "Второй профиль — изоляция"]) {
+    await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+    await page.getByPlaceholder("Имя").fill(name);
+    await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+    await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  }
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  async function saveChildMeasurement(profileName: string, value: string) {
+    await page.getByRole("button", { name: new RegExp(`Открыть профиль ребёнка ${profileName}, 5 лет`) }).click();
+    await page.getByRole("button", { name: /Дошкольник/ }).click();
+    // The main health section and other child profiles stay mounted but hidden.
+    // Target the visible action rather than the first matching hidden "ОАК" label.
+    const addMeasurement = page.locator("button:visible").filter({ hasText: "+ Значение" }).first();
+    await expect(addMeasurement).toBeVisible();
+    await addMeasurement.click();
+    await page.getByLabel("Значение результата").fill(value);
+    await page.getByLabel("Единицы измерения").fill("г/л");
+    await page.getByRole("button", { name: "Сохранить результат" }).click();
+    await expect(page.getByText(value + " г/л", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Вернуться к семье" }).click();
+  }
+
+  await saveChildMeasurement("Первый профиль — изоляция", "12.1");
+  await saveChildMeasurement("Второй профиль — изоляция", "9.2");
+
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
+  // Inactive profile panels remain mounted; assert the other profile value is hidden, not absent from the DOM.
+  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeHidden();
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
+  // The first profile panel remains mounted but must be hidden while the second profile is active.
+  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeHidden();
+
+  await page.reload();
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeHidden();
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeHidden();
+});
+
+
+test("isolates every child-owned health record from other children and adult records", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+
+  for (const name of ["Профиль матрицы A", "Профиль матрицы B"]) {
+    await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+    await page.getByPlaceholder("Имя").fill(name);
+    await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+    await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  }
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  const profileIds = await page.evaluate(async () => {
+    const { readRecord } = await import("/src/app/storage.ts");
+    const children = await readRecord<Array<{ id: string; name: string }>>("children");
+    return Object.fromEntries(children!.map(child => [child.name, child.id]));
+  });
+  const values = await page.evaluate(async ids => {
+    const { writeRecord, readRecord } = await import("/src/app/storage.ts");
+    const childKeys = ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
+    const adultKeys = ["vaccineStatuses", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
+    const marker = (name: string, key: string) => ({ owner: name, kind: key });
+    for (const [name, id] of Object.entries(ids)) {
+      for (const key of childKeys) {
+        const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries"
+          ? [{ id: name + "-" + key, ...marker(name, key) }]
+          : marker(name, key);
+        await writeRecord("childHealth:" + id + ":" + key, value);
+      }
+    }
+    for (const key of adultKeys) {
+      const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries"
+        ? [{ id: "adult-" + key, ...marker("adult", key) }]
+        : marker("adult", key);
+      await writeRecord(key, value);
+    }
+    const result: Record<string, unknown> = {};
+    for (const [name, id] of Object.entries(ids)) {
+      for (const key of childKeys) result[name + ":" + key] = await readRecord("childHealth:" + id + ":" + key);
+    }
+    for (const key of adultKeys) result["adult:" + key] = await readRecord(key);
+    return result;
+  }, profileIds);
+
+  for (const name of ["Профиль матрицы A", "Профиль матрицы B"]) {
+    for (const key of ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
+      const value = values[name + ":" + key] as { owner?: string } | Array<{ owner?: string }>;
+      expect(Array.isArray(value) ? value[0].owner : value.owner).toBe(name);
+    }
+  }
+  for (const key of ["vaccineStatuses", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
+    const value = values["adult:" + key] as { owner?: string } | Array<{ owner?: string }>;
+    expect(Array.isArray(value) ? value[0].owner : value.owner).toBe("adult");
+  }
+});
+
+test("an open stale tab cannot recreate child records after the profile is deleted", async ({ page, context }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByPlaceholder("Имя").fill("Удаляемый открытый профиль");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  const childId = await page.evaluate(async () => {
+    const { readRecord } = await import("/src/app/storage.ts");
+    const children = await readRecord<Array<{ id: string; name: string }>>("children");
+    return children!.find(child => child.name === "Удаляемый открытый профиль")!.id;
+  });
+  const childRecordKeys = ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]
+    .map(name => "childHealth:" + childId + ":" + name);
+  const recordKey = "childHealth:" + childId + ":healthEvents";
+  await page.evaluate(async keys => {
+    const { writeRecord } = await import("/src/app/storage.ts");
+    const values: Record<string, unknown> = {
+      vaccineStatuses: {},
+      toothData: {},
+      labUploads: {},
+      labMeasurements: {},
+      healthEvents: [{ id: "before-delete", date: "2026-11-06", kind: "other", title: "До удаления", description: "" }],
+      healthMonitoring: [{
+        id: "monitor-before-delete", name: "Контроль", kind: "measurement", unit: "ммоль/л",
+        intervalDays: null, nextDueDate: "2026-12-06", lastCheckedDate: "2026-11-06",
+        notes: "", reminder: { enabled: false, leadDays: 0, time: "09:00" }, measurements: [],
+      }],
+      labResultEntries: [{
+        id: "lab-before-delete", testId: "cbc", testName: "ОАК", date: "2026-11-06",
+        indicators: [{ id: "hb", name: "Гемоглобин", value: 125, unit: "г/л" }], notes: "",
+      }],
+    };
+    for (const key of keys) {
+      const name = key.split(":").at(-1)!;
+      await writeRecord(key, values[name]);
+    }
+    await writeRecord("healthEvents", [{ id: "adult-survives", date: "2026-11-06", kind: "other", title: "Запись взрослого профиля", description: "" }]);
+  }, childRecordKeys);
+
+  const staleTab = await context.newPage();
+  await staleTab.goto("/");
+  await staleTab.getByRole("button", { name: "Семья" }).click();
+  const staleSnapshot = await staleTab.evaluate(async key => {
+    const { readRecord } = await import("/src/app/storage.ts");
+    return readRecord(key);
+  }, recordKey);
+  expect(staleSnapshot).toEqual([{ id: "before-delete", date: "2026-11-06", kind: "other", title: "До удаления", description: "" }]);
+
+  await page.evaluate(async id => {
+    const { deleteChildHealthRecords } = await import("/src/app/storage.ts");
+    await deleteChildHealthRecords(id);
+  }, childId);
+
+  const deletionState = await staleTab.evaluate(async ({ keys, staleKey }) => {
+    const { writeRecord, readRecordState } = await import("/src/app/storage.ts");
+    let message = "";
+    try {
+      await writeRecord(staleKey, [{ id: "resurrected", title: "Попытка восстановления" }]);
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    const records = await Promise.all(keys.map(async key => [key, await readRecordState(key)] as const));
+    const adult = await readRecordState("healthEvents");
+    return { message, records, adult: adult.value };
+  }, { keys: childRecordKeys, staleKey: recordKey });
+  expect(deletionState.message).toContain("Профиль ребёнка удалён");
+  for (const [key, state] of deletionState.records) {
+    expect(state.value, key + " should remain deleted").toBeUndefined();
+    expect(state.revision, key + " should retain a tombstone revision").toBeGreaterThan(0);
+  }
+  expect(deletionState.adult).toEqual([{ id: "adult-survives", date: "2026-11-06", kind: "other", title: "Запись взрослого профиля", description: "" }]);
+  await staleTab.reload();
+  await staleTab.getByRole("button", { name: "Семья" }).click();
+  await expect(staleTab.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);
+  await staleTab.close();
 });

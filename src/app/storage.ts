@@ -26,10 +26,14 @@ const ALLOWED_KEYS = new Set([
   "adultToothData",
   "labUploads",
   "labMeasurements",
+  "healthEvents",
+  "healthMonitoring",
+  "labResultEntries",
+  "notificationSettings",
 ]);
 
 export function isAllowedRecordKey(key: string): boolean {
-  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|toothData|labUploads|labMeasurements)$/.test(key);
+  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/.test(key);
 }
 
 let databasePromise: Promise<IDBDatabase> | undefined;
@@ -85,6 +89,51 @@ export async function readRecord<T>(key: string): Promise<T | undefined> {
   return (await readRecordState<T>(key)).value;
 }
 
+/** Remove a child profile and all of its health records atomically. */
+export async function deleteChildHealthRecords(childId: string): Promise<void> {
+  if (!/^[a-zA-Z0-9_-]+$/.test(childId)) throw new Error("Некорректный идентификатор профиля ребёнка.");
+  const prefix = `childHealth:${childId}:`;
+  const database = await openDatabase();
+  const transaction = database.transaction(STORE_NAME, "readwrite");
+  const store = transaction.objectStore(STORE_NAME);
+  const request = store.getAll();
+  const changed: Array<{ key: string; value: unknown; revision: number }> = [];
+
+  request.onsuccess = () => {
+    const records = request.result as StoredRecord[];
+    const childrenRecord = records.find(record => record.key === "children");
+    const children = Array.isArray(childrenRecord?.value) ? childrenRecord.value as Array<{ id?: unknown }> : [];
+    if (!children.some(child => child.id === childId)) {
+      transaction.abort();
+      return;
+    }
+
+    for (const record of records) {
+      if (!record.key.startsWith(prefix)) continue;
+      const revision = (record.revision ?? 0) + 1;
+      store.put({ key: record.key, value: undefined, revision } satisfies StoredRecord);
+      changed.push({ key: record.key, value: undefined, revision });
+    }
+
+    const nextChildren = children.filter(child => child.id !== childId);
+    const childrenRevision = (childrenRecord?.revision ?? 0) + 1;
+    store.put({ key: "children", value: nextChildren, revision: childrenRevision } satisfies StoredRecord);
+    changed.unshift({ key: "children", value: nextChildren, revision: childrenRevision });
+  };
+
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось удалить данные профиля ребёнка."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Профиль ребёнка уже удалён или операция отменена."));
+  });
+
+  if (changed.length && typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("life-maps:records");
+    for (const record of changed) channel.postMessage(record);
+    channel.close();
+  }
+}
+
 /** Compare-and-write: a stale tab cannot overwrite a newer IndexedDB revision. */
 export async function writeRecord<T>(key: string, value: T, expectedRevision?: number): Promise<VersionedRecord<T> & { conflict: boolean }> {
   if (!isAllowedRecordKey(key)) throw new Error("Недопустимый ключ пользовательских данных.");
@@ -93,9 +142,27 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
   const store = transaction.objectStore(STORE_NAME);
   let result: VersionedRecord<T> & { conflict: boolean } = { value, revision: 0, conflict: false };
   const request = store.get(key);
-  request.onsuccess = () => {
-    const current = request.result as StoredRecord | undefined;
+  const childMatch = /^childHealth:([a-zA-Z0-9_-]+):/.exec(key);
+  const childrenRequest = childMatch ? store.get("children") : undefined;
+  let recordLoaded = false;
+  let childrenLoaded = !childrenRequest;
+  let current: StoredRecord | undefined;
+  let childrenValue: unknown;
+  let profileDeleted = false;
+
+  const commitIfReady = () => {
+    if (!recordLoaded || !childrenLoaded) return;
     const currentRevision = current?.revision ?? 0;
+    if (childMatch) {
+      const exists = Array.isArray(childrenValue) && childrenValue.some(
+        child => Boolean(child) && typeof child === "object" && "id" in child && child.id === childMatch[1],
+      );
+      if (!exists) {
+        result = { value: current?.value as T | undefined, revision: currentRevision, conflict: true };
+        profileDeleted = true;
+        return;
+      }
+    }
     if (expectedRevision !== undefined && currentRevision !== expectedRevision) {
       result = { value: current?.value as T | undefined, revision: currentRevision, conflict: true };
       return;
@@ -103,11 +170,25 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
     result = { value, revision: currentRevision + 1, conflict: false };
     store.put({ key, value, revision: result.revision } satisfies StoredRecord);
   };
+
+  request.onsuccess = () => {
+    current = request.result as StoredRecord | undefined;
+    recordLoaded = true;
+    commitIfReady();
+  };
+  if (childrenRequest) {
+    childrenRequest.onsuccess = () => {
+      childrenValue = (childrenRequest.result as StoredRecord | undefined)?.value;
+      childrenLoaded = true;
+      commitIfReady();
+    };
+  }
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось сохранить данные."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Сохранение отменено."));
   });
+  if (profileDeleted) throw new Error("Профиль ребёнка удалён. Изменения не сохранены.");
   if (!result.conflict && typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
     channel.postMessage({ key, value, revision: result.revision });
@@ -120,7 +201,7 @@ async function readAllRecords(): Promise<Record<string, unknown>> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readonly");
   const records = await requestResult<StoredRecord[]>(transaction.objectStore(STORE_NAME).getAll());
-  return Object.fromEntries(records.map(record => [record.key, record.value]));
+  return Object.fromEntries(records.filter(record => record.value !== undefined).map(record => [record.key, record.value]));
 }
 
 type EncodedBlob = { __lifeMapsBlob: true; mimeType: string; base64: string };
@@ -181,11 +262,39 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function validateRecordValue(key: string, value: unknown): void {
-  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents"]);
-  if (arrayKeys.has(key)) {
+  if (key === "labResultEntries" || key.endsWith(":labResultEntries")) {
+    if (!Array.isArray(value) || value.some(entry => {
+      if (!isPlainRecord(entry) || typeof entry.id !== "string" || typeof entry.testName !== "string" ||
+          typeof entry.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) ||
+          !Array.isArray(entry.indicators) || entry.indicators.length === 0) return true;
+      if (entry.indicators.some(indicator => !isPlainRecord(indicator) || typeof indicator.id !== "string" ||
+          typeof indicator.name !== "string" || typeof indicator.value !== "number" || !Number.isFinite(indicator.value) ||
+          typeof indicator.unit !== "string")) return true;
+      if (entry.document === undefined) return false;
+      if (!isPlainRecord(entry.document) || typeof entry.document.id !== "string" || typeof entry.document.name !== "string" || !isPlainRecord(entry.document.blob)) return true;
+      const blob = entry.document.blob;
+      return !(typeof Blob !== "undefined" && blob instanceof Blob) && !(blob.__lifeMapsBlob === true && typeof blob.base64 === "string" && typeof blob.mimeType === "string");
+    })) throw new Error("Повреждена история результатов анализов.");
+    return;
+  }
+
+  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring"]);
+  const arrayKey = arrayKeys.has(key) || [...arrayKeys].some(name => key.endsWith(`:${name}`));
+  if (arrayKey) {
     if (!Array.isArray(value)) throw new Error(`Повреждён список данных: ${key}`);
     if (value.some(item => !isPlainRecord(item) || typeof item.id !== "string")) {
       throw new Error(`В списке ${key} обнаружена некорректная запись.`);
+    }
+    if (key === "healthMonitoring" || key.endsWith(":healthMonitoring")) {
+      const hasInvalidMeasurements = value.some(item => {
+        if (!isPlainRecord(item)) return true;
+        const readings: unknown = item.measurements ?? [];
+        if (!Array.isArray(readings)) return true;
+        return readings.some((reading: unknown) => !isPlainRecord(reading) || typeof reading.id !== "string" ||
+          typeof reading.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(reading.date) ||
+          typeof reading.value !== "number" || !Number.isFinite(reading.value) || typeof reading.unit !== "string");
+      });
+      if (hasInvalidMeasurements) throw new Error(`Повреждена история значений в списке ${key}.`);
     }
     return;
   }
@@ -241,6 +350,18 @@ export function migrateBackup(input: BackupPayload): BackupPayload {
     validateRecordValue(key, value);
   }
 
+  const childIds = new Set(
+    (Array.isArray(records.children) ? records.children : [])
+      .map(child => isPlainRecord(child) ? child.id : undefined)
+      .filter((id): id is string => typeof id === "string" && /^[a-zA-Z0-9_-]+$/.test(id)),
+  );
+  for (const key of Object.keys(records)) {
+    const childRecord = /^childHealth:([a-zA-Z0-9_-]+):/.exec(key);
+    if (childRecord && !childIds.has(childRecord[1])) {
+      throw new Error(`В резервной копии есть медицинские данные для отсутствующего профиля ребёнка: ${childRecord[1]}.`);
+    }
+  }
+
   return {
     format: BACKUP_FORMAT,
     schemaVersion: version,
@@ -273,14 +394,31 @@ export async function importBackup(file: File): Promise<void> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
-  store.clear();
-  for (const [key, value] of Object.entries(decodedRecords)) store.put({ key, value } satisfies StoredRecord);
+  const existingRequest = store.getAll();
+  existingRequest.onsuccess = () => {
+    const previousRecords = existingRequest.result as StoredRecord[];
+    const previousByKey = new Map(previousRecords.map(record => [record.key, record]));
+    const allKeys = new Set([...previousByKey.keys(), ...Object.keys(decodedRecords)]);
+    store.clear();
+    for (const key of allKeys) {
+      const previousRevision = previousByKey.get(key)?.revision ?? 0;
+      const value = Object.prototype.hasOwnProperty.call(decodedRecords, key) ? decodedRecords[key] : undefined;
+      // Advance revisions for restored and removed records. Tombstones prevent
+      // a stale tab from recreating keys that are absent from the backup.
+      store.put({ key, value, revision: previousRevision + 1 } satisfies StoredRecord);
+    }
+  };
 
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось восстановить резервную копию."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Восстановление отменено."));
   });
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("life-maps:records");
+    channel.postMessage({ type: "restore" });
+    channel.close();
+  }
   window.dispatchEvent(new Event(RESTORE_EVENT));
 }
 
@@ -338,12 +476,17 @@ export function usePersistentState<T>(
     const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("life-maps:records") : undefined;
     if (channel) {
       channel.onmessage = event => {
-        const message = event.data as { key?: unknown; value?: unknown; revision?: unknown };
+        const message = event.data as { type?: unknown; key?: unknown; value?: unknown; revision?: unknown };
+        if (message?.type === "restore") {
+          void load();
+          return;
+        }
         if (message?.key !== key || typeof message.revision !== "number" || message.revision <= revision.current) return;
         // Ignore stale/out-of-order notifications; apply only a newer committed revision.
         revision.current = message.revision;
         updateGeneration.current += 1;
-        const incomingValue = message.value as T;
+        // A tombstone means the owning profile was deleted; reset to the hook default.
+        const incomingValue = message.value !== undefined ? message.value as T : initialValue;
         skipNextWrite.current = { value: incomingValue };
         setValue(incomingValue);
       };
@@ -371,7 +514,9 @@ export function usePersistentState<T>(
       if (result.conflict) {
         setConflict(true);
         updateGeneration.current += 1;
-        const winningValue = result.value as T;
+        // A restore may intentionally remove this key. Use the hook default
+        // instead of passing undefined into React state.
+        const winningValue = result.value !== undefined ? result.value as T : initialValue;
         skipNextWrite.current = { value: winningValue };
         setValue(winningValue);
       } else {

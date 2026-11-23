@@ -1,5 +1,8 @@
 import { Check, Pencil, Trash2 } from "lucide-react";
-import { LIFE_STAGES, VACCINES, type LifeStage, type VaccineRecord } from "./data";
+import { VACCINES } from "./healthData";
+import { getLabStages } from "./labCatalog";
+import type { LifeStage } from "./labCatalog";
+import type { VaccineRecord } from "./models";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -80,9 +83,9 @@ export function EditToggle({ on, toggle }: { on: boolean; toggle: () => void }) 
   );
 }
 
-export function DelBtn({ onClick }: { onClick: () => void }) {
+export function DelBtn({ onClick, ariaLabel }: { onClick: () => void; ariaLabel?: string }) {
   return (
-    <button onClick={onClick} className="shrink-0 p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all">
+    <button type="button" onClick={onClick} aria-label={ariaLabel} className="shrink-0 p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all">
       <Trash2 size={12} />
     </button>
   );
@@ -97,9 +100,7 @@ export function childAgeStages(age: number): LifeStage[] {
         ? ["school"]
         : ["young_adult"];
 
-  return stageId
-    .map(id => LIFE_STAGES.find(stage => stage.id === id))
-    .filter((stage): stage is LifeStage => stage !== undefined);
+  return getLabStages(stageId);
 }
 
 export function childAgeVaccines(age: number): VaccineRecord[] {
