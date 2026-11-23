@@ -13,7 +13,9 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Do not terminate an active typecheck/build when a newer commit is pushed.
+  # GitHub may replace a pending run, but the running CI is allowed to finish.
+  cancel-in-progress: false
 
 jobs:
   production-build:
