@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, Plus, Trash2, Upload, X } from "lucide-react";
 import { usePersistentState } from "./storage";
 import { validateLabResult, type LabIndicatorValue, type LabResultEntry } from "./healthRecords";
-import { createId, INP } from "./shared";
+import { createId, INP, validateLabUpload } from "./shared";
 
 type IndicatorDraft = { name: string; value: string; unit: string; referenceRange: string };
 const emptyIndicator = (): IndicatorDraft => ({ name: "", value: "", unit: "", referenceRange: "" });
@@ -36,6 +36,10 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
   }
 
   function save() {
+    if (document) {
+      const fileError = validateLabUpload(document);
+      if (fileError) { setFormError(fileError); return; }
+    }
     const values: LabIndicatorValue[] = indicators.map(item => ({
       id: createId(),
       name: item.name.trim(),
@@ -69,6 +73,8 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
     pendingReplaceId.current = null;
     event.target.value = "";
     if (!file || !resultId) return;
+    const fileError = validateLabUpload(file);
+    if (fileError) { setFormError(fileError); return; }
     const current = results.find(item => item.id === resultId);
     if (!current?.document || !window.confirm(`Удалить документ «${current.document.name}» и заменить его новым?`)) return;
     setResults(previous => previous.map(item => item.id === resultId ? { ...item, document: { id: createId(), name: file.name, mimeType: file.type || "application/octet-stream", blob: file } } : item));
