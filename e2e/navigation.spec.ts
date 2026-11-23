@@ -971,3 +971,114 @@ test("keeps lab measurements isolated between child profiles after switching and
   await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeHidden();
 });
+
+
+test("isolates every child-owned health record from other children and adult records", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+
+  for (const name of ["Профиль матрицы A", "Профиль матрицы B"]) {
+    await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+    await page.getByPlaceholder("Имя").fill(name);
+    await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+    await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  }
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  const profileIds = await page.evaluate(async () => {
+    const { readRecord } = await import("/src/app/storage.ts");
+    const children = await readRecord<Array<{ id: string; name: string }>>("children");
+    return Object.fromEntries(children!.map(child => [child.name, child.id]));
+  });
+  const values = await page.evaluate(async ids => {
+    const { writeRecord, readRecord } = await import("/src/app/storage.ts");
+    const childKeys = ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
+    const adultKeys = ["vaccineStatuses", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
+    const marker = (name: string, key: string) => ({ owner: name, kind: key });
+    for (const [name, id] of Object.entries(ids)) {
+      for (const key of childKeys) {
+        const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries"
+          ? [{ id: name + "-" + key, ...marker(name, key) }]
+          : marker(name, key);
+        await writeRecord("childHealth:" + id + ":" + key, value);
+      }
+    }
+    for (const key of adultKeys) {
+      const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries"
+        ? [{ id: "adult-" + key, ...marker("adult", key) }]
+        : marker("adult", key);
+      await writeRecord(key, value);
+    }
+    const result: Record<string, unknown> = {};
+    for (const [name, id] of Object.entries(ids)) {
+      for (const key of childKeys) result[name + ":" + key] = await readRecord("childHealth:" + id + ":" + key);
+    }
+    for (const key of adultKeys) result["adult:" + key] = await readRecord(key);
+    return result;
+  }, profileIds);
+
+  for (const name of ["Профиль матрицы A", "Профиль матрицы B"]) {
+    for (const key of ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
+      const value = values[name + ":" + key] as { owner?: string } | Array<{ owner?: string }>;
+      expect(Array.isArray(value) ? value[0].owner : value.owner).toBe(name);
+    }
+  }
+  for (const key of ["vaccineStatuses", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
+    const value = values["adult:" + key] as { owner?: string } | Array<{ owner?: string }>;
+    expect(Array.isArray(value) ? value[0].owner : value.owner).toBe("adult");
+  }
+});
+
+test("an open child-profile tab cannot recreate records after the profile is deleted", async ({ page, context }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByPlaceholder("Имя").fill("Удаляемый открытый профиль");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  const childId = await page.evaluate(async () => {
+    const { readRecord } = await import("/src/app/storage.ts");
+    const children = await readRecord<Array<{ id: string; name: string }>>("children");
+    return children!.find(child => child.name === "Удаляемый открытый профиль")!.id;
+  });
+  const recordKey = "childHealth:" + childId + ":healthEvents";
+  await page.evaluate(async key => {
+    const { writeRecord } = await import("/src/app/storage.ts");
+    await writeRecord(key, [{ id: "before-delete", title: "До удаления" }]);
+  }, recordKey);
+
+  const staleTab = await context.newPage();
+  await staleTab.goto("/");
+  await staleTab.getByRole("button", { name: "Семья" }).click();
+  await staleTab.getByRole("button", { name: /Открыть профиль ребёнка Удаляемый открытый профиль/ }).click();
+  await expect(staleTab.getByRole("heading", { name: "Удаляемый открытый профиль" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Изменить" }).click();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Удалить профиль ребёнка Удаляемый открытый профиль" }).click();
+  await expect(page.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);
+  await expect(staleTab.getByRole("heading", { name: "Удаляемый открытый профиль" })).toHaveCount(0);
+
+  const rejected = await staleTab.evaluate(async key => {
+    const { writeRecord, readRecordState } = await import("/src/app/storage.ts");
+    let message = "";
+    try {
+      await writeRecord(key, [{ id: "resurrected", title: "Попытка восстановления" }]);
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    const state = await readRecordState(key);
+    return { message, value: state.value, revision: state.revision };
+  }, recordKey);
+  expect(rejected.message).toContain("Профиль ребёнка удалён");
+  expect(rejected.value).toBeUndefined();
+  expect(rejected.revision).toBeGreaterThan(0);
+  await staleTab.reload();
+  await staleTab.getByRole("button", { name: "Семья" }).click();
+  await expect(staleTab.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);
+  await staleTab.close();
+});
