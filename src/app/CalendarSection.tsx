@@ -91,11 +91,17 @@ export function CalendarSection() {
       source: "monitoring",
     }));
     const testNames = new Map(LIFE_STAGES.flatMap(stage => stage.tests.map(test => [test.id, test.name] as const)));
-    Object.entries(catalogMeasurements).forEach(([testId, measurements]) => measurements.forEach(measurement => result.push({
-      id: `catalog-lab:${testId}:${measurement.id}`, date: measurement.date,
-      title: testNames.get(testId) ?? "Результат анализа",
-      details: `${measurement.value}${measurement.unit ? ` ${measurement.unit}` : ""}`, source: "labs",
-    })));
+    Object.entries(catalogMeasurements).forEach(([testId, measurements]) => {
+      measurements.forEach(measurement => {
+        result.push({
+          id: `catalog-lab:${testId}:${measurement.id}`,
+          date: measurement.date,
+          title: testNames.get(testId) ?? "Результат анализа",
+          details: `${measurement.value}${measurement.unit ? ` ${measurement.unit}` : ""}`,
+          source: "labs",
+        });
+      });
+    });
     labResults.forEach(entry => result.push({
       id: `lab:${entry.id}`, date: entry.date, title: entry.testName,
       details: entry.indicators.map(value => `${value.name}: ${value.value} ${value.unit}`).join(" · "),
