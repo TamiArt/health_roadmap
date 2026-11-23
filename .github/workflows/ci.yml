@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   production-build:
+    # Ubuntu 24.04 is pinned: Playwright 1.56.1 has no Ubuntu 26.04 browser package.
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
