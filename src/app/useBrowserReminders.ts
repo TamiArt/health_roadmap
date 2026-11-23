@@ -9,6 +9,7 @@ export interface BrowserReminder {
   leadDays: number;
   time: string;
   recurringYearly?: boolean;
+  notificationTitle?: string;
 }
 
 /** Browser notifications are checked while the app is open; this is not a push service. */
@@ -28,7 +29,7 @@ export function useBrowserReminders(reminders: BrowserReminder[], enabled: boole
         if (days < 0 || days > reminder.leadDays) return;
         const key = `${reminder.id}:${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
         if (sent.current.has(key)) return;
-        new Notification("Напоминание", { body: days === 0 ? `${reminder.title}: сегодня` : `${reminder.title}: через ${days} дн.` });
+        new Notification(reminder.notificationTitle ?? "Напоминание", { body: days === 0 ? "Срок наступает сегодня. Откройте приложение, чтобы посмотреть подробности." : `Срок наступит через ${days} дн. Откройте приложение, чтобы посмотреть подробности.` });
         sent.current.add(key);
       });
     };
