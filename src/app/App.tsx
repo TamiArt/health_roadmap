@@ -1,23 +1,34 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { usePersistentState } from "./storage";
 import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
 import { VACCINES } from "./healthData";
 import type { Child, Section, VaccineStatus } from "./models";
-import { AnalyticsSection } from "./AnalyticsSection";
-import { CalendarSection } from "./CalendarSection";
-import { FamilySection } from "./FamilySection";
-import { HealthSection } from "./HealthSection";
-import { LifeMapSection } from "./LifeMapSection";
 import { Sidebar } from "./Sidebar";
+
+const LifeMapSection = lazy(() => import("./LifeMapSection").then(module => ({ default: module.LifeMapSection })));
+const HealthSection = lazy(() => import("./HealthSection").then(module => ({ default: module.HealthSection })));
+const FamilySection = lazy(() => import("./FamilySection").then(module => ({ default: module.FamilySection })));
+const CalendarSection = lazy(() => import("./CalendarSection").then(module => ({ default: module.CalendarSection })));
+const AnalyticsSection = lazy(() => import("./AnalyticsSection").then(module => ({ default: module.AnalyticsSection })));
+
+function SectionFallback() {
+  return <div role="status" className="p-8 text-sm text-muted-foreground">Загрузка раздела…</div>;
+}
 
 export default function App() {
   const [section, setSection] = useState<Section>("map");
+  const [visitedSections, setVisitedSections] = useState<Set<Section>>(() => new Set(["map"]));
   const [children, , childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
   const [vaccineStatuses, setVaccineStatuses, storageReady, storageError] = usePersistentState<Record<string, VaccineStatus>>(
     "vaccineStatuses",
     Object.fromEntries(VACCINES.map(v => [v.id, v.status]))
   );
+
+  function navigateTo(nextSection: Section) {
+    setVisitedSections(previous => previous.has(nextSection) ? previous : new Set(previous).add(nextSection));
+    setSection(nextSection);
+  }
 
   if (!storageReady || !childrenReady) {
     return (
@@ -29,27 +40,45 @@ export default function App() {
 
   return (
     <div className="flex h-screen flex-col sm:flex-row bg-background overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
-      <Sidebar active={section} onSelect={setSection} />
+      <a
+        href="#main-content"
+        className="sr-only fixed left-4 top-4 z-50 rounded-lg bg-card px-4 py-3 text-sm font-semibold text-foreground shadow-lg focus:not-sr-only focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      >
+        Перейти к основному содержимому
+      </a>
+      <Sidebar active={section} onSelect={navigateTo} />
       <main
-        className="order-first sm:order-last min-h-0 min-w-0 flex-1 overflow-y-auto"
+        id="main-content"
+        tabIndex={-1}
+        className="order-first sm:order-last min-h-0 min-w-0 flex-1 overflow-y-auto focus:outline-none"
         style={{ backgroundImage: "radial-gradient(circle, rgba(44,95,90,0.045) 1px, transparent 1px)", backgroundSize: "26px 26px" }}
       >
         <DataManagementPanel storageReady={storageReady && childrenReady} storageError={storageError ?? childrenError} />
-        <motion.div hidden={section !== "map"} initial={false} animate={section === "map" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-          <LifeMapSection />
-        </motion.div>
-        <motion.div hidden={section !== "health"} initial={false} animate={section === "health" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-          <HealthSection vaccineStatuses={vaccineStatuses} setVaccineStatuses={setVaccineStatuses} />
-        </motion.div>
-        <motion.div hidden={section !== "family"} initial={false} animate={section === "family" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-          <FamilySection />
-        </motion.div>
-        <motion.div hidden={section !== "calendar"} initial={false} animate={section === "calendar" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-          <CalendarSection />
-        </motion.div>
-        <motion.div hidden={section !== "analytics"} initial={false} animate={section === "analytics" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-          <AnalyticsSection children={children} onNavigate={setSection} />
-        </motion.div>
+        {visitedSections.has("map") && (
+          <motion.div hidden={section !== "map"} initial={false} animate={section === "map" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
+            <Suspense fallback={<SectionFallback />}><LifeMapSection /></Suspense>
+          </motion.div>
+        )}
+        {visitedSections.has("health") && (
+          <motion.div hidden={section !== "health"} initial={false} animate={section === "health" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
+            <Suspense fallback={<SectionFallback />}><HealthSection vaccineStatuses={vaccineStatuses} setVaccineStatuses={setVaccineStatuses} /></Suspense>
+          </motion.div>
+        )}
+        {visitedSections.has("family") && (
+          <motion.div hidden={section !== "family"} initial={false} animate={section === "family" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
+            <Suspense fallback={<SectionFallback />}><FamilySection /></Suspense>
+          </motion.div>
+        )}
+        {visitedSections.has("calendar") && (
+          <motion.div hidden={section !== "calendar"} initial={false} animate={section === "calendar" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
+            <Suspense fallback={<SectionFallback />}><CalendarSection /></Suspense>
+          </motion.div>
+        )}
+        {visitedSections.has("analytics") && (
+          <motion.div hidden={section !== "analytics"} initial={false} animate={section === "analytics" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
+            <Suspense fallback={<SectionFallback />}><AnalyticsSection children={children} onNavigate={navigateTo} /></Suspense>
+          </motion.div>
+        )}
       </main>
     </div>
   );
