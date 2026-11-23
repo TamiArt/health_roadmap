@@ -4,6 +4,7 @@ import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } fr
 import { HEALTH_ROADMAP, LIFE_STAGES, VACCINES, type LifeStage, type ToothStatus, type UploadedResult, type LabMeasurement, type VaccineRecord, type VaccineStatus } from "./data";
 import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
+import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
 
@@ -408,9 +409,9 @@ export function HealthSection({
   vaccineStatuses: Record<string, VaccineStatus>;
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
 }) {
-  const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental">("roadmap");
+  const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental"|"events"|"monitoring">("roadmap");
   const tabsId = useId();
-  const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"]] as const;
+  const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"],["events","События"],["monitoring","На контроле"]] as const;
   const [openIdx, setOpenIdx] = useState<number|null>(3);
   const [toothData, setToothData, toothDataReady, toothDataError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
 
@@ -486,6 +487,8 @@ export function HealthSection({
       <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab/></div>
       <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
       <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
+      <div id={`${tabsId}-panel-events`} role="tabpanel" aria-labelledby={`${tabsId}-tab-events`} hidden={tab !== "events"}><HealthEventsTab/></div>
+      <div id={`${tabsId}-panel-monitoring`} role="tabpanel" aria-labelledby={`${tabsId}-tab-monitoring`} hidden={tab !== "monitoring"}><MonitoringTab/></div>
     </div>
   );
 }
