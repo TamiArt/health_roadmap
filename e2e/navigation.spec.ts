@@ -1045,11 +1045,14 @@ test("an open child-profile tab cannot recreate records after the profile is del
     const children = await readRecord<Array<{ id: string; name: string }>>("children");
     return children!.find(child => child.name === "Удаляемый открытый профиль")!.id;
   });
+  const childRecordKeys = ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]
+    .map(name => "childHealth:" + childId + ":" + name);
   const recordKey = "childHealth:" + childId + ":healthEvents";
-  await page.evaluate(async key => {
+  await page.evaluate(async keys => {
     const { writeRecord } = await import("/src/app/storage.ts");
-    await writeRecord(key, [{ id: "before-delete", title: "До удаления" }]);
-  }, recordKey);
+    for (const key of keys) await writeRecord(key, [{ id: "before-delete", title: "До удаления" }]);
+    await writeRecord("healthEvents", [{ id: "adult-survives", title: "Запись взрослого профиля" }]);
+  }, childRecordKeys);
 
   const staleTab = await context.newPage();
   await staleTab.goto("/");
@@ -1063,20 +1066,24 @@ test("an open child-profile tab cannot recreate records after the profile is del
   await expect(page.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);
   await expect(staleTab.getByRole("heading", { name: "Удаляемый открытый профиль" })).toHaveCount(0);
 
-  const rejected = await staleTab.evaluate(async key => {
+  const deletionState = await staleTab.evaluate(async ({ keys, staleKey }) => {
     const { writeRecord, readRecordState } = await import("/src/app/storage.ts");
     let message = "";
     try {
-      await writeRecord(key, [{ id: "resurrected", title: "Попытка восстановления" }]);
+      await writeRecord(staleKey, [{ id: "resurrected", title: "Попытка восстановления" }]);
     } catch (error) {
       message = error instanceof Error ? error.message : String(error);
     }
-    const state = await readRecordState(key);
-    return { message, value: state.value, revision: state.revision };
-  }, recordKey);
-  expect(rejected.message).toContain("Профиль ребёнка удалён");
-  expect(rejected.value).toBeUndefined();
-  expect(rejected.revision).toBeGreaterThan(0);
+    const records = await Promise.all(keys.map(async key => [key, await readRecordState(key)] as const));
+    const adult = await readRecordState("healthEvents");
+    return { message, records, adult: adult.value };
+  }, { keys: childRecordKeys, staleKey: recordKey });
+  expect(deletionState.message).toContain("Профиль ребёнка удалён");
+  for (const [key, state] of deletionState.records) {
+    expect(state.value, key + " should remain deleted").toBeUndefined();
+    expect(state.revision, key + " should retain a tombstone revision").toBeGreaterThan(0);
+  }
+  expect(deletionState.adult).toEqual([{ id: "adult-survives", title: "Запись взрослого профиля" }]);
   await staleTab.reload();
   await staleTab.getByRole("button", { name: "Семья" }).click();
   await expect(staleTab.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);
