@@ -426,7 +426,7 @@ export function HealthSection({
   if (toothDataError) return <div role="alert" className="p-8 text-sm text-red-600">{toothDataError}</div>;
 
   return (
-    <div className="p-8 max-w-xl">
+    <div className="mx-auto w-full max-w-xl p-4 sm:p-8">
       <h1 className="text-2xl font-bold text-foreground mb-1" style={{ fontFamily:"'Playfair Display', serif" }}>Навигатор здоровья</h1>
       <p className="text-sm text-muted-foreground mb-5">Профилактика и медицинская история</p>
       <div role="tablist" aria-label="Разделы навигатора здоровья" className="flex flex-wrap gap-1 bg-muted p-1 rounded-lg mb-7">
@@ -436,7 +436,7 @@ export function HealthSection({
       </div>
 
       <div id={`${tabsId}-panel-roadmap`} role="tabpanel" aria-labelledby={`${tabsId}-tab-roadmap`} hidden={tab !== "roadmap"}>
-        <div className="grid grid-cols-3 gap-3 mb-8">
+        <div className="mb-8 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
           {[
             { emoji:"📅", val:"Гинеколог",  sub:"Рекомендован сейчас",  label:"Следующий визит"    },
             { emoji:"✅", val:"Стоматолог",  sub:"Ноябрь 2024",          label:"Последнее посещение"},
