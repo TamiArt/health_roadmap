@@ -89,6 +89,39 @@ export async function readRecord<T>(key: string): Promise<T | undefined> {
   return (await readRecordState<T>(key)).value;
 }
 
+/** Remove child-owned health records atomically, retaining revision tombstones. */
+export async function deleteChildHealthRecords(childId: string): Promise<void> {
+  if (!/^[a-zA-Z0-9_-]+$/.test(childId)) throw new Error("Некорректный идентификатор профиля ребёнка.");
+  const prefix = `childHealth:${childId}:`;
+  const database = await openDatabase();
+  const transaction = database.transaction(STORE_NAME, "readwrite");
+  const store = transaction.objectStore(STORE_NAME);
+  const request = store.getAll();
+  const deleted: Array<{ key: string; revision: number }> = [];
+
+  request.onsuccess = () => {
+    const records = request.result as StoredRecord[];
+    for (const record of records) {
+      if (!record.key.startsWith(prefix)) continue;
+      const revision = (record.revision ?? 0) + 1;
+      store.put({ key: record.key, value: undefined, revision } satisfies StoredRecord);
+      deleted.push({ key: record.key, revision });
+    }
+  };
+
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось удалить данные профиля ребёнка."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Удаление данных профиля ребёнка отменено."));
+  });
+
+  if (deleted.length && typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("life-maps:records");
+    for (const record of deleted) channel.postMessage({ key: record.key, value: undefined, revision: record.revision });
+    channel.close();
+  }
+}
+
 /** Compare-and-write: a stale tab cannot overwrite a newer IndexedDB revision. */
 export async function writeRecord<T>(key: string, value: T, expectedRevision?: number): Promise<VersionedRecord<T> & { conflict: boolean }> {
   if (!isAllowedRecordKey(key)) throw new Error("Недопустимый ключ пользовательских данных.");
