@@ -39,7 +39,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen flex-col sm:flex-row bg-background overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="flex h-[100dvh] flex-col sm:flex-row bg-background overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
       <a
         href="#main-content"
         className="sr-only fixed left-4 top-4 z-50 rounded-lg bg-card px-4 py-3 text-sm font-semibold text-foreground shadow-lg focus:not-sr-only focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -50,7 +50,7 @@ export default function App() {
       <main
         id="main-content"
         tabIndex={-1}
-        className="order-first sm:order-last min-h-0 min-w-0 flex-1 overflow-y-auto focus:outline-none"
+        className="order-first sm:order-last min-h-0 min-w-0 flex-1 overflow-y-auto pb-28 sm:pb-8 focus:outline-none"
         style={{ backgroundImage: "radial-gradient(circle, rgba(44,95,90,0.045) 1px, transparent 1px)", backgroundSize: "26px 26px" }}
       >
         <DataManagementPanel storageReady={storageReady && childrenReady} storageError={storageError ?? childrenError} />
