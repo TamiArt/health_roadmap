@@ -618,7 +618,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   await page.getByLabel("Значение показателя 2").fill("72");
   await page.getByLabel("Единица измерения 2").fill("мкмоль/л");
   await page.getByRole("button", { name: "Прикрепить документ" }).click();
-  await page.locator('input[type="file"]').nth(1).setInputFiles({
+  await page.getByLabel("Выбрать документ анализа").setInputFiles({
     name: "first-result.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4 first"),
@@ -630,7 +630,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
 
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Заменить прикреплённый документ" }).click();
-  await page.locator('input[type="file"]').last().setInputFiles({
+  await page.getByLabel("Выбрать документ для замены").setInputFiles({
     name: "replacement-result.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4 replacement"),
@@ -951,7 +951,7 @@ test("keeps lab measurements isolated between child profiles after switching and
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
   // Inactive profile panels remain mounted; assert the other profile value is hidden, not absent from the DOM.
   await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("9.2 г/л", { exact: true })).toBeHidden();
+  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeHidden();
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
