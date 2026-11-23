@@ -2,7 +2,7 @@ import { useState } from "react";
 import { usePersistentState } from "./storage";
 import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
-import { VACCINES, type Section, type VaccineStatus } from "./data";
+import { VACCINES, type Child, type Section, type VaccineStatus } from "./data";
 import { AnalyticsSection } from "./AnalyticsSection";
 import { CalendarSection } from "./CalendarSection";
 import { FamilySection } from "./FamilySection";
@@ -12,12 +12,13 @@ import { Sidebar } from "./Sidebar";
 
 export default function App() {
   const [section, setSection] = useState<Section>("map");
+  const [children, , childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
   const [vaccineStatuses, setVaccineStatuses, storageReady, storageError] = usePersistentState<Record<string, VaccineStatus>>(
     "vaccineStatuses",
     Object.fromEntries(VACCINES.map(v => [v.id, v.status]))
   );
 
-  if (!storageReady) {
+  if (!storageReady || !childrenReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-8 text-sm text-muted-foreground">
         Подключение локальной базы данных…
@@ -32,7 +33,7 @@ export default function App() {
         className="order-first sm:order-last min-h-0 min-w-0 flex-1 overflow-y-auto"
         style={{ backgroundImage: "radial-gradient(circle, rgba(44,95,90,0.045) 1px, transparent 1px)", backgroundSize: "26px 26px" }}
       >
-        <DataManagementPanel storageReady={storageReady} storageError={storageError} />
+        <DataManagementPanel storageReady={storageReady && childrenReady} storageError={storageError ?? childrenError} />
         <motion.div hidden={section !== "map"} initial={false} animate={section === "map" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
           <LifeMapSection />
         </motion.div>
@@ -46,7 +47,7 @@ export default function App() {
           <CalendarSection />
         </motion.div>
         <motion.div hidden={section !== "analytics"} initial={false} animate={section === "analytics" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-          <AnalyticsSection vaccineStatuses={vaccineStatuses} onNavigate={setSection} />
+          <AnalyticsSection children={children} onNavigate={setSection} />
         </motion.div>
       </main>
     </div>
