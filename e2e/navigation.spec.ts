@@ -42,7 +42,7 @@ test("rejects unsupported lab attachments and accepts a valid PDF", async ({ pag
   await expect(page.getByRole("alert")).toContainText("Поддерживаются только");
 
   await page.getByRole("button", { name: "Файл" }).first().click();
-  await page.locator('input[type="file"][accept^="application/pdf"]').setInputFiles({
+  await page.locator('input[aria-label="Загрузить результат анализа"]').setInputFiles({
     name: "lab-result.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4 test"),
