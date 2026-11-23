@@ -51,20 +51,20 @@ export function DataManagementPanel({
   }
 
   return (
-    <section aria-label="Резервное копирование" className="pointer-events-none fixed bottom-20 right-4 z-40 sm:bottom-4 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2">
-      <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur">
+    <section aria-label="Резервное копирование" className="backup-panel pointer-events-none fixed z-40 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
+      <div className="pointer-events-auto flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur sm:w-auto">
         <button type="button" onClick={() => void handleExport()} disabled={busy || !storageReady || !!storageError}
-          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50">
+          className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50 sm:flex-none">
           <Download size={13} /> Экспорт
         </button>
         <button type="button" onClick={() => fileInput.current?.click()} disabled={busy || !storageReady || !!storageError}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground disabled:opacity-50">
+          className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground disabled:opacity-50 sm:flex-none">
           <Upload size={13} /> Импорт
         </button>
         <input ref={fileInput} type="file" accept="application/json,.json" className="hidden" onChange={handleImport} />
       </div>
       {(storageError || message) ? (
-        <p role="status" aria-live="polite" className="pointer-events-none max-w-72 rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow">
+        <p role="status" aria-live="polite" className="pointer-events-none max-w-full rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow sm:max-w-72">
           {storageError ?? message}
         </p>
       ) : (
