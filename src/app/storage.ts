@@ -185,7 +185,23 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function validateRecordValue(key: string, value: unknown): void {
-  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents"]);
+  if (key === "labResultEntries" || key.endsWith(":labResultEntries")) {
+    if (!Array.isArray(value) || value.some(entry => {
+      if (!isPlainRecord(entry) || typeof entry.id !== "string" || typeof entry.testName !== "string" ||
+          typeof entry.date !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(entry.date) ||
+          !Array.isArray(entry.indicators) || entry.indicators.length === 0) return true;
+      if (entry.indicators.some(indicator => !isPlainRecord(indicator) || typeof indicator.id !== "string" ||
+          typeof indicator.name !== "string" || typeof indicator.value !== "number" || !Number.isFinite(indicator.value) ||
+          typeof indicator.unit !== "string")) return true;
+      if (entry.document === undefined) return false;
+      if (!isPlainRecord(entry.document) || typeof entry.document.id !== "string" || typeof entry.document.name !== "string" || !isPlainRecord(entry.document.blob)) return true;
+      const blob = entry.document.blob;
+      return !(typeof Blob !== "undefined" && blob instanceof Blob) && !(blob.__lifeMapsBlob === true && typeof blob.base64 === "string" && typeof blob.mimeType === "string");
+    })) throw new Error("Повреждена история результатов анализов.");
+    return;
+  }
+
+  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring"]);
   if (arrayKeys.has(key)) {
     if (!Array.isArray(value)) throw new Error(`Повреждён список данных: ${key}`);
     if (value.some(item => !isPlainRecord(item) || typeof item.id !== "string")) {
