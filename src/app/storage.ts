@@ -157,7 +157,7 @@ async function readAllRecords(): Promise<Record<string, unknown>> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readonly");
   const records = await requestResult<StoredRecord[]>(transaction.objectStore(STORE_NAME).getAll());
-  return Object.fromEntries(records.map(record => [record.key, record.value]));
+  return Object.fromEntries(records.filter(record => record.value !== undefined).map(record => [record.key, record.value]));
 }
 
 type EncodedBlob = { __lifeMapsBlob: true; mimeType: string; base64: string };
@@ -338,14 +338,31 @@ export async function importBackup(file: File): Promise<void> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
-  store.clear();
-  for (const [key, value] of Object.entries(decodedRecords)) store.put({ key, value } satisfies StoredRecord);
+  const existingRequest = store.getAll();
+  existingRequest.onsuccess = () => {
+    const previousRecords = existingRequest.result as StoredRecord[];
+    const previousByKey = new Map(previousRecords.map(record => [record.key, record]));
+    const allKeys = new Set([...previousByKey.keys(), ...Object.keys(decodedRecords)]);
+    store.clear();
+    for (const key of allKeys) {
+      const previousRevision = previousByKey.get(key)?.revision ?? 0;
+      const value = Object.prototype.hasOwnProperty.call(decodedRecords, key) ? decodedRecords[key] : undefined;
+      // Advance revisions for restored and removed records. Tombstones prevent
+      // a stale tab from recreating keys that are absent from the backup.
+      store.put({ key, value, revision: previousRevision + 1 } satisfies StoredRecord);
+    }
+  };
 
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось восстановить резервную копию."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Восстановление отменено."));
   });
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("life-maps:records");
+    channel.postMessage({ type: "restore" });
+    channel.close();
+  }
   window.dispatchEvent(new Event(RESTORE_EVENT));
 }
 
@@ -403,7 +420,11 @@ export function usePersistentState<T>(
     const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("life-maps:records") : undefined;
     if (channel) {
       channel.onmessage = event => {
-        const message = event.data as { key?: unknown; value?: unknown; revision?: unknown };
+        const message = event.data as { type?: unknown; key?: unknown; value?: unknown; revision?: unknown };
+        if (message?.type === "restore") {
+          void load();
+          return;
+        }
         if (message?.key !== key || typeof message.revision !== "number" || message.revision <= revision.current) return;
         // Ignore stale/out-of-order notifications; apply only a newer committed revision.
         revision.current = message.revision;
