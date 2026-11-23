@@ -33,7 +33,7 @@
 
 The workflow is pinned to `ubuntu-24.04` with Node.js 22. The repository currently uses Playwright 1.56.1. This avoids the unsupported Ubuntu 26.04 browser package lookup that occurs when the runner is `ubuntu-26.04` or `ubuntu-latest` resolves to that image.
 
-The CI browser-install step is `npx playwright install --with-deps chromium`. In the latest observed pipeline, dependency installation, TypeScript, structure validation, dependency audit and unit tests passed; browser installation and E2E were still running at the time of this document update.
+The CI browser-install step is `npx playwright install --with-deps chromium`. In the latest completed E2E run, TypeScript, structure validation, dependency audit, unit tests and browser installation passed. 30 of 32 browser scenarios passed; two remaining failures were traced to a replacement-file input being unmounted outside the edit form and duplicate history locators. The input is now mounted at section level, and the locators are scoped. A new CI run is in progress.
 
 If the runner is intentionally moved to Ubuntu 26.04, update `@playwright/test` and its lockfile to at least 1.61.0 before changing the runner. Do not update only `package.json` while leaving `package-lock.json` on 1.56.1.
 
