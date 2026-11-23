@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Plus, Trash2, Check, CalendarClock, Activity, HeartPulse } from "lucide-react";
+import { Plus, Trash2, Check, CalendarClock, Activity, HeartPulse } from "lucide-react";
 import { usePersistentState } from "./storage";
 import {
   buildHealthEvent,
-  isIsoDate,
-  nextOccurrence,
   validateHealthEvent,
   validateMonitoringItem,
   type HealthEvent,
