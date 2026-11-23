@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import { usePersistentState } from "./storage";
+import { deleteChildHealthRecords, usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
 import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT, type Child, type ToothStatus, type VaccineStatus } from "./data";
@@ -79,6 +79,7 @@ export function FamilySection() {
   const familyReminders = useMemo(() => events.map(event => ({ id:event.id, title:event.title, notificationTitle:"Памятная дата", date:event.date, enabled:event.reminder?.enabled ?? false, leadDays:event.reminder?.leadDays ?? 0, time:event.reminder?.time ?? "09:00", recurringYearly:event.recurringYearly ?? false })), [events]);
   useBrowserReminders(familyReminders, notificationSettings.enabled);
   const [formError, setFormError] = useState<string | null>(null);
+  const [childDeleteError, setChildDeleteError] = useState<string | null>(null);
 
   if (!membersReady || !childrenReady || !eventsReady || !notificationSettingsReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка семейных данных…</div>;
   if (membersError || childrenError || eventsError) return <div role="alert" className="p-8 text-sm text-red-600">{membersError ?? childrenError ?? eventsError}</div>;
@@ -100,6 +101,17 @@ export function FamilySection() {
     if (cForm.emoji.length > 16) { setFormError("Слишком длинное значение эмодзи."); return; }
     setChildren(p => [...p, { id:createId(), name, birthYear, emoji:cForm.emoji.trim() || "👶" }]);
     setCForm({ name:"", birthYear:"", emoji:"👶" }); setShowAddChild(false); setFormError(null);
+  }
+
+  async function deleteChild(child: Child) {
+    if (!window.confirm(`Удалить профиль ребёнка «${child.name}» и все сохранённые медицинские данные этого профиля? Это действие нельзя отменить.`)) return;
+    try {
+      await deleteChildHealthRecords(child.id);
+      setChildren(current => current.filter(item => item.id !== child.id));
+      setChildDeleteError(null);
+    } catch (cause) {
+      setChildDeleteError(cause instanceof Error ? cause.message : "Не удалось удалить данные профиля ребёнка.");
+    }
   }
   function addEvent() {
     const title = eForm.title.trim();
@@ -159,6 +171,7 @@ export function FamilySection() {
 
       {/* Children */}
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 mt-5">Дети</p>
+      {childDeleteError && <p role="alert" className="mb-3 text-xs text-red-600">{childDeleteError}</p>}
       {children.length===0 && !editMode && (
         <div className="text-xs text-muted-foreground text-center py-4 bg-card border border-dashed border-border rounded-xl mb-3">
           Дети не добавлены
@@ -172,7 +185,7 @@ export function FamilySection() {
               <motion.div key={child.id} initial={{ opacity:0,scale:.95 }} animate={{ opacity:1,scale:1 }}
                 className="relative bg-card border border-primary/15 rounded-xl p-4 text-center hover:border-primary/40 hover:shadow-sm transition-all group"
               >
-                {editMode && <div className="absolute top-1.5 right-1.5 z-10"><DelBtn onClick={()=>setChildren(p=>p.filter(c=>c.id!==child.id))}/></div>}
+                {editMode && <div className="absolute top-1.5 right-1.5 z-10"><DelBtn ariaLabel={`Удалить профиль ребёнка ${child.name}`} onClick={() => void deleteChild(child)}/></div>}
                 <button type="button" disabled={editMode} aria-haspopup="true" aria-label={`Открыть профиль ребёнка ${child.name}, ${age} лет`} onClick={() => setViewingChild(child)} className="w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-default">
                   <div className="text-3xl mb-2">{child.emoji}</div>
                   <p className="text-xs font-semibold text-foreground">{child.name}</p>
