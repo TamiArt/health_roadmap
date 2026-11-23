@@ -350,6 +350,18 @@ export function migrateBackup(input: BackupPayload): BackupPayload {
     validateRecordValue(key, value);
   }
 
+  const childIds = new Set(
+    (Array.isArray(records.children) ? records.children : [])
+      .map(child => isPlainRecord(child) ? child.id : undefined)
+      .filter((id): id is string => typeof id === "string" && /^[a-zA-Z0-9_-]+$/.test(id)),
+  );
+  for (const key of Object.keys(records)) {
+    const childRecord = /^childHealth:([a-zA-Z0-9_-]+):/.exec(key);
+    if (childRecord && !childIds.has(childRecord[1])) {
+      throw new Error(`В резервной копии есть медицинские данные для отсутствующего профиля ребёнка: ${childRecord[1]}.`);
+    }
+  }
+
   return {
     format: BACKUP_FORMAT,
     schemaVersion: version,
