@@ -734,3 +734,237 @@ test("deleting a child profile removes its health records and keeps tombstone re
     };
   }), key)).toEqual({ value: undefined, revision: previousRevision + 1 });
 });
+
+
+test("keeps primary sections within extra-narrow mobile viewports", async ({ page }) => {
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 740 });
+    await page.goto("/");
+
+    for (const section of ["Карта жизни", "Здоровье", "Семья", "Аналитика"]) {
+      await page.getByRole("button", { name: section }).click();
+      const dimensions = await page.locator("main").evaluate(element => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+      expect(
+        dimensions.scrollWidth,
+        `Horizontal overflow in section "${section}" at ${width}px: ${JSON.stringify(dimensions)}`,
+      ).toBeLessThanOrEqual(dimensions.clientWidth);
+    }
+  }
+});
+
+test("provides a keyboard skip link to the main content", async ({ page }) => {
+  await page.goto("/");
+  const skipLink = page.getByRole("link", { name: "Перейти к основному содержимому" });
+
+  await page.keyboard.press("Tab");
+  await expect(skipLink).toBeFocused();
+  await expect(skipLink).toBeVisible();
+  await expect(skipLink).toHaveAttribute("href", "#main-content");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("main")).toBeFocused();
+});
+
+test("restoring a backup cannot be overwritten by a tab with an uncommitted initial snapshot", async ({ page, context }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Экспорт" })).toBeEnabled();
+
+  const staleTab = await context.newPage();
+  await staleTab.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", { configurable: true, value: undefined });
+  });
+  await staleTab.goto("/");
+  await expect(staleTab.getByRole("button", { name: "Экспорт" })).toBeEnabled();
+
+  // Neither tab has written the default lifeEvents value yet: both hold
+  // revision 0 in memory, which exposed the restore/reset-to-zero race.
+  const backup = {
+    format: "life-maps-backup",
+    schemaVersion: 1,
+    exportedAt: "2026-11-07T00:00:00.000Z",
+    records: {
+      lifeEvents: [{
+        id: "restore-wins",
+        year: 2026,
+        title: "Событие из резервной копии",
+        description: "Должно сохраниться после конфликта",
+        category: "personal",
+        emoji: "✨",
+        milestone: true,
+      }],
+      familyMembers: [],
+      children: [],
+      familyEvents: [],
+      vaccineStatuses: {},
+    },
+  };
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+    name: "restore-race.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await expect(page.getByRole("status")).toContainText("Данные восстановлены", { timeout: 10000 });
+
+  await staleTab.getByRole("button", { name: "Изменить" }).click();
+  await staleTab.getByRole("button", { name: "Добавить событие" }).click();
+  await staleTab.getByPlaceholder("Год (2025)").fill("2026");
+  await staleTab.getByPlaceholder("Название события").fill("Устаревшая запись из другой вкладки");
+  await staleTab.getByRole("button", { name: "Добавить", exact: true }).click();
+  await staleTab.getByRole("button", { name: /^Все события/ }).click();
+
+  await expect(staleTab.getByText("Событие из резервной копии", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("Устаревшая запись из другой вкладки", { exact: true })).toHaveCount(0);
+
+  await staleTab.reload();
+  await staleTab.getByRole("button", { name: /^Все события/ }).click();
+  await expect(staleTab.getByText("Событие из резервной копии", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("Устаревшая запись из другой вкладки", { exact: true })).toHaveCount(0);
+  await staleTab.close();
+});
+
+test("backup restore refreshes records in other open tabs", async ({ page, context }) => {
+  await page.goto("/");
+  const otherTab = await context.newPage();
+  await otherTab.goto("/");
+  await otherTab.getByRole("button", { name: /^Все события/ }).click();
+  await expect(otherTab.getByText("Восстановленное в другой вкладке", { exact: true })).toHaveCount(0);
+
+  const backup = {
+    format: "life-maps-backup",
+    schemaVersion: 1,
+    exportedAt: "2026-11-07T00:00:00.000Z",
+    records: {
+      lifeEvents: [{
+        id: "cross-tab-restored",
+        year: 2026,
+        title: "Восстановленное в другой вкладке",
+        description: "Обновление через BroadcastChannel",
+        category: "personal",
+        emoji: "✨",
+        milestone: true,
+      }],
+      familyMembers: [],
+      children: [],
+      familyEvents: [],
+      vaccineStatuses: {},
+    },
+  };
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+    name: "cross-tab-restore.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await expect(page.getByRole("status")).toContainText("Данные восстановлены", { timeout: 10000 });
+  await expect(otherTab.getByText("Восстановленное в другой вкладке", { exact: true })).toBeVisible({ timeout: 10000 });
+  await otherTab.close();
+});
+
+test("a stale tab cannot resurrect a record removed by backup restore", async ({ page, context }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить событие" }).click();
+  await page.getByPlaceholder("Год (2025)").fill("2026");
+  await page.getByPlaceholder("Название события").fill("Событие до восстановления");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: /^Все события/ }).click();
+  await expect(page.getByText("Событие до восстановления", { exact: true })).toBeVisible();
+
+  const staleTab = await context.newPage();
+  await staleTab.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", { configurable: true, value: undefined });
+  });
+  await staleTab.goto("/");
+  await staleTab.getByRole("button", { name: /^Все события/ }).click();
+  await expect(staleTab.getByText("Событие до восстановления", { exact: true })).toBeVisible();
+
+  const backup = {
+    format: "life-maps-backup",
+    schemaVersion: 1,
+    exportedAt: "2026-11-07T00:00:00.000Z",
+    records: {
+      familyMembers: [],
+      children: [],
+      familyEvents: [],
+      vaccineStatuses: {},
+    },
+  };
+  page.once("dialog", dialog => dialog.accept());
+  await page.locator('input[type="file"][accept="application/json,.json"]').setInputFiles({
+    name: "remove-life-events.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await expect(page.getByRole("status")).toContainText("Данные восстановлены", { timeout: 10000 });
+
+  await staleTab.getByRole("button", { name: "Изменить" }).click();
+  await staleTab.getByRole("button", { name: "Добавить событие" }).click();
+  await staleTab.getByPlaceholder("Год (2025)").fill("2026");
+  await staleTab.getByPlaceholder("Название события").fill("Устаревшая попытка воскресить запись");
+  await staleTab.getByRole("button", { name: "Добавить", exact: true }).click();
+  await staleTab.getByRole("button", { name: /^Все события/ }).click();
+
+  await expect(staleTab.getByText("Событие до восстановления", { exact: true })).toHaveCount(0);
+  await expect(staleTab.getByText("Устаревшая попытка воскресить запись", { exact: true })).toHaveCount(0);
+  await expect(staleTab.getByRole("button", { name: "Добавить событие" })).toBeVisible();
+  await staleTab.close();
+});
+
+test("keeps lab measurements isolated between child profiles after switching and reload", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+
+  for (const name of ["Первый профиль — изоляция", "Второй профиль — изоляция"]) {
+    await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+    await page.getByPlaceholder("Имя").fill(name);
+    await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+    await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  }
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  async function saveChildMeasurement(profileName: string, value: string) {
+    await page.getByRole("button", { name: new RegExp(`Открыть профиль ребёнка ${profileName}, 5 лет`) }).click();
+    await page.getByRole("button", { name: /Дошкольник/ }).click();
+    // The main health section and other child profiles stay mounted but hidden.
+    // Target the visible action rather than the first matching hidden "ОАК" label.
+    const addMeasurement = page.locator("button:visible").filter({ hasText: "+ Значение" }).first();
+    await expect(addMeasurement).toBeVisible();
+    await addMeasurement.click();
+    await page.getByLabel("Значение результата").fill(value);
+    await page.getByLabel("Единицы измерения").fill("г/л");
+    await page.getByRole("button", { name: "Сохранить результат" }).click();
+    await expect(page.getByText(value + " г/л", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Вернуться к семье" }).click();
+  }
+
+  await saveChildMeasurement("Первый профиль — изоляция", "12.1");
+  await saveChildMeasurement("Второй профиль — изоляция", "9.2");
+
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
+  // Inactive profile panels remain mounted; assert the other profile value is hidden, not absent from the DOM.
+  await expect(page.getByText("12.1 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("9.2 г/л", { exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
+  // The first profile panel remains mounted but must be hidden while the second profile is active.
+  await expect(page.getByText("9.2 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("12.1 г/л", { exact: true })).toBeHidden();
+
+  await page.reload();
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  await expect(page.getByText("12.1 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("9.2 г/л", { exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
+  await expect(page.getByText("9.2 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("12.1 г/л", { exact: true })).toBeHidden();
+});
