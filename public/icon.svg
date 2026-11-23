@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Life Maps</title>
+  <desc id="desc">A winding path connects family, health and meaningful places.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#063f3b"/>
+      <stop offset=".55" stop-color="#07534d"/>
+      <stop offset="1" stop-color="#023632"/>
+    </linearGradient>
+    <linearGradient id="hill" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2c746b" stop-opacity=".72"/>
+      <stop offset="1" stop-color="#0d514b" stop-opacity=".12"/>
+    </linearGradient>
+    <linearGradient id="path" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#fff0d8"/>
+      <stop offset="1" stop-color="#f3d8ae"/>
+    </linearGradient>
+    <linearGradient id="pin" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ff9a79"/>
+      <stop offset="1" stop-color="#ef725d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+  <path d="M0 390C170 260 320 245 470 330s260 130 554 12v400H0Z" fill="url(#hill)"/>
+  <path d="M0 700c150-70 260-18 390 34s235 36 360-52 194-83 274-35v377H0Z" fill="#063f3b" opacity=".65"/>
+  <path d="M150 1000c180-82 342-112 358-208 12-74-115-96-188-163-95-87-76-220 31-255 86-28 146 34 185 85 42-56 104-111 190-84 111 35 119 165 32 250-39 38-92 69-136 95 121-53 225-133 231-239 4-67-39-109-92-137"
+        fill="none" stroke="url(#path)" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#fff0d8">
+    <circle cx="365" cy="520" r="30"/>
+    <path d="M313 602c0-38 23-65 52-65s52 27 52 65v49h-104Z"/>
+    <circle cx="500" cy="552" r="27"/>
+    <path d="M453 623c0-34 21-58 47-58s47 24 47 58v39h-94Z"/>
+    <circle cx="630" cy="520" r="30"/>
+    <path d="M578 602c0-38 23-65 52-65s52 27 52 65v49H578Z"/>
+  </g>
+  <path d="M796 330c-48-66-70-99-70-142a92 92 0 1 1 184 0c0 43-22 76-70 142l-22 30Z" fill="url(#pin)"/>
+  <circle cx="818" cy="188" r="30" fill="#074640"/>
+  <path d="M744 368c24-23 124-23 148 0-24 23-124 23-148 0Z" fill="none" stroke="#fff0d8" stroke-width="18" stroke-linecap="round"/>
+</svg>
