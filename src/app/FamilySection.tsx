@@ -5,7 +5,8 @@ import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
 import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT, type Child, type ToothStatus, type VaccineStatus } from "./data";
 import { CURRENT_YEAR, childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, DelBtn, EditToggle, INP } from "./shared";
 import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
-import { ReminderPermission } from "./HealthTrackingTabs";
+import { HealthEventsTab, MonitoringTab, ReminderPermission } from "./HealthTrackingTabs";
+import { LabResultsTab } from "./LabResultsTab";
 import { useBrowserReminders } from "./useBrowserReminders";
 import { isIsoDate, type FamilyDate } from "./healthRecords";
 
@@ -13,7 +14,7 @@ import { isIsoDate, type FamilyDate } from "./healthRecords";
 
 function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   const age = CURRENT_YEAR - child.birthYear;
-  const [tab, setTab] = useState<"tests"|"vaccines"|"dental">("tests");
+  const [tab, setTab] = useState<"tests"|"vaccines"|"dental"|"history"|"events"|"monitoring">("tests");
   const tabsId = useId();
   const [vaccineStatuses, setVaccineStatuses, vaccineReady, vaccineError] = usePersistentState<Record<string,VaccineStatus>>(
     `childHealth:${child.id}:vaccineStatuses`,
@@ -26,7 +27,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   const stages = childAgeStages(age);
   const agePeriod = age<1?"Новорождённый":age<6?"Дошкольник":age<18?"Школьник":"Взрослый";
 
-  const tabs: Array<["tests"|"vaccines"|"dental", string]> = [["tests","Анализы"],["vaccines","Прививки"]];
+  const tabs: Array<["tests"|"vaccines"|"dental"|"history"|"events"|"monitoring", string]> = [["tests","Анализы"],["vaccines","Прививки"],["history","История"],["events","События"],["monitoring","На контроле"]];
   if (age>=5) tabs.push(["dental","Стоматолог"]);
 
   if (!vaccineReady || !toothReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка данных профиля…</div>;
@@ -53,6 +54,9 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
       <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f" storageKey={`childHealth:${child.id}:labUploads`}/></div>
       <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age}/></div>
       {age>=5 && <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>}
+      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><LabResultsTab storageKey={`childHealth:${child.id}:labResultEntries`}/></div>
+      <div id={`${tabsId}-panel-events`} role="tabpanel" aria-labelledby={`${tabsId}-tab-events`} hidden={tab !== "events"}><HealthEventsTab storageKey={`childHealth:${child.id}:healthEvents`}/></div>
+      <div id={`${tabsId}-panel-monitoring`} role="tabpanel" aria-labelledby={`${tabsId}-tab-monitoring`} hidden={tab !== "monitoring"}><MonitoringTab storageKey={`childHealth:${child.id}:healthMonitoring`}/></div>
     </div>
   );
 }
