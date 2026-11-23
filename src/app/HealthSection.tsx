@@ -10,6 +10,7 @@ import { usePersistentState } from "./storage";
 import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
+import { handleTabListKeyDown } from "./tabNavigation";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
 
@@ -429,9 +430,9 @@ export function HealthSection({
     <div className="mx-auto w-full max-w-xl p-4 sm:p-8">
       <h1 className="text-2xl font-bold text-foreground mb-1" style={{ fontFamily:"'Playfair Display', serif" }}>Навигатор здоровья</h1>
       <p className="text-sm text-muted-foreground mb-5">Профилактика и медицинская история</p>
-      <div role="tablist" aria-label="Разделы навигатора здоровья" className="flex flex-wrap gap-1 bg-muted p-1 rounded-lg mb-7">
+      <div role="tablist" aria-label="Разделы навигатора здоровья" aria-orientation="horizontal" className="flex flex-wrap gap-1 bg-muted p-1 rounded-lg mb-7">
         {tabs.map(([id,label]) => (
-          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} onClick={() => setTab(id)} className={`flex-1 min-w-[88px] py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
+          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} tabIndex={tab===id ? 0 : -1} onKeyDown={handleTabListKeyDown} onClick={() => setTab(id)} className={`flex-1 min-w-[88px] py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
 
