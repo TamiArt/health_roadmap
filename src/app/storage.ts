@@ -429,7 +429,8 @@ export function usePersistentState<T>(
         // Ignore stale/out-of-order notifications; apply only a newer committed revision.
         revision.current = message.revision;
         updateGeneration.current += 1;
-        const incomingValue = message.value as T;
+        // A tombstone means the owning profile was deleted; reset to the hook default.
+        const incomingValue = message.value !== undefined ? message.value as T : initialValue;
         skipNextWrite.current = { value: incomingValue };
         setValue(incomingValue);
       };
@@ -457,7 +458,9 @@ export function usePersistentState<T>(
       if (result.conflict) {
         setConflict(true);
         updateGeneration.current += 1;
-        const winningValue = result.value as T;
+        // A restore may intentionally remove this key. Use the hook default
+        // instead of passing undefined into React state.
+        const winningValue = result.value !== undefined ? result.value as T : initialValue;
         skipNextWrite.current = { value: winningValue };
         setValue(winningValue);
       } else {
