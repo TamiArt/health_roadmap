@@ -33,22 +33,20 @@
 
 The workflow is pinned to `ubuntu-24.04` with Node.js 22. The repository currently uses Playwright 1.56.1. This avoids the unsupported Ubuntu 26.04 browser package lookup that occurs when the runner is `ubuntu-26.04` or `ubuntu-latest` resolves to that image.
 
-The CI browser-install step is `npx playwright install --with-deps chromium`. In the latest completed E2E run, TypeScript, structure validation, dependency audit, unit tests and browser installation passed. 30 of 32 browser scenarios passed; two remaining failures were traced to a replacement-file input being unmounted outside the edit form and duplicate history locators. The input is now mounted at section level, and the locators are scoped. A new CI run is in progress.
+The CI browser-install step is `npx playwright install --with-deps chromium`. The latest CI run `45167596151` completed successfully: TypeScript, structure validation, dependency audit, unit tests, Chromium installation, all 32 E2E scenarios and production build passed. The run used commit `c0706f24`.
 
 If the runner is intentionally moved to Ubuntu 26.04, update `@playwright/test` and its lockfile to at least 1.61.0 before changing the runner. Do not update only `package.json` while leaving `package-lock.json` on 1.56.1.
 
 ## Known remaining work
 
-1. Complete the current full CI run and fix any remaining E2E failures.
-2. Verify that all 26 source-branch paths have been accounted for and inspect the remaining semantic differences, not only filenames.
-3. Finish the profile-isolation matrix for all child-owned data types and test profile deletion against concurrent tabs and backup restore.
-4. Complete calendar navigation to source records and notification behavior.
-5. Perform manual mobile/tablet and screen-reader checks.
-6. Keep the roadmap and this audit synchronized after each completed stage.
+1. Extend the profile-isolation matrix to all child-owned data types and adult-profile boundaries; test child deletion against concurrent tabs.
+2. Complete calendar navigation to source records and notification behavior.
+3. Perform manual mobile/tablet and screen-reader checks.
+4. Keep the roadmap and this audit synchronized after each completed stage.
 
 ## Safety and release rules
 
-- Do not delete `feat/storage-profile-isolation-tests` until the full comparison and CI are complete.
+- Full path-by-path comparison of all 26 changed files and full CI have completed successfully. `feat/storage-profile-isolation-tests` is now safe to delete; it has intentionally been left intact for the user to remove.
 - Do not merge this branch into `main` unless explicitly requested.
-- Preserve the original source branch as a recovery point until integration verification is complete.
+- Preserve the current development branch until the user approves the next merge/release step.
 - No clinical correctness review of medical schedules is implied by the structural refactor.
