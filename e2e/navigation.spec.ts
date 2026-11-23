@@ -1104,7 +1104,7 @@ test("an open stale tab cannot recreate child records after the profile is delet
     expect(state.value, key + " should remain deleted").toBeUndefined();
     expect(state.revision, key + " should retain a tombstone revision").toBeGreaterThan(0);
   }
-  expect(deletionState.adult).toEqual([{ id: "adult-survives", title: "Запись взрослого профиля" }]);
+  expect(deletionState.adult).toEqual([{ id: "adult-survives", date: "2026-11-06", kind: "other", title: "Запись взрослого профиля", description: "" }]);
   await staleTab.reload();
   await staleTab.getByRole("button", { name: "Семья" }).click();
   await expect(staleTab.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);
