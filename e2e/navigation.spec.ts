@@ -183,6 +183,19 @@ test("keeps primary sections usable from 320px to 390px and keeps backup actions
         `Section horizontal overflow in "${section}" at ${width}px: ${JSON.stringify(dimensions)}`,
       ).toBeLessThanOrEqual(dimensions.mainClient);
     }
+
+    if (width === 320) {
+      await page.getByRole("button", { name: "Здоровье" }).click();
+      for (const tab of ["Анализы", "Прививки", "Стоматолог", "История"]) {
+        await page.getByRole("tab", { name: tab, exact: true }).click();
+        const dimensions = await page.locator("main").evaluate(element => ({
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+        }));
+        expect(dimensions.scrollWidth, `Horizontal overflow in health tab "${tab}" at 320px`)
+          .toBeLessThanOrEqual(dimensions.clientWidth);
+      }
+    }
   }
 });
 
