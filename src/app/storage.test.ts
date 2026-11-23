@@ -26,7 +26,7 @@ describe("local backup schema", () => {
       format: BACKUP_FORMAT,
       schemaVersion: 0,
       exportedAt: "2026-01-01T00:00:00.000Z",
-      records: { lifeEvents: [], "childHealth:child-1:toothData": {} },
+      records: { lifeEvents: [], children: [{ id: "child-1", name: "Ребёнок" }], "childHealth:child-1:toothData": {} },
     });
 
     expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
@@ -120,6 +120,15 @@ describe("local backup schema", () => {
     expect(await upload.text()).toBe("child report");
     expect(await labDocument.text()).toBe("child report");
     expect(decoded.healthEvents[0].id).toBe("adult-event");
+  });
+
+  it("rejects child health records whose profile is missing from a backup", () => {
+    expect(() => migrateBackup({
+      format: BACKUP_FORMAT,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      exportedAt: "2026-01-01T00:00:00.000Z",
+      records: { children: [], "childHealth:deleted-child:healthEvents": [{ id: "orphan" }] },
+    })).toThrow("отсутствующего профиля ребёнка");
   });
 
   it("rejects malformed child-profile keys and child lab attachments", () => {
