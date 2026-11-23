@@ -650,3 +650,29 @@ test("adds a family date with annual recurrence and reminder settings", async ({
   await expect(page.getByText("E2E годовщина", { exact: true })).toBeVisible();
   await expect(page.getByText("2025-06-15", { exact: true })).toBeVisible();
 });
+
+
+test("aggregates health events and monitoring dates in the unified calendar", async ({ page }) => {
+  await page.goto("/");
+  const today = await page.evaluate(() => {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  });
+
+  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("tab", { name: "События", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByLabel("Дата", { exact: true }).fill(today);
+  await page.getByLabel("Название события").fill("E2E событие для календаря");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+
+  await page.getByRole("tab", { name: "На контроле", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByLabel("Название контроля").fill("E2E проверка для календаря");
+  await page.getByLabel("Следующая проверка").fill(today);
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+
+  await page.getByRole("button", { name: "Календарь" }).click();
+  await expect(page.getByText("E2E событие для календаря", { exact: true })).toBeVisible();
+  await expect(page.getByText("Проверка: E2E проверка для календаря", { exact: true })).toBeVisible();
+});
