@@ -6,7 +6,7 @@ test.describe("primary navigation", () => {
 
     await expect(page.getByRole("heading", { name: "Карта жизни" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Здоровье" }).click();
+    await page.getByRole("button", { name: "Здоровье", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Навигатор здоровья" })).toBeVisible();
 
     await page.getByRole("button", { name: "Семья" }).click();
