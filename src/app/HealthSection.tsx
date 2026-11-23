@@ -4,7 +4,7 @@ import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } fr
 import { HEALTH_ROADMAP, VACCINES } from "./healthData";
 import { getLabStages } from "./labCatalog";
 import type { LifeStage } from "./labCatalog";
-import type { ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
+import type { DentalRecord, ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
 import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
@@ -59,11 +59,6 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
       e.target.value = "";
       return;
     }
-    const existingUploads = uploads[id] ?? [];
-    if (existingUploads.length && !window.confirm(`Заменить прикреплённый документ «${existingUploads[existingUploads.length - 1].name}» новым? Старый документ будет удалён.`)) {
-      e.target.value = "";
-      return;
-    }
     setUploadError(null);
     const result: UploadedResult = {
       id:createId(),
@@ -72,7 +67,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
       blob:file,
       isPdf:file.name.toLowerCase().endsWith(".pdf"),
     };
-    setUploads(prev => ({ ...prev, [id]:[result] }));
+    setUploads(prev => ({ ...prev, [id]:[...(prev[id] ?? []), result] }));
     e.target.value="";
   }
 
