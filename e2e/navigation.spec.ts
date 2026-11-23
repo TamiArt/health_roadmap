@@ -1050,8 +1050,27 @@ test("an open stale tab cannot recreate child records after the profile is delet
   const recordKey = "childHealth:" + childId + ":healthEvents";
   await page.evaluate(async keys => {
     const { writeRecord } = await import("/src/app/storage.ts");
-    for (const key of keys) await writeRecord(key, [{ id: "before-delete", title: "До удаления" }]);
-    await writeRecord("healthEvents", [{ id: "adult-survives", title: "Запись взрослого профиля" }]);
+    const values: Record<string, unknown> = {
+      vaccineStatuses: {},
+      toothData: {},
+      labUploads: {},
+      labMeasurements: {},
+      healthEvents: [{ id: "before-delete", date: "2026-11-06", kind: "other", title: "До удаления", description: "" }],
+      healthMonitoring: [{
+        id: "monitor-before-delete", name: "Контроль", kind: "measurement", unit: "ммоль/л",
+        intervalDays: null, nextDueDate: "2026-12-06", lastCheckedDate: "2026-11-06",
+        notes: "", reminder: { enabled: false, leadDays: 0, time: "09:00" }, measurements: [],
+      }],
+      labResultEntries: [{
+        id: "lab-before-delete", testId: "cbc", testName: "ОАК", date: "2026-11-06",
+        indicators: [{ id: "hb", name: "Гемоглобин", value: 125, unit: "г/л" }], notes: "",
+      }],
+    };
+    for (const key of keys) {
+      const name = key.split(":").at(-1)!;
+      await writeRecord(key, values[name]);
+    }
+    await writeRecord("healthEvents", [{ id: "adult-survives", date: "2026-11-06", kind: "other", title: "Запись взрослого профиля", description: "" }]);
   }, childRecordKeys);
 
   const staleTab = await context.newPage();
