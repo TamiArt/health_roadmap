@@ -4,6 +4,7 @@ import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
 import { VACCINES, type Section, type VaccineStatus } from "./data";
 import { AnalyticsSection } from "./AnalyticsSection";
+import { CalendarSection } from "./CalendarSection";
 import { FamilySection } from "./FamilySection";
 import { HealthSection } from "./HealthSection";
 import { LifeMapSection } from "./LifeMapSection";
@@ -40,6 +41,9 @@ export default function App() {
         </motion.div>
         <motion.div hidden={section !== "family"} initial={false} animate={section === "family" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
           <FamilySection />
+        </motion.div>
+        <motion.div hidden={section !== "calendar"} initial={false} animate={section === "calendar" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
+          <CalendarSection />
         </motion.div>
         <motion.div hidden={section !== "analytics"} initial={false} animate={section === "analytics" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
           <AnalyticsSection vaccineStatuses={vaccineStatuses} onNavigate={setSection} />
