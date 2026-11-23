@@ -349,7 +349,7 @@ export function DentalTab({
     const t=data[n]; const cfg=t?TOOTH_STATUS_CFG[t.status]:null; const isSel=selected===n;
     return (
       <button type="button" onClick={() => pick(n)} title={toothLabel(n)} aria-label={`${toothLabel(n)}${t ? `, статус: ${TOOTH_STATUS_CFG[t.status].label}` : ", статус не указан"}`} aria-pressed={isSel} style={{ flexDirection:upper?"column-reverse":"column" }} className="flex flex-col items-center gap-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
-        <div className={`w-6 h-8 flex items-center justify-center border-2 transition-all text-[8px] font-bold ${upper?"rounded-t-lg rounded-b-sm":"rounded-b-lg rounded-t-sm"} ${isSel?"ring-2 ring-offset-1 ring-primary border-primary":cfg?"border-transparent":"border-border"}`}
+        <div className={`h-6 w-4 flex items-center justify-center border-2 transition-all text-[8px] font-bold sm:h-8 sm:w-6 ${upper?"rounded-t-lg rounded-b-sm":"rounded-b-lg rounded-t-sm"} ${isSel?"ring-2 ring-offset-1 ring-primary border-primary":cfg?"border-transparent":"border-border"}`}
           style={{ backgroundColor:cfg?cfg.fill:"#f1f5f9", color:cfg?(t?.status==="extracted"?"#64748b":"#fff"):"#94a3b8" }}>
           {n%10}
         </div>
@@ -370,9 +370,9 @@ export function DentalTab({
       <div className="bg-card border border-border rounded-xl p-4 mb-4">
         <p className="text-[10px] text-muted-foreground text-center uppercase tracking-widest mb-3">Верхняя челюсть (FDI)</p>
         <div className="flex justify-center">
-          <div className="flex gap-0.5">{UPPER.slice(0,8).map(n=><ToothCell key={n} n={n} upper={true}/>)}</div>
-          <div className="w-3"/>
-          <div className="flex gap-0.5">{UPPER.slice(8).map(n=><ToothCell key={n} n={n} upper={true}/>)}</div>
+          <div className="flex gap-0 sm:gap-0.5">{UPPER.slice(0,8).map(n=><ToothCell key={n} n={n} upper={true}/>)}</div>
+          <div className="w-0 sm:w-3"/>
+          <div className="flex gap-0 sm:gap-0.5">{UPPER.slice(8).map(n=><ToothCell key={n} n={n} upper={true}/>)}</div>
         </div>
         <div className="my-3 flex items-center gap-2">
           <div className="flex-1 border-t border-dashed border-border"/>
@@ -380,9 +380,9 @@ export function DentalTab({
           <div className="flex-1 border-t border-dashed border-border"/>
         </div>
         <div className="flex justify-center">
-          <div className="flex gap-0.5">{LOWER.slice(0,8).map(n=><ToothCell key={n} n={n} upper={false}/>)}</div>
-          <div className="w-3"/>
-          <div className="flex gap-0.5">{LOWER.slice(8).map(n=><ToothCell key={n} n={n} upper={false}/>)}</div>
+          <div className="flex gap-0 sm:gap-0.5">{LOWER.slice(0,8).map(n=><ToothCell key={n} n={n} upper={false}/>)}</div>
+          <div className="w-0 sm:w-3"/>
+          <div className="flex gap-0 sm:gap-0.5">{LOWER.slice(8).map(n=><ToothCell key={n} n={n} upper={false}/>)}</div>
         </div>
         <p className="text-[10px] text-muted-foreground text-center uppercase tracking-widest mt-3">Нижняя челюсть (FDI)</p>
       </div>
