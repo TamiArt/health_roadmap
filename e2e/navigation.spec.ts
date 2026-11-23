@@ -34,7 +34,7 @@ test("rejects unsupported lab attachments and accepts a valid PDF", async ({ pag
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
 
   await page.getByRole("button", { name: "Файл" }).first().click();
-  await page.locator('input[type="file"][accept^="application/pdf"]').setInputFiles({
+  await page.locator('input[aria-label="Загрузить результат анализа"]').setInputFiles({
     name: "unsafe.svg",
     mimeType: "image/svg+xml",
     buffer: Buffer.from("<svg></svg>"),
