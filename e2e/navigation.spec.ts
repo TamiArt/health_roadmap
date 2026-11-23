@@ -1057,7 +1057,7 @@ test("an open child-profile tab cannot recreate records after the profile is del
   const staleTab = await context.newPage();
   await staleTab.goto("/");
   await staleTab.getByRole("button", { name: "Семья" }).click();
-  await staleTab.getByRole("button", { name: /Открыть профиль ребёнка Удаляемый открытый профиль/ }).evaluate(button => (button as HTMLButtonElement).click());
+  await staleTab.getByText("Удаляемый открытый профиль", { exact: true }).first().click();
   await expect(staleTab.getByRole("heading", { name: "Удаляемый открытый профиль" })).toBeVisible();
 
   await page.getByRole("button", { name: "Изменить" }).click();
