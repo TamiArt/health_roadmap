@@ -364,6 +364,29 @@ test("exposes active navigation and health tabs to assistive technology", async 
   await expect(tooth).toHaveAttribute("aria-pressed", "true");
 });
 
+test("supports arrow-key navigation across adult health tabs", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
+
+  const tabs = page.getByRole("tablist", { name: "Разделы навигатора здоровья" });
+  const prevention = tabs.getByRole("tab", { name: "Профилактика" });
+  const labs = tabs.getByRole("tab", { name: "Анализы" });
+
+  await expect(prevention).toHaveAttribute("tabindex", "0");
+  await expect(labs).toHaveAttribute("tabindex", "-1");
+  await prevention.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(labs).toBeFocused();
+  await expect(labs).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(prevention).toBeFocused();
+  await expect(prevention).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("End");
+  await expect(tabs.getByRole("tab", { name: "История" })).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(prevention).toBeFocused();
+});
+
 test("opens a child profile card with the keyboard", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Семья" }).click();
@@ -381,6 +404,13 @@ test("opens a child profile card with the keyboard", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Клавиатурный профиль" })).toBeVisible();
   const childTabs = page.getByRole("tablist", { name: "Разделы здоровья ребёнка" });
   await expect(childTabs.getByRole("tab", { name: "Анализы" })).toHaveAttribute("aria-selected", "true");
+  const labsTab = childTabs.getByRole("tab", { name: "Анализы" });
+  const vaccinesTab = childTabs.getByRole("tab", { name: "Прививки" });
+  await expect(labsTab).toHaveAttribute("tabindex", "0");
+  await vaccinesTab.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(vaccinesTab).toBeFocused();
+  await expect(vaccinesTab).toHaveAttribute("aria-selected", "true");
 });
 
 test("validates child creation without creating an empty profile", async ({ page }) => {
