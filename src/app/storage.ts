@@ -89,7 +89,7 @@ export async function readRecord<T>(key: string): Promise<T | undefined> {
   return (await readRecordState<T>(key)).value;
 }
 
-/** Remove child-owned health records atomically, retaining revision tombstones. */
+/** Remove a child profile and all of its health records atomically. */
 export async function deleteChildHealthRecords(childId: string): Promise<void> {
   if (!/^[a-zA-Z0-9_-]+$/.test(childId)) throw new Error("Некорректный идентификатор профиля ребёнка.");
   const prefix = `childHealth:${childId}:`;
@@ -97,27 +97,39 @@ export async function deleteChildHealthRecords(childId: string): Promise<void> {
   const transaction = database.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
   const request = store.getAll();
-  const deleted: Array<{ key: string; revision: number }> = [];
+  const changed: Array<{ key: string; value: unknown; revision: number }> = [];
 
   request.onsuccess = () => {
     const records = request.result as StoredRecord[];
+    const childrenRecord = records.find(record => record.key === "children");
+    const children = Array.isArray(childrenRecord?.value) ? childrenRecord.value as Array<{ id?: unknown }> : [];
+    if (!children.some(child => child.id === childId)) {
+      transaction.abort();
+      return;
+    }
+
     for (const record of records) {
       if (!record.key.startsWith(prefix)) continue;
       const revision = (record.revision ?? 0) + 1;
       store.put({ key: record.key, value: undefined, revision } satisfies StoredRecord);
-      deleted.push({ key: record.key, revision });
+      changed.push({ key: record.key, value: undefined, revision });
     }
+
+    const nextChildren = children.filter(child => child.id !== childId);
+    const childrenRevision = (childrenRecord?.revision ?? 0) + 1;
+    store.put({ key: "children", value: nextChildren, revision: childrenRevision } satisfies StoredRecord);
+    changed.unshift({ key: "children", value: nextChildren, revision: childrenRevision });
   };
 
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось удалить данные профиля ребёнка."));
-    transaction.onabort = () => reject(transaction.error ?? new Error("Удаление данных профиля ребёнка отменено."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Профиль ребёнка уже удалён или операция отменена."));
   });
 
-  if (deleted.length && typeof BroadcastChannel !== "undefined") {
+  if (changed.length && typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
-    for (const record of deleted) channel.postMessage({ key: record.key, value: undefined, revision: record.revision });
+    for (const record of changed) channel.postMessage(record);
     channel.close();
   }
 }
@@ -130,9 +142,27 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
   const store = transaction.objectStore(STORE_NAME);
   let result: VersionedRecord<T> & { conflict: boolean } = { value, revision: 0, conflict: false };
   const request = store.get(key);
-  request.onsuccess = () => {
-    const current = request.result as StoredRecord | undefined;
+  const childMatch = /^childHealth:([a-zA-Z0-9_-]+):/.exec(key);
+  const childrenRequest = childMatch ? store.get("children") : undefined;
+  let recordLoaded = false;
+  let childrenLoaded = !childrenRequest;
+  let current: StoredRecord | undefined;
+  let childrenValue: unknown;
+  let profileDeleted = false;
+
+  const commitIfReady = () => {
+    if (!recordLoaded || !childrenLoaded) return;
     const currentRevision = current?.revision ?? 0;
+    if (childMatch) {
+      const exists = Array.isArray(childrenValue) && childrenValue.some(
+        child => Boolean(child) && typeof child === "object" && "id" in child && child.id === childMatch[1],
+      );
+      if (!exists) {
+        result = { value: current?.value as T | undefined, revision: currentRevision, conflict: true };
+        profileDeleted = true;
+        return;
+      }
+    }
     if (expectedRevision !== undefined && currentRevision !== expectedRevision) {
       result = { value: current?.value as T | undefined, revision: currentRevision, conflict: true };
       return;
@@ -140,11 +170,25 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
     result = { value, revision: currentRevision + 1, conflict: false };
     store.put({ key, value, revision: result.revision } satisfies StoredRecord);
   };
+
+  request.onsuccess = () => {
+    current = request.result as StoredRecord | undefined;
+    recordLoaded = true;
+    commitIfReady();
+  };
+  if (childrenRequest) {
+    childrenRequest.onsuccess = () => {
+      childrenValue = (childrenRequest.result as StoredRecord | undefined)?.value;
+      childrenLoaded = true;
+      commitIfReady();
+    };
+  }
   await new Promise<void>((resolve, reject) => {
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось сохранить данные."));
     transaction.onabort = () => reject(transaction.error ?? new Error("Сохранение отменено."));
   });
+  if (profileDeleted) throw new Error("Профиль ребёнка удалён. Изменения не сохранены.");
   if (!result.conflict && typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
     channel.postMessage({ key, value, revision: result.revision });
