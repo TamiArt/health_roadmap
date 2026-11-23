@@ -57,7 +57,7 @@ export function LifeMapSection() {
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily:"'Playfair Display', serif" }}>Карта жизни</h1>
-            <p className="text-sm text-muted-foreground">Ваш путь с 1997 по сегодня</p>
+            <p className="text-sm text-muted-foreground">Сохранённые события и важные этапы</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             {[[String(CURRENT_YEAR - 1997),"лет"],[String(milestones),"ключевых"]].map(([v,l]) => (
@@ -89,7 +89,7 @@ export function LifeMapSection() {
               const isEditing = editingId === ev.id;
               return (
                 <motion.div key={ev.id} initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}
-                  className={`flex items-start sm:items-center ${flip ? "sm:flex-row-reverse" : ""}`}
+                  className={`relative flex items-start sm:items-center ${flip ? "sm:flex-row-reverse" : ""}`}
                 >
                   <div className={`flex min-w-0 flex-1 justify-start pl-10 sm:flex ${flip ? "sm:pl-7 sm:justify-start" : "sm:pr-7 sm:justify-end"}`}>
                     <div className="relative w-full min-w-0 max-w-none sm:max-w-[270px]">
