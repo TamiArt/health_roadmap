@@ -391,7 +391,7 @@ test("exports a backup and restores data from a validated backup", async ({ page
   await page.getByRole("button", { name: "Здоровье" }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(page.getByText("A(II) Rh+", { exact: true })).toBeVisible();
+  await expect(page.getByText("A(II) Rh+", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
 });
 
@@ -462,7 +462,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByLabel("Значение результата").fill("5.4");
   await page.getByLabel("Единицы измерения").fill("ммоль/л");
   await page.getByRole("button", { name: "Сохранить результат" }).click();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
 
   const staleTab = await page.context().newPage();
   // Disable live notifications in this tab to deterministically exercise the
@@ -618,7 +618,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   await page.getByLabel("Значение показателя 2").fill("72");
   await page.getByLabel("Единица измерения 2").fill("мкмоль/л");
   await page.getByRole("button", { name: "Прикрепить документ" }).click();
-  await page.locator('input[type="file"]').last().setInputFiles({
+  await page.locator('input[type="file"]').nth(1).setInputFiles({
     name: "first-result.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4 first"),
