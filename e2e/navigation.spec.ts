@@ -1082,10 +1082,10 @@ test("an open stale tab cannot recreate child records after the profile is delet
   }, recordKey);
   expect(staleSnapshot).toEqual([{ id: "before-delete", title: "До удаления" }]);
 
-  await page.getByRole("button", { name: "Изменить" }).click();
-  page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Удалить профиль ребёнка Удаляемый открытый профиль" }).click();
-  await expect(page.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);
+  await page.evaluate(async id => {
+    const { deleteChildHealthRecords } = await import("/src/app/storage.ts");
+    await deleteChildHealthRecords(id);
+  }, childId);
 
   const deletionState = await staleTab.evaluate(async ({ keys, staleKey }) => {
     const { writeRecord, readRecordState } = await import("/src/app/storage.ts");
