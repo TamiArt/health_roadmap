@@ -21,11 +21,14 @@
 
 ## Integrated storage and profile-isolation changes
 
-- Added `deleteChildHealthRecords(childId)` to remove child-owned records in one IndexedDB transaction.
-- Deletion writes revision tombstones rather than physically removing keys, preventing an older tab from resurrecting deleted profile data.
+- Added `deleteChildHealthRecords(childId)` to remove the child from the profile registry and tombstone every child-owned record in one IndexedDB transaction.
+- `writeRecord` now checks the child registry inside the same read-write transaction before accepting any `childHealth:<id>:` write. A stale tab cannot recreate records after deletion, even if it still holds an old in-memory snapshot.
+- Deletion broadcasts the updated profile registry and all tombstones to open tabs; adult records remain untouched.
+- Backup migration validates child-key/profile references, preserves all supported child-owned record types and nested Blob attachments, and rejects orphaned child data.
 - The family UI now waits for storage cleanup before removing the child profile and reports deletion errors.
 - Delete controls support accessible labels.
-- Added E2E coverage for child-record cleanup and tombstone revisions.
+- Added E2E coverage for all seven child-owned storage keys, two-child separation, adult-profile boundaries, atomic cleanup, tombstones for every key, and rejection of a stale-tab write after deletion.
+- Added migration tests for schema-0 backups containing child profile data and PDF Blob attachments, plus rejection of orphaned child keys.
 - Ported profile-isolation and backup-race E2E scenarios: separate child profiles, stale tabs, backup restore refresh, and stale initial snapshots.
 - Existing calendar and health-record E2E scenarios remain in the current test suite.
 
@@ -33,20 +36,20 @@
 
 The workflow is pinned to `ubuntu-24.04` with Node.js 22. The repository currently uses Playwright 1.56.1. This avoids the unsupported Ubuntu 26.04 browser package lookup that occurs when the runner is `ubuntu-26.04` or `ubuntu-latest` resolves to that image.
 
-The CI browser-install step is `npx playwright install --with-deps chromium`. The latest CI run `45167596151` completed successfully: TypeScript, structure validation, dependency audit, unit tests, Chromium installation, all 32 E2E scenarios and production build passed. The run used commit `c0706f24`.
+The CI browser-install step is `npx playwright install --with-deps chromium`. The latest CI run `45174097271` completed successfully: TypeScript, structure validation, dependency audit, 53 unit tests, Chromium installation, all 34 E2E scenarios and production build passed. The run used commit `f740bbf7`.
 
 If the runner is intentionally moved to Ubuntu 26.04, update `@playwright/test` and its lockfile to at least 1.61.0 before changing the runner. Do not update only `package.json` while leaving `package-lock.json` on 1.56.1.
 
 ## Known remaining work
 
-1. Extend the profile-isolation matrix to all child-owned data types and adult-profile boundaries; test child deletion against concurrent tabs.
-2. Complete calendar navigation to source records and notification behavior.
-3. Perform manual mobile/tablet and screen-reader checks.
-4. Keep the roadmap and this audit synchronized after each completed stage.
+1. Complete calendar navigation to source records and notification behavior.
+2. Perform manual mobile/tablet and screen-reader checks.
+3. Keep the roadmap and this audit synchronized after each completed stage.
 
 ## Safety and release rules
 
-- Full path-by-path comparison of all 26 changed files and full CI have completed successfully. `feat/storage-profile-isolation-tests` is now safe to delete; it has intentionally been left intact for the user to remove.
+- Full path-by-path comparison of all 26 changed files and full CI have completed successfully. `feat/storage-profile-isolation-tests` is safe to delete; it has intentionally been left intact for the user to remove.
+- Stage 1 (storage reliability and profile isolation) is complete. CI run `45174097271` passed 53 unit tests, 34 E2E scenarios and production build.
 - Do not merge this branch into `main` unless explicitly requested.
 - Preserve the current development branch until the user approves the next merge/release step.
 - No clinical correctness review of medical schedules is implied by the structural refactor.
