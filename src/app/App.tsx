@@ -32,7 +32,7 @@ export default function App() {
 
   if (!storageReady || !childrenReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-8 text-sm text-muted-foreground">
+      <div role="status" aria-live="polite" aria-busy="true" className="flex min-h-screen items-center justify-center bg-background p-8 text-sm text-muted-foreground">
         Подключение локальной базы данных…
       </div>
     );
