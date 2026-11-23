@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Trash2, Check, CalendarClock, Activity, HeartPulse } from "lucide-react";
 import { usePersistentState } from "./storage";
 import {
@@ -10,6 +10,7 @@ import {
   type HealthMonitoringItem,
 } from "./healthRecords";
 import { INP, createId } from "./shared";
+import { useBrowserReminders } from "./useBrowserReminders";
 
 const today = () => {
   const date = new Date();
@@ -101,30 +102,16 @@ function ReminderPermission({ enabled, onEnable }: { enabled: boolean; onEnable:
 export function MonitoringTab() {
   const [items, setItems, ready, error] = usePersistentState<HealthMonitoringItem[]>("healthMonitoring", []);
   const [editing, setEditing] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationSettings, setNotificationSettings, notificationSettingsReady] = usePersistentState<{ enabled: boolean }>("notificationSettings", { enabled: false });
+  const notificationsEnabled = notificationSettings.enabled;
   const [form, setForm] = useState({ name: "", kind: "measurement" as HealthMonitoringItem["kind"], unit: "", intervalDays: "365", nextDueDate: today(), lastCheckedDate: "", notes: "", reminderEnabled: true, leadDays: "3", time: "09:00" });
   const [formError, setFormError] = useState<string | null>(null);
-  const sent = useRef(new Set<string>());
-
-  useEffect(() => {
-    if (!notificationsEnabled || !("Notification" in window) || Notification.permission !== "granted") return;
-    const check = () => {
-      const now = new Date();
-      const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      items.forEach(item => {
-        if (!item.reminder.enabled || item.reminder.time !== currentTime) return;
-        const remaining = daysUntil(item.nextDueDate);
-        if (remaining < 0 || remaining > item.reminder.leadDays) return;
-        const key = `${item.id}:${today()}`;
-        if (sent.current.has(key)) return;
-        new Notification("Напоминание о проверке", { body: remaining === 0 ? `${item.name}: срок проверки сегодня` : `${item.name}: осталось ${remaining} дн.` });
-        sent.current.add(key);
-      });
-    };
-    check();
-    const timer = window.setInterval(check, 30000);
-    return () => window.clearInterval(timer);
-  }, [items, notificationsEnabled]);
+  const reminders = useMemo(() => items.map(item => ({
+    id: item.id, title: item.name, date: item.nextDueDate,
+    enabled: item.reminder.enabled, leadDays: item.reminder.leadDays,
+    time: item.reminder.time,
+  })), [items]);
+  useBrowserReminders(reminders, notificationsEnabled);
 
   function save() {
     const intervalDays = form.intervalDays.trim() ? Number(form.intervalDays) : null;
@@ -149,12 +136,12 @@ export function MonitoringTab() {
     setItems(previous => previous.map(value => value.id === item.id ? { ...value, lastCheckedDate: checked, nextDueDate } : value).sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate)));
   }
 
-  if (!ready) return <p className="text-sm text-muted-foreground">Загрузка списка контроля…</p>;
+  if (!ready || !notificationSettingsReady) return <p className="text-sm text-muted-foreground">Загрузка списка контроля…</p>;
   if (error) return <p role="alert" className="text-sm text-red-600">{error}</p>;
 
   return <section className="space-y-4">
     <div className="flex items-center justify-between gap-3"><div><h2 className="text-base font-semibold">На контроле</h2><p className="text-xs text-muted-foreground">Показатели и проверки, за которыми вы хотите следить</p></div><button type="button" onClick={() => setEditing(value => !value)} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground"><Plus size={13}/> Добавить</button></div>
-    <ReminderPermission enabled={notificationsEnabled} onEnable={setNotificationsEnabled}/>
+    <ReminderPermission enabled={notificationsEnabled} onEnable={enabled => setNotificationSettings({ enabled })}/>
     {editing && <div className="space-y-2 rounded-xl border border-primary/20 bg-card p-4">
       <input aria-label="Название контроля" value={form.name} maxLength={100} onChange={event => setForm(value => ({ ...value, name: event.target.value }))} placeholder="Например, глюкоза крови или цитология" className={INP}/>
       <div className="grid grid-cols-2 gap-2"><select aria-label="Тип контроля" value={form.kind} onChange={event => setForm(value => ({ ...value, kind: event.target.value as HealthMonitoringItem["kind"] }))} className={INP}><option value="measurement">Показатель</option><option value="periodic-check">Периодическая проверка</option></select><input aria-label="Единица измерения" value={form.unit} maxLength={24} onChange={event => setForm(value => ({ ...value, unit: event.target.value }))} placeholder="Единица (ммоль/л)" className={INP}/></div>
