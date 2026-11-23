@@ -77,7 +77,7 @@ export interface FamilyDate {
 }
 
 export function isIsoDate(value: string): boolean {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(value + "T00:00:00");
   return !Number.isNaN(date.getTime()) &&
     date.getFullYear() === Number(value.slice(0, 4)) &&
@@ -101,7 +101,7 @@ export function validateMonitoringItem(input: Omit<HealthMonitoringItem, "id">):
   if (input.intervalDays !== null && (!Number.isInteger(input.intervalDays) || input.intervalDays < 1 || input.intervalDays > 3650)) {
     return "Интервал должен быть от 1 до 3650 дней.";
   }
-  if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(input.reminder.time)) return "Укажите время напоминания.";
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.reminder.time)) return "Укажите время напоминания.";
   if (!Number.isInteger(input.reminder.leadDays) || input.reminder.leadDays < 0 || input.reminder.leadDays > 365) {
     return "Срок напоминания должен быть от 0 до 365 дней.";
   }
