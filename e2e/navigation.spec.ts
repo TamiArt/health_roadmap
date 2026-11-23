@@ -462,7 +462,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByLabel("Значение результата").fill("5.4");
   await page.getByLabel("Единицы измерения").fill("ммоль/л");
   await page.getByRole("button", { name: "Сохранить результат" }).click();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first().first()).toBeVisible();
 
   const staleTab = await page.context().newPage();
   // Disable live notifications in this tab to deterministically exercise the
@@ -474,7 +474,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await staleTab.getByRole("button", { name: "Здоровье" }).click();
   await staleTab.getByRole("tab", { name: "Анализы" }).click();
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(staleTab.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
   const staleRevision = await staleTab.evaluate(() => new Promise<number>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
     request.onerror = () => reject(request.error);
@@ -541,7 +541,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await page.getByLabel("Значение результата").fill("5.4");
   await page.getByLabel("Единицы измерения").fill("ммоль/л");
   await page.getByRole("button", { name: "Сохранить результат" }).click();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
 
   const secondTab = await page.context().newPage();
@@ -558,7 +558,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
   await expect(page.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
   await expect(page.getByText("07.11.2026", { exact: true })).toBeVisible();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toHaveCount(0);
   await expect(secondTab.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
   await expect(secondTab.getByText("07.11.2026", { exact: true })).toBeVisible();
   await secondTab.close();
@@ -568,7 +568,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(page.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
   await expect(page.getByText("07.11.2026", { exact: true })).toBeVisible();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toHaveCount(0);
   const storedRevision = await page.evaluate(() => new Promise<number>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
     request.onerror = () => reject(request.error);
@@ -604,7 +604,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   await expect(page.getByText("E2E глюкоза", { exact: true })).toBeVisible();
   await page.getByLabel("Значение E2E глюкоза").fill("5.4");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await expect(page.getByText("5.4", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.4", { exact: true }).first()).toBeVisible();
 
   await page.getByRole("tab", { name: "История", exact: true }).click();
   await page.getByRole("button", { name: "Добавить анализ", exact: true }).click();
