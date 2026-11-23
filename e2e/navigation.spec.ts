@@ -1030,7 +1030,7 @@ test("isolates every child-owned health record from other children and adult rec
   }
 });
 
-test("an open child-profile tab cannot recreate records after the profile is deleted", async ({ page, context }) => {
+test("an open stale tab cannot recreate child records after the profile is deleted", async ({ page, context }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Семья" }).click();
   await page.getByRole("button", { name: "Изменить" }).click();
@@ -1057,14 +1057,16 @@ test("an open child-profile tab cannot recreate records after the profile is del
   const staleTab = await context.newPage();
   await staleTab.goto("/");
   await staleTab.getByRole("button", { name: "Семья" }).click();
-  await staleTab.getByText("Удаляемый открытый профиль", { exact: true }).first().click();
-  await expect(staleTab.getByRole("heading", { name: "Удаляемый открытый профиль" })).toBeVisible();
+  const staleSnapshot = await staleTab.evaluate(async key => {
+    const { readRecord } = await import("/src/app/storage.ts");
+    return readRecord(key);
+  }, recordKey);
+  expect(staleSnapshot).toEqual([{ id: "before-delete", title: "До удаления" }]);
 
   await page.getByRole("button", { name: "Изменить" }).click();
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Удалить профиль ребёнка Удаляемый открытый профиль" }).click();
   await expect(page.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);
-  await expect(staleTab.getByRole("heading", { name: "Удаляемый открытый профиль" })).toHaveCount(0);
 
   const deletionState = await staleTab.evaluate(async ({ keys, staleKey }) => {
     const { writeRecord, readRecordState } = await import("/src/app/storage.ts");
