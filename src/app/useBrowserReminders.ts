@@ -21,7 +21,7 @@ export function useBrowserReminders(reminders: BrowserReminder[], enabled: boole
       const now = new Date();
       const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       reminders.forEach(reminder => {
-        if (!reminder.enabled || reminder.time !== time) return;
+        if (!reminder.enabled || time < reminder.time) return;
         const occurrence = nextOccurrence(reminder.date, Boolean(reminder.recurringYearly), now);
         if (!occurrence) return;
         const days = Math.round((new Date(occurrence.getFullYear(), occurrence.getMonth(), occurrence.getDate()).getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000);
