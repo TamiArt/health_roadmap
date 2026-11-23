@@ -59,7 +59,7 @@ describe("local backup schema", () => {
       format: BACKUP_FORMAT,
       schemaVersion: CURRENT_SCHEMA_VERSION,
       exportedAt: "2026-11-06T00:00:00.000Z",
-      records: { labMeasurements: { cbc: [measurement] }, "childHealth:child-1:labMeasurements": { ferritin: [measurement] } },
+      records: { children: [{ id: "child-1", name: "Ребёнок" }], labMeasurements: { cbc: [measurement] }, "childHealth:child-1:labMeasurements": { ferritin: [measurement] } },
     };
 
     expect(migrateBackup(backup).records.labMeasurements).toEqual({ cbc: [measurement] });
