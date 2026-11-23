@@ -161,3 +161,13 @@ describe("canonical laboratory catalogue selectors", () => {
     expect(stage?.tests.map(test => test.id)).toEqual(expectedIds);
   });
 });
+
+
+describe("age-specific laboratory presentation", () => {
+  it("keeps presentation overrides on assignments rather than shared concepts", () => {
+    const schoolCbc = LAB_TEST_ASSIGNMENTS.find(assignment => assignment.id === "s1");
+    expect(schoolCbc?.what).toContain("тромбоциты");
+    expect(LIFE_STAGES.find(stage => stage.id === "early_child")?.tests.find(test => test.id === "ec1")?.what).toContain("анемия");
+    expect(LIFE_STAGES.find(stage => stage.id === "school")?.tests.find(test => test.id === "s1")?.what).toBe(schoolCbc?.what);
+  });
+});
