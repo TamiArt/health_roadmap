@@ -1,6 +1,6 @@
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type Section = "map" | "health" | "family" | "analytics";
+export type Section = "map" | "health" | "family" | "calendar" | "analytics";
 export type Category = "personal" | "education" | "career" | "travel" | "health" | "family" | "achievement";
 export type VaccineStatus = "done" | "due" | "overdue" | "not_applicable";
 export type ToothStatus = "healthy" | "caries" | "filled" | "crown" | "implant" | "extracted" | "treatment";
