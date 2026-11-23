@@ -407,7 +407,7 @@ test("opens a child profile card with the keyboard", async ({ page }) => {
   const labsTab = childTabs.getByRole("tab", { name: "Анализы" });
   const vaccinesTab = childTabs.getByRole("tab", { name: "Прививки" });
   await expect(labsTab).toHaveAttribute("tabindex", "0");
-  await vaccinesTab.focus();
+  await labsTab.focus();
   await page.keyboard.press("ArrowRight");
   await expect(vaccinesTab).toBeFocused();
   await expect(vaccinesTab).toHaveAttribute("aria-selected", "true");
