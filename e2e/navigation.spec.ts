@@ -602,6 +602,9 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   await page.getByLabel("Интервал в днях").fill("90");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.getByText("E2E глюкоза", { exact: true })).toBeVisible();
+  await page.getByLabel("Значение E2E глюкоза").fill("5.4");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+  await expect(page.getByText("5.4", { exact: true })).toBeVisible();
 
   await page.getByRole("tab", { name: "История", exact: true }).click();
   await page.getByRole("button", { name: "Добавить анализ", exact: true }).click();
