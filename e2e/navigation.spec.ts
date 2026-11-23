@@ -197,6 +197,26 @@ test("keeps primary sections usable from 320px to 390px and keeps backup actions
       }
     }
   }
+
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByPlaceholder("Имя").fill("Мобильный профиль");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2020");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Мобильный профиль/ }).click();
+
+  for (const tab of ["Анализы", "Прививки", "Стоматолог", "История", "События", "На контроле"]) {
+    await page.getByRole("tab", { name: tab, exact: true }).click();
+    const dimensions = await page.locator("main").evaluate(element => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(dimensions.scrollWidth, `Horizontal overflow in child tab "${tab}" at 320px`)
+      .toBeLessThanOrEqual(dimensions.clientWidth);
+  }
 });
 
 test("exposes install metadata and the Life Maps app icon", async ({ page }) => {
