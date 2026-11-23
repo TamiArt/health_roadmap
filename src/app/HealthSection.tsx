@@ -4,7 +4,7 @@ import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } fr
 import { HEALTH_ROADMAP, VACCINES } from "./healthData";
 import { getLabStages } from "./labCatalog";
 import type { LifeStage } from "./labCatalog";
-import type { ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
+import type { DentalRecord, ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
 import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
