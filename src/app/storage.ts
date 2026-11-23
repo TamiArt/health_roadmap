@@ -188,7 +188,7 @@ function validateRecordValue(key: string, value: unknown): void {
   if (key === "labResultEntries" || key.endsWith(":labResultEntries")) {
     if (!Array.isArray(value) || value.some(entry => {
       if (!isPlainRecord(entry) || typeof entry.id !== "string" || typeof entry.testName !== "string" ||
-          typeof entry.date !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(entry.date) ||
+          typeof entry.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) ||
           !Array.isArray(entry.indicators) || entry.indicators.length === 0) return true;
       if (entry.indicators.some(indicator => !isPlainRecord(indicator) || typeof indicator.id !== "string" ||
           typeof indicator.name !== "string" || typeof indicator.value !== "number" || !Number.isFinite(indicator.value) ||
