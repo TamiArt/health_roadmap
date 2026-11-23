@@ -95,7 +95,7 @@ export function CalendarSection() {
       id: `catalog-lab:${testId}:${measurement.id}`, date: measurement.date,
       title: testNames.get(testId) ?? "Результат анализа",
       details: `${measurement.value}${measurement.unit ? ` ${measurement.unit}` : ""}`, source: "labs",
-    }))));
+    })));
     labResults.forEach(entry => result.push({
       id: `lab:${entry.id}`, date: entry.date, title: entry.testName,
       details: entry.indicators.map(value => `${value.name}: ${value.value} ${value.unit}`).join(" · "),
