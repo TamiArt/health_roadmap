@@ -392,7 +392,7 @@ test("exports a backup and restores data from a validated backup", async ({ page
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(page.getByText("A(II) Rh+", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("06.11.2026", { exact: true }).first()).toBeVisible();
 });
 
 test("shows a validation error for an invalid backup and keeps the app usable", async ({ page }) => {
@@ -501,7 +501,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
   await page.getByLabel("Значение результата").fill("6.1");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
-  await expect(page.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("6.1 ммоль/л", { exact: true }).first().first()).toBeVisible();
   await expect.poll(async () => page.evaluate(() => new Promise<number>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
     request.onerror = () => reject(request.error);
@@ -520,13 +520,13 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   // The stale write is rejected, the tab adopts the committed winner,
   // and the user is explicitly told that their attempted edit was not saved.
   await expect(staleTab.getByRole("status").filter({ hasText: "ваше изменение не сохранено" })).toBeVisible();
-  await expect(staleTab.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect(staleTab.getByText("7.2 ммоль/л", { exact: true })).toHaveCount(0);
   await staleTab.reload();
   await staleTab.getByRole("button", { name: "Здоровье" }).click();
   await staleTab.getByRole("tab", { name: "Анализы" }).click();
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(staleTab.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect(staleTab.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect(staleTab.getByText("7.2 ммоль/л", { exact: true })).toHaveCount(0);
   await staleTab.close();
 });
@@ -542,7 +542,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await page.getByLabel("Единицы измерения").fill("ммоль/л");
   await page.getByRole("button", { name: "Сохранить результат" }).click();
   await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("06.11.2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("06.11.2026", { exact: true }).first()).toBeVisible();
 
   const secondTab = await page.context().newPage();
   await secondTab.goto("/");
@@ -556,18 +556,18 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await page.getByLabel("Значение результата").fill("<0.1");
   await page.getByLabel("Дата анализа").fill("2026-11-07");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
-  await expect(page.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("07.11.2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("<0.1 ммоль/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("07.11.2026", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toHaveCount(0);
-  await expect(secondTab.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
-  await expect(secondTab.getByText("07.11.2026", { exact: true })).toBeVisible();
+  await expect(secondTab.getByText("<0.1 ммоль/л", { exact: true }).first()).toBeVisible();
+  await expect(secondTab.getByText("07.11.2026", { exact: true }).first()).toBeVisible();
   await secondTab.close();
   await page.reload();
   await page.getByRole("button", { name: "Здоровье" }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(page.getByText("<0.1 ммоль/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("07.11.2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("<0.1 ммоль/л", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("07.11.2026", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toHaveCount(0);
   const storedRevision = await page.evaluate(() => new Promise<number>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
@@ -618,7 +618,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   await page.getByLabel("Значение показателя 2").fill("72");
   await page.getByLabel("Единица измерения 2").fill("мкмоль/л");
   await page.getByRole("button", { name: "Прикрепить документ" }).click();
-  await page.locator('input[type="file"]').first().setInputFiles({
+  await page.locator('input[type="file"]').nth(1).setInputFiles({
     name: "first-result.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4 first"),
@@ -673,8 +673,11 @@ test("aggregates health events and monitoring dates in the unified calendar", as
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
 
   await page.getByRole("button", { name: "Календарь" }).click();
-  await expect(page.getByText("E2E событие для календаря", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Проверка: E2E проверка для календаря", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Календарь" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { name: "Календарь" })).toBeVisible();
+  const calendar = page.locator("section").filter({ has: page.getByRole("heading", { name: "Календарь" }) });
+  await expect(calendar.getByText("E2E событие для календаря", { exact: true })).toBeVisible();
+  await expect(calendar.getByText("Проверка: E2E проверка для календаря", { exact: true })).toBeVisible();
 });
 
 
@@ -694,7 +697,7 @@ test("deleting a child profile removes its health records and keeps tombstone re
   await page.getByLabel("Значение результата").fill("14.7");
   await page.getByLabel("Единицы измерения").fill("г/л");
   await page.getByRole("button", { name: "Сохранить результат" }).click();
-  await expect(page.getByText("14.7 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("14.7 г/л", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
 
   const childId = await page.evaluate(() => new Promise<string>((resolve, reject) => {
@@ -938,7 +941,7 @@ test("keeps lab measurements isolated between child profiles after switching and
     await page.getByLabel("Значение результата").fill(value);
     await page.getByLabel("Единицы измерения").fill("г/л");
     await page.getByRole("button", { name: "Сохранить результат" }).click();
-    await expect(page.getByText(value + " г/л", { exact: true })).toBeVisible();
+    await expect(page.getByText(value + " г/л", { exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "Вернуться к семье" }).click();
   }
 
@@ -947,24 +950,24 @@ test("keeps lab measurements isolated between child profiles after switching and
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
   // Inactive profile panels remain mounted; assert the other profile value is hidden, not absent from the DOM.
-  await expect(page.getByText("12.1 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("9.2 г/л", { exact: true })).toBeHidden();
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
   // The first profile panel remains mounted but must be hidden while the second profile is active.
   await expect(page.getByText("9.2 г/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("12.1 г/л", { exact: true })).toBeHidden();
+  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeHidden();
 
   await page.reload();
   await page.getByRole("button", { name: "Семья" }).click();
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
-  await expect(page.getByText("12.1 г/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("9.2 г/л", { exact: true })).toBeHidden();
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
   await expect(page.getByText("9.2 г/л", { exact: true })).toBeVisible();
-  await expect(page.getByText("12.1 г/л", { exact: true })).toBeHidden();
+  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeHidden();
 });
