@@ -55,6 +55,11 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
       e.target.value = "";
       return;
     }
+    const existingUploads = uploads[id] ?? [];
+    if (existingUploads.length && !window.confirm(`Заменить прикреплённый документ «${existingUploads[existingUploads.length - 1].name}» новым? Старый документ будет удалён.`)) {
+      e.target.value = "";
+      return;
+    }
     setUploadError(null);
     const result: UploadedResult = {
       id:createId(),
@@ -63,7 +68,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
       blob:file,
       isPdf:file.name.toLowerCase().endsWith(".pdf"),
     };
-    setUploads(prev => ({ ...prev, [id]:[...(prev[id]??[]), result] }));
+    setUploads(prev => ({ ...prev, [id]:[result] }));
     e.target.value="";
   }
 
@@ -102,7 +107,9 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   }
 
   function removeUpload(testId: string, uploadId: string) {
-    setUploads(prev => ({ ...prev, [testId]:(prev[testId]??[]).filter(upload => upload.id!==uploadId) }));
+    const upload = (uploads[testId] ?? []).find(item => item.id === uploadId);
+    if (!upload || !window.confirm(`Удалить документ «${upload.name}»?`)) return;
+    setUploads(prev => ({ ...prev, [testId]:(prev[testId]??[]).filter(item => item.id!==uploadId) }));
   }
 
   const visibleStages = allStages.filter(s => s.tests.some(t => t.gender==="all" || t.gender===gender));
