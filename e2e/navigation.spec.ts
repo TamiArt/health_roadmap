@@ -18,7 +18,7 @@ test.describe("primary navigation", () => {
 
   test("opens the health sub-sections", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Здоровье" }).click();
+    await page.getByRole("button", { name: "Здоровье", exact: true }).click();
 
     for (const tab of ["Анализы", "Прививки", "Стоматолог", "Профилактика"]) {
       await page.getByRole("tab", { name: tab, exact: true }).click();
@@ -29,7 +29,7 @@ test.describe("primary navigation", () => {
 
 test("rejects unsupported lab attachments and accepts a valid PDF", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Анализы", exact: true }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
 
@@ -124,7 +124,7 @@ test("edits and deletes a life event", async ({ page }) => {
 
 test("changes a vaccine status and reflects the new state", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Прививки", exact: true }).click();
 
   const vaccineStatus = page.getByRole("button", { name: /Изменить статус вакцины/ }).first();
@@ -136,7 +136,7 @@ test("changes a vaccine status and reflects the new state", async ({ page }) => 
 
 test("updates a tooth status and saves its note", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
 
   const tooth = page.locator('button[title="Зуб 11 — верхний правый резец"]');
@@ -185,7 +185,7 @@ test("keeps primary sections usable from 320px to 390px and keeps backup actions
     }
 
     if (width === 320) {
-      await page.getByRole("button", { name: "Здоровье" }).click();
+      await page.getByRole("button", { name: "Здоровье", exact: true }).click();
       for (const tab of ["Анализы", "Прививки", "Стоматолог", "История"]) {
         await page.getByRole("tab", { name: tab, exact: true }).click();
         const dimensions = await page.locator("main").evaluate(element => ({
@@ -265,7 +265,7 @@ test("preserves section state when navigating between main sections", async ({ p
 
 test("preserves health sub-tab data after navigating away and back", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
 
   const tooth = page.locator('button[title="Зуб 11 — верхний правый резец"]');
@@ -279,7 +279,7 @@ test("preserves health sub-tab data after navigating away and back", async ({ pa
   await expect(note).toHaveValue("Сохраняется после перехода между разделами");
 
   await page.getByRole("button", { name: "Семья" }).click();
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await expect(page.getByRole("tab", { name: "Стоматолог", exact: true })).toBeVisible();
   await expect(tooth).toBeVisible();
   await expect(note).toHaveValue("Сохраняется после перехода между разделами");
@@ -307,7 +307,7 @@ test("keeps all primary sections within a tablet viewport", async ({ page }) => 
 
 test("supports keyboard activation of primary navigation", async ({ page }) => {
   await page.goto("/");
-  const healthButton = page.getByRole("button", { name: "Здоровье" });
+  const healthButton = page.getByRole("button", { name: "Здоровье", exact: true });
   await healthButton.focus();
   await expect(healthButton).toBeFocused();
   await page.keyboard.press("Enter");
@@ -319,7 +319,7 @@ test("exposes active navigation and health tabs to assistive technology", async 
   const navigation = page.getByRole("navigation", { name: "Основная навигация" });
   await expect(navigation.getByRole("button", { name: "Карта жизни" })).toHaveAttribute("aria-current", "page");
 
-  const healthButton = navigation.getByRole("button", { name: "Здоровье" });
+  const healthButton = navigation.getByRole("button", { name: "Здоровье", exact: true });
   await healthButton.focus();
   await page.keyboard.press("Enter");
   await expect(healthButton).toHaveAttribute("aria-current", "page");
@@ -446,9 +446,9 @@ test("exports a backup and restores data from a validated backup", async ({ page
 
   // The restore event must not unmount the app or leave it stuck on loading.
   await expect(page.getByRole("button", { name: "Импорт" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Здоровье" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Здоровье", exact: true })).toBeEnabled();
 
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(page.getByText("A(II) Rh+", { exact: true }).first()).toBeVisible();
@@ -469,7 +469,7 @@ test("shows a validation error for an invalid backup and keeps the app usable", 
   const status = page.getByRole("status");
   await expect(status).toContainText("не является резервной копией", { timeout: 5000 });
   await expect(page.getByRole("button", { name: "Импорт" })).toBeEnabled();
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Навигатор здоровья" })).toBeVisible();
 });
 
@@ -514,7 +514,7 @@ test("renders age-specific child health paths without duplicate birth tests", as
  
 test("stale tab cannot overwrite a newer lab measurement revision", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
   await page.getByRole("button", { name: "+ Значение" }).first().click();
@@ -531,7 +531,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
     Object.defineProperty(window, "BroadcastChannel", { configurable: true, value: undefined });
   });
   await staleTab.goto("/");
-  await staleTab.getByRole("button", { name: "Здоровье" }).click();
+  await staleTab.getByRole("button", { name: "Здоровье", exact: true }).click();
   await staleTab.getByRole("tab", { name: "Анализы" }).click();
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(staleTab.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
@@ -583,7 +583,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await expect(staleTab.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect(staleTab.getByText("7.2 ммоль/л", { exact: true })).toHaveCount(0);
   await staleTab.reload();
-  await staleTab.getByRole("button", { name: "Здоровье" }).click();
+  await staleTab.getByRole("button", { name: "Здоровье", exact: true }).click();
   await staleTab.getByRole("tab", { name: "Анализы" }).click();
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(staleTab.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
@@ -593,7 +593,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
 
 test("saves and reloads manually entered lab measurements with date and unit", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
   await page.getByRole("button", { name: "+ Значение" }).first().click();
@@ -606,7 +606,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
 
   const secondTab = await page.context().newPage();
   await secondTab.goto("/");
-  await secondTab.getByRole("button", { name: "Здоровье" }).click();
+  await secondTab.getByRole("button", { name: "Здоровье", exact: true }).click();
   await secondTab.getByRole("tab", { name: "Анализы" }).click();
   await secondTab.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(secondTab.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
@@ -623,7 +623,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await expect(secondTab.getByText("07.11.2026", { exact: true }).first()).toBeVisible();
   await secondTab.close();
   await page.reload();
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(page.getByText("<0.1 ммоль/л", { exact: true }).first()).toBeVisible();
@@ -645,7 +645,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
 
 test("adds medical events, monitoring items and multi-indicator lab history", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
 
   await page.getByRole("tab", { name: "События", exact: true }).click();
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
@@ -719,7 +719,7 @@ test("aggregates health events and monitoring dates in the unified calendar", as
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   });
 
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "События", exact: true }).click();
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
   await page.getByLabel("Дата", { exact: true }).fill(today);
