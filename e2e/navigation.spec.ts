@@ -223,6 +223,7 @@ test("exposes install metadata and the Life Maps app icon", async ({ page }) => 
   await page.goto("/");
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/manifest.webmanifest");
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/icon.svg");
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/apple-touch-icon.png");
   const manifestResponse = await page.request.get("/manifest.webmanifest");
   expect(manifestResponse.ok()).toBeTruthy();
   const manifest = await manifestResponse.json();
@@ -233,6 +234,9 @@ test("exposes install metadata and the Life Maps app icon", async ({ page }) => 
   const iconResponse = await page.request.get("/icon.svg");
   expect(iconResponse.ok()).toBeTruthy();
   expect(await iconResponse.text()).toContain("<svg");
+  const appleIconResponse = await page.request.get("/apple-touch-icon.png");
+  expect(appleIconResponse.ok()).toBeTruthy();
+  expect(appleIconResponse.headers()["content-type"]).toContain("image/png");
 });
 
 test("preserves section state when navigating between main sections", async ({ page }) => {
