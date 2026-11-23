@@ -287,22 +287,39 @@ test("preserves health sub-tab data after navigating away and back", async ({ pa
 });
 
 
-test("keeps all primary sections within a tablet viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 768, height: 1024 });
+test("keeps primary sections within tablet and desktop viewports", async ({ page }) => {
   await page.goto("/");
 
-  for (const section of ["Карта жизни", "Здоровье", "Семья", "Аналитика"]) {
-    await page.getByRole("button", { name: section }).click();
-    const main = page.locator("main");
-    const dimensions = await main.evaluate(element => ({
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-    }));
-    expect(
-      dimensions.scrollWidth,
-      `Horizontal overflow in section "${section}" at 768px: ${JSON.stringify(dimensions)}`,
-    ).toBeLessThanOrEqual(dimensions.clientWidth);
+  for (const width of [768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 1024 });
+    for (const section of ["Карта жизни", "Здоровье", "Семья", "Календарь", "Аналитика"]) {
+      await page.getByRole("button", { name: section }).click();
+      const dimensions = await page.locator("main").evaluate(element => ({
+        viewport: document.documentElement.clientWidth,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+      expect(
+        dimensions.scrollWidth,
+        `Horizontal overflow in section "${section}" at ${width}px: ${JSON.stringify(dimensions)}`,
+      ).toBeLessThanOrEqual(dimensions.clientWidth);
+      expect(dimensions.viewport).toBe(width);
+    }
   }
+});
+
+test("announces calendar context and selected date accessibly", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Календарь" }).click();
+
+  const calendar = page.getByRole("region", { name: "Календарь событий" });
+  await expect(calendar).toBeVisible();
+  await expect(calendar.getByRole("heading", { level: 2 }).first()).toHaveAttribute("aria-live", "polite");
+
+  const day = calendar.getByRole("button", { name: /событий:/ }).first();
+  await day.click();
+  await expect(day).toHaveAttribute("aria-pressed", "true");
+  await expect(calendar.getByRole("heading", { level: 2 }).nth(1)).toHaveAttribute("aria-live", "polite");
 });
 
 test("supports keyboard activation of primary navigation", async ({ page }) => {
