@@ -501,7 +501,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
   await page.getByLabel("Значение результата").fill("6.1");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
-  await expect(page.getByText("6.1 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect.poll(async () => page.evaluate(() => new Promise<number>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
     request.onerror = () => reject(request.error);
@@ -549,7 +549,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await secondTab.getByRole("button", { name: "Здоровье" }).click();
   await secondTab.getByRole("tab", { name: "Анализы" }).click();
   await secondTab.getByRole("button", { name: "Базовые — при рождении" }).click();
-  await expect(secondTab.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  await expect(secondTab.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
 
   await page.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
   await expect(page.getByText("Редактирование результата анализа")).toBeVisible();
@@ -618,7 +618,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   await page.getByLabel("Значение показателя 2").fill("72");
   await page.getByLabel("Единица измерения 2").fill("мкмоль/л");
   await page.getByRole("button", { name: "Прикрепить документ" }).click();
-  await page.locator('input[type="file"]').nth(1).setInputFiles({
+  await page.locator('input[type="file"]').first().setInputFiles({
     name: "first-result.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4 first"),
@@ -673,6 +673,6 @@ test("aggregates health events and monitoring dates in the unified calendar", as
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
 
   await page.getByRole("button", { name: "Календарь" }).click();
-  await expect(page.getByText("E2E событие для календаря", { exact: true })).toBeVisible();
+  await expect(page.getByText("E2E событие для календаря", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Проверка: E2E проверка для календаря", { exact: true })).toBeVisible();
 });
