@@ -1,10 +1,13 @@
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
 import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT, type Child, type ToothStatus, type VaccineStatus } from "./data";
 import { CURRENT_YEAR, childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, DelBtn, EditToggle, INP } from "./shared";
 import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
+import { ReminderPermission } from "./HealthTrackingTabs";
+import { useBrowserReminders } from "./useBrowserReminders";
+import { isIsoDate, type FamilyDate } from "./healthRecords";
 
 // ─── Child Health View ────────────────────────────────────────────────────────
 
@@ -59,7 +62,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
 export function FamilySection() {
   const [members, setMembers, membersReady, membersError] = usePersistentState("familyMembers", FAMILY_MEMBERS_INIT);
   const [children, setChildren, childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
-  const [events, setEvents, eventsReady, eventsError] = usePersistentState("familyEvents", FAMILY_EVENTS_INIT);
+  const [events, setEvents, eventsReady, eventsError] = usePersistentState<FamilyDate[]>("familyEvents", FAMILY_EVENTS_INIT.map(event => ({ ...event, recurringYearly: false, reminder: { enabled: false, leadDays: 1, time: "09:00" } })));
   const [editMode, setEditMode] = useState(false);
   const [viewingChild, setViewingChild] = useState<Child|null>(null);
   const [showAddMember, setShowAddMember] = useState(false);
@@ -67,10 +70,13 @@ export function FamilySection() {
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [mForm, setMForm] = useState({ name:"", relation:"", age:"", emoji:"👤" });
   const [cForm, setCForm] = useState({ name:"", birthYear:"", emoji:"👶" });
-  const [eForm, setEForm] = useState({ date:"", title:"", emoji:"📅" });
+  const [eForm, setEForm] = useState({ date:"", title:"", emoji:"📅", recurringYearly:true, reminderEnabled:true, leadDays:"1", time:"09:00" });
+  const [notificationSettings, setNotificationSettings, notificationSettingsReady] = usePersistentState<{ enabled: boolean }>("notificationSettings", { enabled: false });
+  const familyReminders = useMemo(() => events.map(event => ({ id:event.id, title:event.title, date:event.date, enabled:event.reminder?.enabled ?? false, leadDays:event.reminder?.leadDays ?? 0, time:event.reminder?.time ?? "09:00", recurringYearly:event.recurringYearly ?? false })), [events]);
+  useBrowserReminders(familyReminders, notificationSettings.enabled);
   const [formError, setFormError] = useState<string | null>(null);
 
-  if (!membersReady || !childrenReady || !eventsReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка семейных данных…</div>;
+  if (!membersReady || !childrenReady || !eventsReady || !notificationSettingsReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка семейных данных…</div>;
   if (membersError || childrenError || eventsError) return <div role="alert" className="p-8 text-sm text-red-600">{membersError ?? childrenError ?? eventsError}</div>;
 
   function addMember() {
@@ -94,9 +100,12 @@ export function FamilySection() {
   function addEvent() {
     const title = eForm.title.trim();
     if (!isValidRequiredText(title, 100)) { setFormError("Укажите название даты (не более 100 символов)."); return; }
-    if (eForm.date.trim().length > 80 || eForm.emoji.length > 16) { setFormError("Проверьте длину даты или эмодзи."); return; }
-    setEvents(p => [...p, { id:createId(), date:eForm.date.trim(), title, emoji:eForm.emoji.trim() || "📅" }]);
-    setEForm({ date:"", title:"", emoji:"📅" }); setShowAddEvent(false); setFormError(null);
+    if (!isIsoDate(eForm.date)) { setFormError("Укажите корректную дату."); return; }
+    if (eForm.emoji.length > 16 || !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(eForm.time)) { setFormError("Проверьте эмодзи и время напоминания."); return; }
+    const leadDays = Number(eForm.leadDays);
+    if (!Number.isInteger(leadDays) || leadDays < 0 || leadDays > 365) { setFormError("Укажите срок напоминания от 0 до 365 дней."); return; }
+    setEvents(p => [...p, { id:createId(), date:eForm.date, title, emoji:eForm.emoji.trim() || "📅", recurringYearly:eForm.recurringYearly, reminder:{ enabled:eForm.reminderEnabled, leadDays, time:eForm.time } }]);
+    setEForm({ date:"", title:"", emoji:"📅", recurringYearly:true, reminderEnabled:true, leadDays:"1", time:"09:00" }); setShowAddEvent(false); setFormError(null);
   }
 
   return (
@@ -200,7 +209,7 @@ export function FamilySection() {
       )}
 
       {/* Events */}
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 mt-2">Памятные даты</p>
+      <div className="flex items-center justify-between gap-2 mb-3 mt-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Памятные даты</p><ReminderPermission enabled={notificationSettings.enabled} onEnable={enabled => setNotificationSettings({ enabled })}/></div>
       <div className="space-y-2.5">
         {events.map(ev => (
           <motion.div key={ev.id} initial={{ opacity:0,x:-12 }} animate={{ opacity:1,x:0 }} className="flex items-center gap-4 bg-card border border-border rounded-xl p-4">
@@ -219,7 +228,10 @@ export function FamilySection() {
             <input value={eForm.title} onChange={e=>setEForm(f=>({...f,title:e.target.value}))} placeholder="Название события" maxLength={100} required className={INP}/>
             <input value={eForm.emoji} onChange={e=>setEForm(f=>({...f,emoji:e.target.value}))} placeholder="Emoji" maxLength={16} className={INP}/>
           </div>
-          <input value={eForm.date} onChange={e=>setEForm(f=>({...f,date:e.target.value}))} placeholder="Дата (14 июня 2024)" maxLength={80} className={`${INP} mb-3`}/>
+          <input type="date" aria-label="Дата памятного события" value={eForm.date} onChange={e=>setEForm(f=>({...f,date:e.target.value}))} className={`${INP} mb-3`}/>
+          <label className="flex items-center gap-2 text-xs mb-2"><input type="checkbox" checked={eForm.recurringYearly} onChange={e=>setEForm(f=>({...f,recurringYearly:e.target.checked}))}/> Повторять каждый год</label>
+          <label className="flex items-center gap-2 text-xs mb-2"><input type="checkbox" checked={eForm.reminderEnabled} onChange={e=>setEForm(f=>({...f,reminderEnabled:e.target.checked}))}/> Напоминать об этой дате</label>
+          <div className="grid grid-cols-2 gap-2 mb-3"><label className="text-xs text-muted-foreground">За сколько дней<input type="number" min="0" max="365" value={eForm.leadDays} onChange={e=>setEForm(f=>({...f,leadDays:e.target.value}))} className={INP}/></label><label className="text-xs text-muted-foreground">Время<input type="time" value={eForm.time} onChange={e=>setEForm(f=>({...f,time:e.target.value}))} className={INP}/></label></div>
           {formError && <p role="alert" className="mb-2 text-xs text-red-600">{formError}</p>}
           <div className="flex gap-2 justify-end">
             <button onClick={()=>setShowAddEvent(false)} className="text-xs px-3 py-1.5 border border-border rounded-lg text-muted-foreground">Отмена</button>
