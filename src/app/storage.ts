@@ -202,10 +202,19 @@ function validateRecordValue(key: string, value: unknown): void {
   }
 
   const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring"]);
-  if (arrayKeys.has(key)) {
+  const arrayKey = arrayKeys.has(key) || [...arrayKeys].some(name => key.endsWith(`:${name}`));
+  if (arrayKey) {
     if (!Array.isArray(value)) throw new Error(`Повреждён список данных: ${key}`);
     if (value.some(item => !isPlainRecord(item) || typeof item.id !== "string")) {
       throw new Error(`В списке ${key} обнаружена некорректная запись.`);
+    }
+    if (key === "healthMonitoring" || key.endsWith(":healthMonitoring")) {
+      if (value.some(item => !isPlainRecord(item) || !Array.isArray(item.measurements ?? []) ||
+          (item.measurements ?? []).some(reading => !isPlainRecord(reading) || typeof reading.id !== "string" ||
+            typeof reading.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(reading.date) ||
+            typeof reading.value !== "number" || !Number.isFinite(reading.value) || typeof reading.unit !== "string"))) {
+        throw new Error(`Повреждена история значений в списке ${key}.`);
+      }
     }
     return;
   }
