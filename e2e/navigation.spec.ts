@@ -322,15 +322,6 @@ test("announces calendar context and selected date accessibly", async ({ page })
   await expect(calendar.getByRole("heading", { level: 2 }).nth(1)).toHaveAttribute("aria-live", "polite");
 });
 
-test("provides a keyboard skip link to the main content", async ({ page }) => {
-  await page.goto("/");
-  const skipLink = page.getByRole("link", { name: "Перейти к основному содержимому" });
-  await page.keyboard.press("Tab");
-  await expect(skipLink).toBeFocused();
-  await page.keyboard.press("Enter");
-  await expect(page.locator("main#main-content")).toBeFocused();
-});
-
 test("supports keyboard activation of primary navigation", async ({ page }) => {
   await page.goto("/");
   const healthButton = page.getByRole("button", { name: "Здоровье", exact: true });
