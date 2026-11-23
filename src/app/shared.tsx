@@ -80,9 +80,9 @@ export function EditToggle({ on, toggle }: { on: boolean; toggle: () => void }) 
   );
 }
 
-export function DelBtn({ onClick }: { onClick: () => void }) {
+export function DelBtn({ onClick, ariaLabel }: { onClick: () => void; ariaLabel?: string }) {
   return (
-    <button onClick={onClick} className="shrink-0 p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all">
+    <button type="button" onClick={onClick} aria-label={ariaLabel} className="shrink-0 p-1 rounded text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all">
       <Trash2 size={12} />
     </button>
   );
