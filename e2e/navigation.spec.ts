@@ -462,7 +462,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByLabel("Значение результата").fill("5.4");
   await page.getByLabel("Единицы измерения").fill("ммоль/л");
   await page.getByRole("button", { name: "Сохранить результат" }).click();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first().first()).toBeVisible();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
 
   const staleTab = await page.context().newPage();
   // Disable live notifications in this tab to deterministically exercise the
@@ -501,7 +501,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByRole("button", { name: "Изменить результат от 2026-11-06" }).click();
   await page.getByLabel("Значение результата").fill("6.1");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
-  await expect(page.getByText("6.1 ммоль/л", { exact: true }).first().first()).toBeVisible();
+  await expect(page.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect.poll(async () => page.evaluate(() => new Promise<number>((resolve, reject) => {
     const request = indexedDB.open("life-maps", 1);
     request.onerror = () => reject(request.error);
