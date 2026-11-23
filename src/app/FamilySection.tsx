@@ -105,7 +105,7 @@ export function FamilySection() {
     const title = eForm.title.trim();
     if (!isValidRequiredText(title, 100)) { setFormError("Укажите название даты (не более 100 символов)."); return; }
     if (!isIsoDate(eForm.date)) { setFormError("Укажите корректную дату."); return; }
-    if (eForm.emoji.length > 16 || !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(eForm.time)) { setFormError("Проверьте эмодзи и время напоминания."); return; }
+    if (eForm.emoji.length > 16 || !/^([01]\d|2[0-3]):[0-5]\d$/.test(eForm.time)) { setFormError("Проверьте эмодзи и время напоминания."); return; }
     const leadDays = Number(eForm.leadDays);
     if (!Number.isInteger(leadDays) || leadDays < 0 || leadDays > 365) { setFormError("Укажите срок напоминания от 0 до 365 дней."); return; }
     setEvents(p => [...p, { id:createId(), date:eForm.date, title, emoji:eForm.emoji.trim() || "📅", recurringYearly:eForm.recurringYearly, reminder:{ enabled:eForm.reminderEnabled, leadDays, time:eForm.time } }]);
