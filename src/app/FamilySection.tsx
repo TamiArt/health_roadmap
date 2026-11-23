@@ -3,7 +3,7 @@ import { deleteChildHealthRecords, usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
 import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT } from "./familyData";
-import type { Child, ToothStatus, VaccineStatus } from "./models";
+import type { Child, DentalRecord, ToothStatus, VaccineStatus } from "./models";
 import { CURRENT_YEAR, childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, DelBtn, EditToggle, INP } from "./shared";
 import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
 import { HealthEventsTab, MonitoringTab, ReminderPermission } from "./HealthTrackingTabs";
@@ -22,7 +22,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
     `childHealth:${child.id}:vaccineStatuses`,
     Object.fromEntries(childAgeVaccines(age).map(v => [v.id, v.status]))
   );
-  const [toothData, setToothData, toothReady, toothError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>(
+  const [toothData, setToothData, toothReady, toothError] = usePersistentState<Record<number,DentalRecord>>(
     `childHealth:${child.id}:toothData`,
     {}
   );
