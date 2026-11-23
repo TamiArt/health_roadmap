@@ -84,12 +84,20 @@ export function CalendarSection() {
       id: `health:${event.id}`, date: event.date, title: event.title,
       details: event.description || undefined, source: "health",
     }));
-    monitoring.forEach(item => result.push({
-      id: `monitor:${item.id}`, date: item.nextDueDate,
-      title: `Проверка: ${item.name}`,
-      details: item.reminder.enabled ? "Напоминание включено" : "Контрольная дата",
-      source: "monitoring",
-    }));
+    monitoring.forEach(item => {
+      result.push({
+        id: `monitor:${item.id}`, date: item.nextDueDate,
+        title: `Проверка: ${item.name}`,
+        details: item.reminder.enabled ? "Напоминание включено" : "Контрольная дата",
+        source: "monitoring",
+      });
+      (item.measurements ?? []).forEach(reading => result.push({
+        id: `monitor-reading:${item.id}:${reading.id}`, date: reading.date,
+        title: `Измерение: ${item.name}`,
+        details: `${reading.value}${reading.unit ? ` ${reading.unit}` : ""}`,
+        source: "monitoring",
+      }));
+    });
     const testNames = new Map(LIFE_STAGES.flatMap(stage => stage.tests.map(test => [test.id, test.name] as const)));
     Object.entries(catalogMeasurements).forEach(([testId, measurements]) => {
       measurements.forEach(measurement => {
@@ -123,11 +131,19 @@ export function CalendarSection() {
         title: event.title, details: event.description || "Медицинское событие",
         source: "health", person: child.name,
       }));
-      data.monitoring.forEach(item => result.push({
-        id: `child-monitor:${child.id}:${item.id}`, date: item.nextDueDate,
-        title: `Проверка: ${item.name}`, details: "Контрольная дата",
-        source: "monitoring", person: child.name,
-      }));
+      data.monitoring.forEach(item => {
+        result.push({
+          id: `child-monitor:${child.id}:${item.id}`, date: item.nextDueDate,
+          title: `Проверка: ${item.name}`, details: "Контрольная дата",
+          source: "monitoring", person: child.name,
+        });
+        (item.measurements ?? []).forEach(reading => result.push({
+          id: `child-monitor-reading:${child.id}:${item.id}:${reading.id}`, date: reading.date,
+          title: `Измерение: ${item.name}`,
+          details: `${reading.value}${reading.unit ? ` ${reading.unit}` : ""}`,
+          source: "monitoring", person: child.name,
+        }));
+      });
       data.labs.forEach(entry => result.push({
         id: `child-lab:${child.id}:${entry.id}`, date: entry.date,
         title: entry.testName, details: "Результат анализа",
