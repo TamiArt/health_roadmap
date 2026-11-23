@@ -3,6 +3,7 @@ import { Plus, Trash2, Check, CalendarClock, Activity, HeartPulse } from "lucide
 import { usePersistentState } from "./storage";
 import {
   buildHealthEvent,
+  isIsoDate,
   validateHealthEvent,
   validateMonitoringItem,
   type HealthEvent,
@@ -106,6 +107,7 @@ export function MonitoringTab({ storageKey = "healthMonitoring" }: { storageKey?
   const notificationsEnabled = notificationSettings.enabled;
   const [form, setForm] = useState({ name: "", kind: "measurement" as HealthMonitoringItem["kind"], unit: "", intervalDays: "365", nextDueDate: today(), lastCheckedDate: "", notes: "", reminderEnabled: true, leadDays: "3", time: "09:00" });
   const [formError, setFormError] = useState<string | null>(null);
+  const [readingDrafts, setReadingDrafts] = useState<Record<string, { date: string; value: string }>>({});
   const reminders = useMemo(() => items.map(item => ({
     id: item.id, title: item.name, date: item.nextDueDate,
     enabled: item.reminder.enabled, leadDays: item.reminder.leadDays,
@@ -119,6 +121,7 @@ export function MonitoringTab({ storageKey = "healthMonitoring" }: { storageKey?
       name: form.name.trim(), kind: form.kind, unit: form.unit.trim(), intervalDays,
       nextDueDate: form.nextDueDate, lastCheckedDate: form.lastCheckedDate, notes: form.notes.trim(),
       reminder: { enabled: form.reminderEnabled, leadDays: Number(form.leadDays), time: form.time },
+      measurements: [],
     };
     const validation = validateMonitoringItem(item);
     if (validation) { setFormError(validation); return; }
@@ -126,6 +129,17 @@ export function MonitoringTab({ storageKey = "healthMonitoring" }: { storageKey?
     setForm({ name: "", kind: "measurement", unit: "", intervalDays: "365", nextDueDate: today(), lastCheckedDate: "", notes: "", reminderEnabled: true, leadDays: "3", time: "09:00" });
     setEditing(false);
     setFormError(null);
+  }
+
+  function addReading(item: HealthMonitoringItem) {
+    const draft = readingDrafts[item.id] ?? { date: today(), value: "" };
+    const value = Number(draft.value);
+    if (!isIsoDate(draft.date) || draft.value.trim() === "" || !Number.isFinite(value)) return;
+    setItems(previous => previous.map(current => current.id === item.id ? {
+      ...current,
+      measurements: [...(current.measurements ?? []), { id: createId(), date: draft.date, value, unit: current.unit }].sort((a, b) => b.date.localeCompare(a.date)),
+    } : current));
+    setReadingDrafts(previous => ({ ...previous, [item.id]: { date: today(), value: "" } }));
   }
 
   function markDone(item: HealthMonitoringItem) {
@@ -156,7 +170,7 @@ export function MonitoringTab({ storageKey = "healthMonitoring" }: { storageKey?
       const remaining = daysUntil(item.nextDueDate);
       return <article key={item.id} className="flex items-start gap-3 rounded-xl border bg-card p-4">
         <div className="rounded-lg bg-primary/10 p-2 text-primary">{item.kind === "measurement" ? <Activity size={17}/> : <CalendarClock size={17}/>}</div>
-        <div className="min-w-0 flex-1"><h3 className="text-sm font-medium">{item.name}</h3><p className="mt-1 text-xs text-muted-foreground">Следующая проверка: {item.nextDueDate}{item.unit ? ` · ${item.unit}` : ""}</p><p className={`mt-1 text-xs ${remaining < 0 ? "text-red-600" : remaining <= 7 ? "text-amber-700" : "text-muted-foreground"}`}>{remaining < 0 ? `Просрочено на ${Math.abs(remaining)} дн.` : remaining === 0 ? "Сегодня" : `Через ${remaining} дн.`}</p>{item.lastCheckedDate && <p className="mt-1 text-[10px] text-muted-foreground">Последняя проверка: {item.lastCheckedDate}</p>}{item.notes && <p className="mt-2 text-xs text-muted-foreground">{item.notes}</p>}</div>
+        <div className="min-w-0 flex-1"><h3 className="text-sm font-medium">{item.name}</h3><p className="mt-1 text-xs text-muted-foreground">Следующая проверка: {item.nextDueDate}{item.unit ? ` · ${item.unit}` : ""}</p><p className={`mt-1 text-xs ${remaining < 0 ? "text-red-600" : remaining <= 7 ? "text-amber-700" : "text-muted-foreground"}`}>{remaining < 0 ? `Просрочено на ${Math.abs(remaining)} дн.` : remaining === 0 ? "Сегодня" : `Через ${remaining} дн.`}</p>{item.lastCheckedDate && <p className="mt-1 text-[10px] text-muted-foreground">Последняя проверка: {item.lastCheckedDate}</p>}{item.notes && <p className="mt-2 text-xs text-muted-foreground">{item.notes}</p>}{item.kind === "measurement" && <div className="mt-3 space-y-2"><p className="text-[11px] font-medium text-muted-foreground">История значений</p>{(item.measurements ?? []).map(reading => <div key={reading.id} className="flex justify-between gap-2 text-xs"><span className="text-muted-foreground">{reading.date}</span><strong className="tabular-nums">{reading.value} {reading.unit}</strong></div>)}<div className="flex flex-wrap items-center gap-2"><input aria-label={`Дата значения ${item.name}`} type="date" value={(readingDrafts[item.id] ?? { date: today(), value: "" }).date} onChange={event => setReadingDrafts(previous => ({ ...previous, [item.id]: { ...(previous[item.id] ?? { date: today(), value: "" }), date: event.target.value } }))} className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1 text-xs"/><input aria-label={`Значение ${item.name}`} type="number" step="any" value={(readingDrafts[item.id] ?? { date: today(), value: "" }).value} onChange={event => setReadingDrafts(previous => ({ ...previous, [item.id]: { ...(previous[item.id] ?? { date: today(), value: "" }), value: event.target.value } }))} placeholder="Значение" className="w-24 rounded-lg border border-border bg-background px-2 py-1 text-xs"/><button type="button" onClick={() => addReading(item)} className="rounded-lg border px-2 py-1 text-xs text-primary">Сохранить</button></div></div>}</div>
         <div className="flex flex-col gap-1"><button type="button" title="Отметить выполненным" aria-label={`Отметить ${item.name} выполненным`} onClick={() => markDone(item)} className="rounded-lg border p-1.5 text-emerald-700"><Check size={14}/></button><button type="button" title="Удалить" aria-label={`Удалить ${item.name}`} onClick={() => { if (window.confirm("Удалить этот пункт контроля?")) setItems(previous => previous.filter(value => value.id !== item.id)); }} className="rounded-lg border p-1.5 text-muted-foreground hover:text-red-600"><Trash2 size={14}/></button></div>
       </article>;
     })}</div>}
