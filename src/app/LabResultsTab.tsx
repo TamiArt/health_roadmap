@@ -7,8 +7,8 @@ import { createId, INP } from "./shared";
 type IndicatorDraft = { name: string; value: string; unit: string; referenceRange: string };
 const emptyIndicator = (): IndicatorDraft => ({ name: "", value: "", unit: "", referenceRange: "" });
 
-export function LabResultsTab() {
-  const [results, setResults, ready, error] = usePersistentState<LabResultEntry[]>("labResultEntries", []);
+export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?: string }) {
+  const [results, setResults, ready, error] = usePersistentState<LabResultEntry[]>(storageKey, []);
   const [editing, setEditing] = useState(false);
   const [testName, setTestName] = useState("");
   const [date, setDate] = useState(() => {
