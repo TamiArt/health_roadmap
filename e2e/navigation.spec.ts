@@ -152,31 +152,54 @@ test("updates a tooth status and saves its note", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Кариес", exact: true })).toHaveClass(/bg-red-500/);
 });
 
-test("keeps main sections within a narrow mobile viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test("keeps primary sections usable from 320px to 390px and keeps backup actions above navigation", async ({ page }) => {
   await page.goto("/");
 
-  const mobileNavigation = page.getByRole("navigation", { name: "Основная навигация" });
-  const backupPanel = page.getByRole("region", { name: "Резервное копирование" });
-  const navigationBox = await mobileNavigation.boundingBox();
-  const backupBox = await backupPanel.boundingBox();
-  expect(navigationBox).not.toBeNull();
-  expect(backupBox).not.toBeNull();
-  expect(backupBox!.y + backupBox!.height).toBeLessThanOrEqual(navigationBox!.y);
+  for (const width of [320, 360, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    const mobileNavigation = page.getByRole("navigation", { name: "Основная навигация" });
+    const backupPanel = page.getByRole("region", { name: "Резервное копирование" });
+    const navigationBox = await mobileNavigation.boundingBox();
+    const backupBox = await backupPanel.boundingBox();
+    expect(navigationBox, `Navigation should render at ${width}px`).not.toBeNull();
+    expect(backupBox, `Backup actions should render at ${width}px`).not.toBeNull();
+    expect(backupBox!.y + backupBox!.height, `Backup panel overlaps navigation at ${width}px`)
+      .toBeLessThanOrEqual(navigationBox!.y);
 
-  for (const section of ["Карта жизни", "Здоровье", "Семья", "Аналитика"]) {
-    await page.getByRole("button", { name: section }).click();
-    const main = page.locator("main");
-    await expect(main).toBeVisible();
-    const dimensions = await main.evaluate(element => ({
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-    }));
-    expect(
-      dimensions.scrollWidth,
-      `Horizontal overflow in section "${section}" at 390px: ${JSON.stringify(dimensions)}`,
-    ).toBeLessThanOrEqual(dimensions.clientWidth);
+    for (const section of ["Карта жизни", "Здоровье", "Семья", "Календарь", "Аналитика"]) {
+      await page.getByRole("button", { name: section }).click();
+      const dimensions = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        page: document.documentElement.scrollWidth,
+        main: document.querySelector("main")?.scrollWidth ?? 0,
+        mainClient: document.querySelector("main")?.clientWidth ?? 0,
+      }));
+      expect(
+        dimensions.page,
+        `Page horizontal overflow in "${section}" at ${width}px: ${JSON.stringify(dimensions)}`,
+      ).toBeLessThanOrEqual(dimensions.viewport);
+      expect(
+        dimensions.main,
+        `Section horizontal overflow in "${section}" at ${width}px: ${JSON.stringify(dimensions)}`,
+      ).toBeLessThanOrEqual(dimensions.mainClient);
+    }
   }
+});
+
+test("exposes install metadata and the Life Maps app icon", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/manifest.webmanifest");
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/icon.svg");
+  const manifestResponse = await page.request.get("/manifest.webmanifest");
+  expect(manifestResponse.ok()).toBeTruthy();
+  const manifest = await manifestResponse.json();
+  expect(manifest.display).toBe("standalone");
+  expect(manifest.icons).toEqual(expect.arrayContaining([
+    expect.objectContaining({ src: "/icon.svg", purpose: "any maskable" }),
+  ]));
+  const iconResponse = await page.request.get("/icon.svg");
+  expect(iconResponse.ok()).toBeTruthy();
+  expect(await iconResponse.text()).toContain("<svg");
 });
 
 test("preserves section state when navigating between main sections", async ({ page }) => {
