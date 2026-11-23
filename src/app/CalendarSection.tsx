@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, HeartPulse, FlaskConical, Bell, Users, ClipboardCheck } from "lucide-react";
 import { usePersistentState } from "./storage";
 import type { HealthEvent, HealthMonitoringItem, LabResultEntry, FamilyDate } from "./healthRecords";
-import type { Child } from "./data";
+import { LIFE_STAGES, type Child, type LabMeasurement } from "./data";
 
 type CalendarSource = "health" | "monitoring" | "labs" | "family";
 type CalendarItem = {
@@ -56,6 +56,7 @@ export function CalendarSection() {
   const [healthEvents] = usePersistentState<HealthEvent[]>("healthEvents", []);
   const [monitoring] = usePersistentState<HealthMonitoringItem[]>("healthMonitoring", []);
   const [labResults] = usePersistentState<LabResultEntry[]>("labResultEntries", []);
+  const [catalogMeasurements] = usePersistentState<Record<string, LabMeasurement[]>>("labMeasurements", {});
   const [familyDates] = usePersistentState<FamilyDate[]>("familyEvents", []);
   const [children] = usePersistentState<Child[]>("children", []);
   const [childData, setChildData] = useState<Record<string, ChildCalendarData>>({});
@@ -89,6 +90,12 @@ export function CalendarSection() {
       details: item.reminder.enabled ? "Напоминание включено" : "Контрольная дата",
       source: "monitoring",
     }));
+    const testNames = new Map(LIFE_STAGES.flatMap(stage => stage.tests.map(test => [test.id, test.name] as const)));
+    Object.entries(catalogMeasurements).forEach(([testId, measurements]) => measurements.forEach(measurement => result.push({
+      id: `catalog-lab:${testId}:${measurement.id}`, date: measurement.date,
+      title: testNames.get(testId) ?? "Результат анализа",
+      details: `${measurement.value}${measurement.unit ? ` ${measurement.unit}` : ""}`, source: "labs",
+    }))));
     labResults.forEach(entry => result.push({
       id: `lab:${entry.id}`, date: entry.date, title: entry.testName,
       details: entry.indicators.map(value => `${value.name}: ${value.value} ${value.unit}`).join(" · "),
@@ -123,7 +130,7 @@ export function CalendarSection() {
     });
     return result.filter(item => /^\d{4}-\d{2}-\d{2}$/.test(item.date))
       .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
-  }, [healthEvents, monitoring, labResults, familyDates, children, childData, year]);
+  }, [healthEvents, monitoring, labResults, catalogMeasurements, familyDates, children, childData, year]);
 
   const monthItems = items.filter(item => {
     const [itemYear, itemMonth] = item.date.split("-").map(Number);
