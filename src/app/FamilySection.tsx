@@ -76,7 +76,7 @@ export function FamilySection() {
   const [cForm, setCForm] = useState({ name:"", birthYear:"", emoji:"👶" });
   const [eForm, setEForm] = useState({ date:"", title:"", emoji:"📅", recurringYearly:true, reminderEnabled:true, leadDays:"1", time:"09:00" });
   const [notificationSettings, setNotificationSettings, notificationSettingsReady] = usePersistentState<{ enabled: boolean }>("notificationSettings", { enabled: false });
-  const familyReminders = useMemo(() => events.map(event => ({ id:event.id, title:event.title, date:event.date, enabled:event.reminder?.enabled ?? false, leadDays:event.reminder?.leadDays ?? 0, time:event.reminder?.time ?? "09:00", recurringYearly:event.recurringYearly ?? false })), [events]);
+  const familyReminders = useMemo(() => events.map(event => ({ id:event.id, title:event.title, notificationTitle:"Памятная дата", date:event.date, enabled:event.reminder?.enabled ?? false, leadDays:event.reminder?.leadDays ?? 0, time:event.reminder?.time ?? "09:00", recurringYearly:event.recurringYearly ?? false })), [events]);
   useBrowserReminders(familyReminders, notificationSettings.enabled);
   const [formError, setFormError] = useState<string | null>(null);
 
