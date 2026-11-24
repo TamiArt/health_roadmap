@@ -60,11 +60,11 @@ export function DataManagementPanel({
   return (
     <section aria-label="Резервное копирование" aria-busy={busy} className="backup-panel pointer-events-none fixed z-40 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
       <div className="pointer-events-auto flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur sm:w-auto">
-        <button type="button" aria-label="Экспорт резервной копии" onClick={() => void handleExport()} disabled={busy || !storageReady || !!storageError}
+        <button type="button" onClick={() => void handleExport()} disabled={busy || !storageReady || !!storageError}
           className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50 sm:flex-none">
           <Download size={13} /> Экспорт
         </button>
-        <button type="button" aria-label="Импорт резервной копии" onClick={() => fileInput.current?.click()} disabled={busy || !storageReady || !!storageError}
+        <button type="button" onClick={() => fileInput.current?.click()} disabled={busy || !storageReady || !!storageError}
           className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground disabled:opacity-50 sm:flex-none">
           <Upload size={13} /> Импорт
         </button>
