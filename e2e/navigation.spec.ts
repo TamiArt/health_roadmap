@@ -402,6 +402,8 @@ test("opens a child profile card with the keyboard", async ({ page }) => {
   await page.keyboard.press("ArrowRight");
   await expect(vaccinesTab).toBeFocused();
   await expect(vaccinesTab).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Открыть профиль ребёнка Клавиатурный профиль, 6 лет" })).toBeFocused();
 });
 
 test("validates child creation without creating an empty profile", async ({ page }) => {
@@ -513,7 +515,7 @@ test("shows a validation error for an invalid backup and keeps the app usable", 
     buffer: Buffer.from(JSON.stringify({ not: "a Life Maps backup" })),
   });
 
-  const status = page.getByRole("status");
+  const status = page.getByRole("alert");
   await expect(status).toContainText("не является резервной копией", { timeout: 5000 });
   await expect(page.getByRole("button", { name: "Импорт" })).toBeEnabled();
   await page.getByRole("button", { name: "Здоровье", exact: true }).click();
