@@ -33,7 +33,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   const tabs: Array<["tests"|"vaccines"|"dental"|"history"|"events"|"monitoring", string]> = [["tests","Анализы"],["vaccines","Прививки"],["history","История"],["events","События"],["monitoring","На контроле"]];
   if (age>=5) tabs.push(["dental","Стоматолог"]);
 
-  if (!vaccineReady || !toothReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка данных профиля…</div>;
+  if (!vaccineReady || !toothReady) return <div role="status" aria-live="polite" aria-busy="true" className="p-8 text-sm text-muted-foreground">Загрузка данных профиля…</div>;
   if (vaccineError || toothError) return <div role="alert" className="p-8 text-sm text-red-600">{vaccineError ?? toothError}</div>;
 
   return (
@@ -90,7 +90,7 @@ export function FamilySection() {
   const [formError, setFormError] = useState<string | null>(null);
   const [childDeleteError, setChildDeleteError] = useState<string | null>(null);
 
-  if (!membersReady || !childrenReady || !eventsReady || !notificationSettingsReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка семейных данных…</div>;
+  if (!membersReady || !childrenReady || !eventsReady || !notificationSettingsReady) return <div role="status" aria-live="polite" aria-busy="true" className="p-8 text-sm text-muted-foreground">Загрузка семейных данных…</div>;
   if (membersError || childrenError || eventsError) return <div role="alert" className="p-8 text-sm text-red-600">{membersError ?? childrenError ?? eventsError}</div>;
 
   function addMember() {
