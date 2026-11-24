@@ -11,11 +11,13 @@ export function DataManagementPanel({
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function handleExport() {
     setBusy(true);
     setMessage(null);
+    setMessageType(null);
     try {
       const blob = await exportBackup();
       const url = URL.createObjectURL(blob);
@@ -25,8 +27,10 @@ export function DataManagementPanel({
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessage("Резервная копия создана.");
+      setMessageType("success");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось создать резервную копию.");
+      setMessageType("error");
     } finally {
       setBusy(false);
     }
@@ -40,32 +44,39 @@ export function DataManagementPanel({
 
     setBusy(true);
     setMessage(null);
+    setMessageType(null);
     try {
       await importBackup(file);
       setMessage("Данные восстановлены. Разделы обновлены.");
+      setMessageType("success");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось восстановить данные.");
+      setMessageType("error");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <section aria-label="Резервное копирование" className="pointer-events-none fixed bottom-20 right-4 z-40 sm:bottom-4 flex max-w-[calc(100vw-2rem)] flex-col items-end gap-2">
-      <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur">
+    <section aria-label="Резервное копирование" aria-busy={busy} className="backup-panel pointer-events-none fixed z-40 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
+      <div className="pointer-events-auto flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur sm:w-auto">
         <button type="button" onClick={() => void handleExport()} disabled={busy || !storageReady || !!storageError}
-          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50">
+          className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50 sm:flex-none">
           <Download size={13} /> Экспорт
         </button>
         <button type="button" onClick={() => fileInput.current?.click()} disabled={busy || !storageReady || !!storageError}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground disabled:opacity-50">
+          className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground disabled:opacity-50 sm:flex-none">
           <Upload size={13} /> Импорт
         </button>
         <input ref={fileInput} type="file" accept="application/json,.json" className="hidden" onChange={handleImport} />
       </div>
-      {(storageError || message) ? (
-        <p role="status" aria-live="polite" className="pointer-events-none max-w-72 rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow">
-          {storageError ?? message}
+      {storageError ? (
+        <p id="backup-status" role="alert" className="pointer-events-none max-w-full rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-red-700 shadow sm:max-w-72">
+          {storageError}
+        </p>
+      ) : message ? (
+        <p id="backup-status" role={messageType === "error" ? "alert" : "status"} aria-live={messageType === "error" ? "assertive" : "polite"} className="pointer-events-none max-w-full rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow sm:max-w-72">
+          {message}
         </p>
       ) : (
         <p role="status" aria-live="polite" className="pointer-events-none hidden max-w-72 rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow sm:block">

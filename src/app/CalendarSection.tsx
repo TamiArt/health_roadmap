@@ -173,7 +173,7 @@ export function CalendarSection() {
   }
 
   return (
-    <section className="max-w-5xl p-5 sm:p-8">
+    <section aria-label="Календарь событий" className="max-w-5xl p-5 sm:p-8">
       {children.map(child => <ChildCalendarSource key={child.id} child={child} onData={receiveChildData}/>)}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -199,7 +199,7 @@ export function CalendarSection() {
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <button type="button" aria-label="Предыдущий месяц" onClick={() => { setMonthOffset(value => value - 1); setSelectedDate(null); }} className="rounded-lg p-2 hover:bg-muted"><ChevronLeft size={17}/></button>
-          <h2 className="text-sm font-semibold capitalize">{monthLabel(year, month)}</h2>
+          <h2 aria-live="polite" aria-atomic="true" className="text-sm font-semibold capitalize">{monthLabel(year, month)}</h2>
           <button type="button" aria-label="Следующий месяц" onClick={() => { setMonthOffset(value => value + 1); setSelectedDate(null); }} className="rounded-lg p-2 hover:bg-muted"><ChevronRight size={17}/></button>
         </div>
         <div className="grid grid-cols-7 border-b border-border bg-muted/40">
@@ -227,8 +227,8 @@ export function CalendarSection() {
 
       <div className="mt-6">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">{selectedDate ? new Date(selectedDate + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) : "События месяца"}</h2>
-          <span className="text-xs text-muted-foreground">{selectedDate ? selectedItems.length : monthItems.length} событий</span>
+          <h2 aria-live="polite" aria-atomic="true" className="text-sm font-semibold">{selectedDate ? new Date(selectedDate + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) : "События месяца"}</h2>
+          <span aria-live="polite" aria-atomic="true" className="text-xs text-muted-foreground">{selectedDate ? selectedItems.length : monthItems.length} событий</span>
         </div>
         {(selectedDate ? selectedItems : monthItems).length === 0 ? (
           <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{selectedDate ? "На эту дату событий нет." : "В этом месяце событий нет."}</div>

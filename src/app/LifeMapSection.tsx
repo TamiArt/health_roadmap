@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { Pencil, Plus } from "lucide-react";
 import { CATEGORY_CONFIG, LIFE_EVENTS_INIT } from "./lifeMapData";
 import type { Category, LifeEvent } from "./models";
-import { CURRENT_YEAR, createId, isValidRequiredText, parseBoundedInteger, DelBtn, EditToggle, INP, SEL } from "./shared";
+import { createId, isValidRequiredText, parseBoundedInteger, DelBtn, EditToggle, INP, SEL } from "./shared";
 
 // ─── Life Map ─────────────────────────────────────────────────────────────────
 
@@ -51,16 +51,16 @@ export function LifeMapSection() {
 
   return (
     <div className="min-h-full">
-      <div className="sticky top-0 z-10 backdrop-blur-sm border-b border-border px-8 py-5"
+      <div className="sticky top-0 z-10 border-b border-border px-4 py-4 backdrop-blur-sm sm:px-8 sm:py-5"
         style={{ background:"rgba(242,238,228,0.95)", backgroundImage:"radial-gradient(circle, rgba(44,95,90,0.07) 1px, transparent 1px)", backgroundSize:"22px 22px" }}
       >
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily:"'Playfair Display', serif" }}>Карта жизни</h1>
-            <p className="text-sm text-muted-foreground">Ваш путь с 1997 по сегодня</p>
+            <p className="text-sm text-muted-foreground">Сохранённые события и важные этапы</p>
           </div>
-          <div className="flex items-center gap-4">
-            {[[String(CURRENT_YEAR - 1997),"лет"],[String(milestones),"ключевых"]].map(([v,l]) => (
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            {[[String(milestones),"ключевых"]].map(([v,l]) => (
               <div key={l} className="text-right">
                 <div className="text-xl font-bold text-foreground" style={{ fontFamily:"'DM Mono', monospace" }}>{v}</div>
                 <div className="text-[11px] text-muted-foreground">{l}</div>
@@ -79,9 +79,9 @@ export function LifeMapSection() {
         </div>
       </div>
 
-      <div className="px-8 py-10 max-w-3xl mx-auto">
+      <div className="mx-auto max-w-3xl px-4 py-7 sm:px-8 sm:py-10">
         <div className="relative">
-          <div className="pointer-events-none absolute left-1/2 top-0 bottom-0 w-px bg-border -translate-x-1/2" />
+          <div className="pointer-events-none absolute bottom-0 left-4 top-0 w-px bg-border sm:left-1/2 sm:-translate-x-1/2" />
           <div className="space-y-5">
             {visible.map((ev, i) => {
               const flip = i % 2 === 1;
@@ -89,10 +89,10 @@ export function LifeMapSection() {
               const isEditing = editingId === ev.id;
               return (
                 <motion.div key={ev.id} initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.04 }}
-                  className={`flex items-center ${flip ? "flex-row-reverse" : ""}`}
+                  className={`relative flex items-start sm:items-center ${flip ? "sm:flex-row-reverse" : ""}`}
                 >
-                  <div className={`flex-1 ${flip ? "pl-7" : "pr-7"} flex ${flip ? "justify-start" : "justify-end"}`}>
-                    <div className="relative w-full max-w-[270px]">
+                  <div className={`flex min-w-0 flex-1 justify-start pl-10 sm:flex ${flip ? "sm:pl-7 sm:justify-start" : "sm:pr-7 sm:justify-end"}`}>
+                    <div className="relative w-full min-w-0 max-w-none sm:max-w-[270px]">
                       {editMode && !isEditing && (
                         <div className="absolute -top-1.5 -right-1.5 z-10 flex gap-1">
                           <button onClick={() => startEdit(ev)} className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"><Pencil size={11} /></button>
@@ -136,14 +136,14 @@ export function LifeMapSection() {
                       )}
                     </div>
                   </div>
-                  <div className="relative z-10 shrink-0">
+                  <div className="absolute left-0 top-0 z-10 shrink-0 sm:static">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold border-2 shadow-sm ${ev.milestone ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border"}`}
                       style={{ fontFamily:"'DM Mono', monospace" }}
                     >
                       '{String(ev.year).slice(2)}
                     </div>
                   </div>
-                  <div className="flex-1" />
+                  <div className="hidden flex-1 sm:block" />
                 </motion.div>
               );
             })}

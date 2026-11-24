@@ -10,6 +10,7 @@ import { usePersistentState } from "./storage";
 import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
+import { handleTabListKeyDown } from "./tabNavigation";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
 
@@ -349,7 +350,7 @@ export function DentalTab({
     const t=data[n]; const cfg=t?TOOTH_STATUS_CFG[t.status]:null; const isSel=selected===n;
     return (
       <button type="button" onClick={() => pick(n)} title={toothLabel(n)} aria-label={`${toothLabel(n)}${t ? `, статус: ${TOOTH_STATUS_CFG[t.status].label}` : ", статус не указан"}`} aria-pressed={isSel} style={{ flexDirection:upper?"column-reverse":"column" }} className="flex flex-col items-center gap-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
-        <div className={`w-6 h-8 flex items-center justify-center border-2 transition-all text-[8px] font-bold ${upper?"rounded-t-lg rounded-b-sm":"rounded-b-lg rounded-t-sm"} ${isSel?"ring-2 ring-offset-1 ring-primary border-primary":cfg?"border-transparent":"border-border"}`}
+        <div className={`h-6 w-4 flex items-center justify-center border-2 transition-all text-[8px] font-bold sm:h-8 sm:w-6 ${upper?"rounded-t-lg rounded-b-sm":"rounded-b-lg rounded-t-sm"} ${isSel?"ring-2 ring-offset-1 ring-primary border-primary":cfg?"border-transparent":"border-border"}`}
           style={{ backgroundColor:cfg?cfg.fill:"#f1f5f9", color:cfg?(t?.status==="extracted"?"#64748b":"#fff"):"#94a3b8" }}>
           {n%10}
         </div>
@@ -370,9 +371,9 @@ export function DentalTab({
       <div className="bg-card border border-border rounded-xl p-4 mb-4">
         <p className="text-[10px] text-muted-foreground text-center uppercase tracking-widest mb-3">Верхняя челюсть (FDI)</p>
         <div className="flex justify-center">
-          <div className="flex gap-0.5">{UPPER.slice(0,8).map(n=><ToothCell key={n} n={n} upper={true}/>)}</div>
-          <div className="w-3"/>
-          <div className="flex gap-0.5">{UPPER.slice(8).map(n=><ToothCell key={n} n={n} upper={true}/>)}</div>
+          <div className="flex gap-0 sm:gap-0.5">{UPPER.slice(0,8).map(n=><ToothCell key={n} n={n} upper={true}/>)}</div>
+          <div className="w-0 sm:w-3"/>
+          <div className="flex gap-0 sm:gap-0.5">{UPPER.slice(8).map(n=><ToothCell key={n} n={n} upper={true}/>)}</div>
         </div>
         <div className="my-3 flex items-center gap-2">
           <div className="flex-1 border-t border-dashed border-border"/>
@@ -380,9 +381,9 @@ export function DentalTab({
           <div className="flex-1 border-t border-dashed border-border"/>
         </div>
         <div className="flex justify-center">
-          <div className="flex gap-0.5">{LOWER.slice(0,8).map(n=><ToothCell key={n} n={n} upper={false}/>)}</div>
-          <div className="w-3"/>
-          <div className="flex gap-0.5">{LOWER.slice(8).map(n=><ToothCell key={n} n={n} upper={false}/>)}</div>
+          <div className="flex gap-0 sm:gap-0.5">{LOWER.slice(0,8).map(n=><ToothCell key={n} n={n} upper={false}/>)}</div>
+          <div className="w-0 sm:w-3"/>
+          <div className="flex gap-0 sm:gap-0.5">{LOWER.slice(8).map(n=><ToothCell key={n} n={n} upper={false}/>)}</div>
         </div>
         <p className="text-[10px] text-muted-foreground text-center uppercase tracking-widest mt-3">Нижняя челюсть (FDI)</p>
       </div>
@@ -426,29 +427,18 @@ export function HealthSection({
   if (toothDataError) return <div role="alert" className="p-8 text-sm text-red-600">{toothDataError}</div>;
 
   return (
-    <div className="p-8 max-w-xl">
+    <div className="mx-auto w-full max-w-xl p-4 sm:p-8">
       <h1 className="text-2xl font-bold text-foreground mb-1" style={{ fontFamily:"'Playfair Display', serif" }}>Навигатор здоровья</h1>
       <p className="text-sm text-muted-foreground mb-5">Профилактика и медицинская история</p>
-      <div role="tablist" aria-label="Разделы навигатора здоровья" className="flex flex-wrap gap-1 bg-muted p-1 rounded-lg mb-7">
+      <div role="tablist" aria-label="Разделы навигатора здоровья" aria-orientation="horizontal" className="flex flex-wrap gap-1 bg-muted p-1 rounded-lg mb-7">
         {tabs.map(([id,label]) => (
-          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} onClick={() => setTab(id)} className={`flex-1 min-w-[88px] py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
+          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} tabIndex={tab===id ? 0 : -1} onKeyDown={handleTabListKeyDown} onClick={() => setTab(id)} className={`flex-1 min-w-[88px] py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
 
       <div id={`${tabsId}-panel-roadmap`} role="tabpanel" aria-labelledby={`${tabsId}-tab-roadmap`} hidden={tab !== "roadmap"}>
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          {[
-            { emoji:"📅", val:"Гинеколог",  sub:"Рекомендован сейчас",  label:"Следующий визит"    },
-            { emoji:"✅", val:"Стоматолог",  sub:"Ноябрь 2024",          label:"Последнее посещение"},
-            { emoji:"⚠️", val:"4 пункта",   sub:"Этого возраста",       label:"Требует внимания"   },
-          ].map(c => (
-            <div key={c.label} className="bg-card border border-border rounded-xl p-3.5">
-              <div className="text-2xl mb-2">{c.emoji}</div>
-              <div className="text-xs font-semibold text-foreground">{c.val}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">{c.label}</div>
-              <div className="text-[10px] text-muted-foreground">{c.sub}</div>
-            </div>
-          ))}
+        <div className="mb-8 rounded-xl border border-primary/15 bg-primary/5 p-4 text-xs leading-relaxed text-muted-foreground">
+          Справочные ориентиры по возрастным этапам. Это не персональный медицинский план: актуальные обследования и сроки лучше согласовать с лечащим врачом.
         </div>
         <div className="relative pl-4">
           <div className="absolute left-4 top-4 bottom-4 w-px bg-border"/>

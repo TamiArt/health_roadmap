@@ -6,7 +6,7 @@ test.describe("primary navigation", () => {
 
     await expect(page.getByRole("heading", { name: "Карта жизни" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Здоровье" }).click();
+    await page.getByRole("button", { name: "Здоровье", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Навигатор здоровья" })).toBeVisible();
 
     await page.getByRole("button", { name: "Семья" }).click();
@@ -18,7 +18,7 @@ test.describe("primary navigation", () => {
 
   test("opens the health sub-sections", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Здоровье" }).click();
+    await page.getByRole("button", { name: "Здоровье", exact: true }).click();
 
     for (const tab of ["Анализы", "Прививки", "Стоматолог", "Профилактика"]) {
       await page.getByRole("tab", { name: tab, exact: true }).click();
@@ -29,7 +29,7 @@ test.describe("primary navigation", () => {
 
 test("rejects unsupported lab attachments and accepts a valid PDF", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Анализы", exact: true }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
 
@@ -91,12 +91,17 @@ test("creates a child profile and opens its health view", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Семья" })).toBeVisible();
   await page.getByText("E2E ребёнок", { exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "E2E ребёнок" })).toBeVisible();
-  await expect(childNote).toHaveValue("Заметка детского профиля");
+  // Tooth selection is transient UI state; reselect the tooth to inspect its persisted note.
+  await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
+  await page.locator('button[title="Зуб 11 — верхний правый резец"]').last().click();
+  await expect(page.getByPlaceholder("Заметки: дата, врач, жалобы...").last()).toHaveValue("Заметка детского профиля");
 
   await page.getByRole("button", { name: "Карта жизни" }).click();
   await page.getByRole("button", { name: "Семья" }).click();
   await expect(page.getByRole("heading", { name: "E2E ребёнок" })).toBeVisible();
-  await expect(childNote).toHaveValue("Заметка детского профиля");
+  await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
+  await page.locator('button[title="Зуб 11 — верхний правый резец"]').last().click();
+  await expect(page.getByPlaceholder("Заметки: дата, врач, жалобы...").last()).toHaveValue("Заметка детского профиля");
 });
 
 test("edits and deletes a life event", async ({ page }) => {
@@ -124,7 +129,7 @@ test("edits and deletes a life event", async ({ page }) => {
 
 test("changes a vaccine status and reflects the new state", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Прививки", exact: true }).click();
 
   const vaccineStatus = page.getByRole("button", { name: /Изменить статус вакцины/ }).first();
@@ -136,7 +141,7 @@ test("changes a vaccine status and reflects the new state", async ({ page }) => 
 
 test("updates a tooth status and saves its note", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
 
   const tooth = page.locator('button[title="Зуб 11 — верхний правый резец"]');
@@ -152,31 +157,91 @@ test("updates a tooth status and saves its note", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Кариес", exact: true })).toHaveClass(/bg-red-500/);
 });
 
-test("keeps main sections within a narrow mobile viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test("keeps primary sections usable from 320px to 390px and keeps backup actions above navigation", async ({ page }) => {
   await page.goto("/");
 
-  const mobileNavigation = page.getByRole("navigation", { name: "Основная навигация" });
-  const backupPanel = page.getByRole("region", { name: "Резервное копирование" });
-  const navigationBox = await mobileNavigation.boundingBox();
-  const backupBox = await backupPanel.boundingBox();
-  expect(navigationBox).not.toBeNull();
-  expect(backupBox).not.toBeNull();
-  expect(backupBox!.y + backupBox!.height).toBeLessThanOrEqual(navigationBox!.y);
+  for (const width of [320, 360, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    const mobileNavigation = page.getByRole("navigation", { name: "Основная навигация" });
+    const backupPanel = page.getByRole("region", { name: "Резервное копирование" });
+    const navigationBox = await mobileNavigation.boundingBox();
+    const backupBox = await backupPanel.boundingBox();
+    expect(navigationBox, `Navigation should render at ${width}px`).not.toBeNull();
+    expect(backupBox, `Backup actions should render at ${width}px`).not.toBeNull();
+    expect(backupBox!.y + backupBox!.height, `Backup panel overlaps navigation at ${width}px`)
+      .toBeLessThanOrEqual(navigationBox!.y);
 
-  for (const section of ["Карта жизни", "Здоровье", "Семья", "Аналитика"]) {
-    await page.getByRole("button", { name: section }).click();
-    const main = page.locator("main");
-    await expect(main).toBeVisible();
-    const dimensions = await main.evaluate(element => ({
+    for (const section of ["Карта жизни", "Здоровье", "Семья", "Календарь", "Аналитика"]) {
+      await page.getByRole("button", { name: section }).click();
+      const dimensions = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        page: document.documentElement.scrollWidth,
+        main: document.querySelector("main")?.scrollWidth ?? 0,
+        mainClient: document.querySelector("main")?.clientWidth ?? 0,
+      }));
+      expect(
+        dimensions.page,
+        `Page horizontal overflow in "${section}" at ${width}px: ${JSON.stringify(dimensions)}`,
+      ).toBeLessThanOrEqual(dimensions.viewport);
+      expect(
+        dimensions.main,
+        `Section horizontal overflow in "${section}" at ${width}px: ${JSON.stringify(dimensions)}`,
+      ).toBeLessThanOrEqual(dimensions.mainClient);
+    }
+
+    if (width === 320) {
+      await page.getByRole("button", { name: "Здоровье", exact: true }).click();
+      for (const tab of ["Анализы", "Прививки", "Стоматолог", "История"]) {
+        await page.getByRole("tab", { name: tab, exact: true }).click();
+        const dimensions = await page.locator("main").evaluate(element => ({
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+        }));
+        expect(dimensions.scrollWidth, `Horizontal overflow in health tab "${tab}" at 320px`)
+          .toBeLessThanOrEqual(dimensions.clientWidth);
+      }
+    }
+  }
+
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByPlaceholder("Имя").fill("Мобильный профиль");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2020");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Мобильный профиль/ }).click();
+
+  for (const tab of ["Анализы", "Прививки", "Стоматолог", "История", "События", "На контроле"]) {
+    await page.getByRole("tab", { name: tab, exact: true }).click();
+    const dimensions = await page.locator("main").evaluate(element => ({
       clientWidth: element.clientWidth,
       scrollWidth: element.scrollWidth,
     }));
-    expect(
-      dimensions.scrollWidth,
-      `Horizontal overflow in section "${section}" at 390px: ${JSON.stringify(dimensions)}`,
-    ).toBeLessThanOrEqual(dimensions.clientWidth);
+    expect(dimensions.scrollWidth, `Horizontal overflow in child tab "${tab}" at 320px`)
+      .toBeLessThanOrEqual(dimensions.clientWidth);
   }
+});
+
+test("exposes install metadata and the Life Maps app icon", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/manifest.webmanifest");
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/icon.svg");
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", "/apple-touch-icon.png");
+  const manifestResponse = await page.request.get("/manifest.webmanifest");
+  expect(manifestResponse.ok()).toBeTruthy();
+  const manifest = await manifestResponse.json();
+  expect(manifest.display).toBe("standalone");
+  expect(manifest.icons).toEqual(expect.arrayContaining([
+    expect.objectContaining({ src: "/icon.svg", purpose: "any maskable" }),
+  ]));
+  const iconResponse = await page.request.get("/icon.svg");
+  expect(iconResponse.ok()).toBeTruthy();
+  expect(await iconResponse.text()).toContain("<svg");
+  const appleIconResponse = await page.request.get("/apple-touch-icon.png");
+  expect(appleIconResponse.ok()).toBeTruthy();
+  expect(appleIconResponse.headers()["content-type"]).toContain("image/png");
 });
 
 test("preserves section state when navigating between main sections", async ({ page }) => {
@@ -205,7 +270,7 @@ test("preserves section state when navigating between main sections", async ({ p
 
 test("preserves health sub-tab data after navigating away and back", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
 
   const tooth = page.locator('button[title="Зуб 11 — верхний правый резец"]');
@@ -219,7 +284,7 @@ test("preserves health sub-tab data after navigating away and back", async ({ pa
   await expect(note).toHaveValue("Сохраняется после перехода между разделами");
 
   await page.getByRole("button", { name: "Семья" }).click();
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await expect(page.getByRole("tab", { name: "Стоматолог", exact: true })).toBeVisible();
   await expect(tooth).toBeVisible();
   await expect(note).toHaveValue("Сохраняется после перехода между разделами");
@@ -227,27 +292,44 @@ test("preserves health sub-tab data after navigating away and back", async ({ pa
 });
 
 
-test("keeps all primary sections within a tablet viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 768, height: 1024 });
+test("keeps primary sections within tablet and desktop viewports", async ({ page }) => {
   await page.goto("/");
 
-  for (const section of ["Карта жизни", "Здоровье", "Семья", "Аналитика"]) {
-    await page.getByRole("button", { name: section }).click();
-    const main = page.locator("main");
-    const dimensions = await main.evaluate(element => ({
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth,
-    }));
-    expect(
-      dimensions.scrollWidth,
-      `Horizontal overflow in section "${section}" at 768px: ${JSON.stringify(dimensions)}`,
-    ).toBeLessThanOrEqual(dimensions.clientWidth);
+  for (const width of [768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 1024 });
+    for (const section of ["Карта жизни", "Здоровье", "Семья", "Календарь", "Аналитика"]) {
+      await page.getByRole("button", { name: section }).click();
+      const dimensions = await page.locator("main").evaluate(element => ({
+        viewport: document.documentElement.clientWidth,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+      expect(
+        dimensions.scrollWidth,
+        `Horizontal overflow in section "${section}" at ${width}px: ${JSON.stringify(dimensions)}`,
+      ).toBeLessThanOrEqual(dimensions.clientWidth);
+      expect(dimensions.viewport).toBe(width);
+    }
   }
+});
+
+test("announces calendar context and selected date accessibly", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Календарь" }).click();
+
+  const calendar = page.getByRole("region", { name: "Календарь событий" });
+  await expect(calendar).toBeVisible();
+  await expect(calendar.getByRole("heading", { level: 2 }).first()).toHaveAttribute("aria-live", "polite");
+
+  const day = calendar.getByRole("button", { name: /событий:/ }).first();
+  await day.click();
+  await expect(day).toHaveAttribute("aria-pressed", "true");
+  await expect(calendar.getByRole("heading", { level: 2 }).nth(1)).toHaveAttribute("aria-live", "polite");
 });
 
 test("supports keyboard activation of primary navigation", async ({ page }) => {
   await page.goto("/");
-  const healthButton = page.getByRole("button", { name: "Здоровье" });
+  const healthButton = page.getByRole("button", { name: "Здоровье", exact: true });
   await healthButton.focus();
   await expect(healthButton).toBeFocused();
   await page.keyboard.press("Enter");
@@ -259,7 +341,7 @@ test("exposes active navigation and health tabs to assistive technology", async 
   const navigation = page.getByRole("navigation", { name: "Основная навигация" });
   await expect(navigation.getByRole("button", { name: "Карта жизни" })).toHaveAttribute("aria-current", "page");
 
-  const healthButton = navigation.getByRole("button", { name: "Здоровье" });
+  const healthButton = navigation.getByRole("button", { name: "Здоровье", exact: true });
   await healthButton.focus();
   await page.keyboard.press("Enter");
   await expect(healthButton).toHaveAttribute("aria-current", "page");
@@ -276,6 +358,29 @@ test("exposes active navigation and health tabs to assistive technology", async 
   await tooth.focus();
   await page.keyboard.press("Enter");
   await expect(tooth).toHaveAttribute("aria-pressed", "true");
+});
+
+test("supports arrow-key navigation across adult health tabs", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
+
+  const tabs = page.getByRole("tablist", { name: "Разделы навигатора здоровья" });
+  const prevention = tabs.getByRole("tab", { name: "Профилактика" });
+  const labs = tabs.getByRole("tab", { name: "Анализы" });
+
+  await expect(prevention).toHaveAttribute("tabindex", "0");
+  await expect(labs).toHaveAttribute("tabindex", "-1");
+  await prevention.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(labs).toBeFocused();
+  await expect(labs).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(prevention).toBeFocused();
+  await expect(prevention).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("End");
+  await expect(tabs.getByRole("tab", { name: "История" })).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(prevention).toBeFocused();
 });
 
 test("opens a child profile card with the keyboard", async ({ page }) => {
@@ -295,6 +400,32 @@ test("opens a child profile card with the keyboard", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Клавиатурный профиль" })).toBeVisible();
   const childTabs = page.getByRole("tablist", { name: "Разделы здоровья ребёнка" });
   await expect(childTabs.getByRole("tab", { name: "Анализы" })).toHaveAttribute("aria-selected", "true");
+  const labsTab = childTabs.getByRole("tab", { name: "Анализы" });
+  const vaccinesTab = childTabs.getByRole("tab", { name: "Прививки" });
+  await expect(labsTab).toHaveAttribute("tabindex", "0");
+  await labsTab.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(vaccinesTab).toBeFocused();
+  await expect(vaccinesTab).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Открыть профиль ребёнка Клавиатурный профиль, 6 лет" })).toBeFocused();
+});
+
+test("gives family form fields accessible names", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+
+  await page.getByRole("button", { name: "Добавить взрослого" }).click();
+  await expect(page.getByRole("textbox", { name: "Имя взрослого" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Эмодзи взрослого" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Родство" })).toBeVisible();
+  await expect(page.getByRole("spinbutton", { name: "Возраст взрослого" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Отмена" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await expect(page.getByRole("textbox", { name: "Имя ребёнка" })).toBeVisible();
+  await expect(page.getByRole("spinbutton", { name: "Год рождения ребёнка" })).toBeVisible();
 });
 
 test("validates child creation without creating an empty profile", async ({ page }) => {
@@ -386,9 +517,9 @@ test("exports a backup and restores data from a validated backup", async ({ page
 
   // The restore event must not unmount the app or leave it stuck on loading.
   await expect(page.getByRole("button", { name: "Импорт" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Здоровье" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Здоровье", exact: true })).toBeEnabled();
 
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(page.getByText("A(II) Rh+", { exact: true }).first()).toBeVisible();
@@ -406,10 +537,10 @@ test("shows a validation error for an invalid backup and keeps the app usable", 
     buffer: Buffer.from(JSON.stringify({ not: "a Life Maps backup" })),
   });
 
-  const status = page.getByRole("status");
+  const status = page.getByRole("alert");
   await expect(status).toContainText("не является резервной копией", { timeout: 5000 });
   await expect(page.getByRole("button", { name: "Импорт" })).toBeEnabled();
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Навигатор здоровья" })).toBeVisible();
 });
 
@@ -454,7 +585,7 @@ test("renders age-specific child health paths without duplicate birth tests", as
  
 test("stale tab cannot overwrite a newer lab measurement revision", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
   await page.getByRole("button", { name: "+ Значение" }).first().click();
@@ -471,7 +602,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
     Object.defineProperty(window, "BroadcastChannel", { configurable: true, value: undefined });
   });
   await staleTab.goto("/");
-  await staleTab.getByRole("button", { name: "Здоровье" }).click();
+  await staleTab.getByRole("button", { name: "Здоровье", exact: true }).click();
   await staleTab.getByRole("tab", { name: "Анализы" }).click();
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(staleTab.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
@@ -523,7 +654,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await expect(staleTab.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect(staleTab.getByText("7.2 ммоль/л", { exact: true })).toHaveCount(0);
   await staleTab.reload();
-  await staleTab.getByRole("button", { name: "Здоровье" }).click();
+  await staleTab.getByRole("button", { name: "Здоровье", exact: true }).click();
   await staleTab.getByRole("tab", { name: "Анализы" }).click();
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(staleTab.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
@@ -533,7 +664,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
 
 test("saves and reloads manually entered lab measurements with date and unit", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
   await page.getByRole("button", { name: "+ Значение" }).first().click();
@@ -546,7 +677,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
 
   const secondTab = await page.context().newPage();
   await secondTab.goto("/");
-  await secondTab.getByRole("button", { name: "Здоровье" }).click();
+  await secondTab.getByRole("button", { name: "Здоровье", exact: true }).click();
   await secondTab.getByRole("tab", { name: "Анализы" }).click();
   await secondTab.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(secondTab.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
@@ -563,7 +694,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await expect(secondTab.getByText("07.11.2026", { exact: true }).first()).toBeVisible();
   await secondTab.close();
   await page.reload();
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Анализы" }).click();
   await page.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(page.getByText("<0.1 ммоль/л", { exact: true }).first()).toBeVisible();
@@ -585,7 +716,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
 
 test("adds medical events, monitoring items and multi-indicator lab history", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
 
   await page.getByRole("tab", { name: "События", exact: true }).click();
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
@@ -659,7 +790,7 @@ test("aggregates health events and monitoring dates in the unified calendar", as
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   });
 
-  await page.getByRole("button", { name: "Здоровье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "События", exact: true }).click();
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
   await page.getByLabel("Дата", { exact: true }).fill(today);
@@ -949,27 +1080,28 @@ test("keeps lab measurements isolated between child profiles after switching and
   await saveChildMeasurement("Второй профиль — изоляция", "9.2");
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
-  // Inactive profile panels remain mounted; assert the other profile value is hidden, not absent from the DOM.
-  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeHidden();
+  // The adult health section is also mounted but hidden; assert only visible child-profile measurements.
+  const visibleMeasurement = (value: string) => page.locator("p:visible").filter({ hasText: value + " г/л" });
+  await expect(visibleMeasurement("12.1")).toHaveCount(1);
+  await expect(visibleMeasurement("9.2")).toHaveCount(0);
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
   // The first profile panel remains mounted but must be hidden while the second profile is active.
-  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeHidden();
+  await expect(visibleMeasurement("9.2")).toHaveCount(1);
+  await expect(visibleMeasurement("12.1")).toHaveCount(0);
 
   await page.reload();
   await page.getByRole("button", { name: "Семья" }).click();
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
-  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeHidden();
+  await expect(visibleMeasurement("12.1")).toHaveCount(1);
+  await expect(visibleMeasurement("9.2")).toHaveCount(0);
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
-  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeHidden();
+  await expect(visibleMeasurement("9.2")).toHaveCount(1);
+  await expect(visibleMeasurement("12.1")).toHaveCount(0);
 });
 
 

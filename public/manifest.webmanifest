@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "Life Maps — карта жизни, здоровья и семьи",
+  "short_name": "Life Maps",
+  "description": "Личная карта жизненных событий, семейных дат и медицинской истории.",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F9E8B8",
+  "theme_color": "#B8F0DF",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

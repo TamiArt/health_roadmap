@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { deleteChildHealthRecords, usePersistentState } from "./storage";
 import { motion } from "motion/react";
 import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
@@ -11,6 +11,7 @@ import { LabResultsTab } from "./LabResultsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { useBrowserReminders } from "./useBrowserReminders";
 import { isIsoDate, type FamilyDate } from "./healthRecords";
+import { handleTabListKeyDown } from "./tabNavigation";
 
 // ─── Child Health View ────────────────────────────────────────────────────────
 
@@ -32,12 +33,12 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
   const tabs: Array<["tests"|"vaccines"|"dental"|"history"|"events"|"monitoring", string]> = [["tests","Анализы"],["vaccines","Прививки"],["history","История"],["events","События"],["monitoring","На контроле"]];
   if (age>=5) tabs.push(["dental","Стоматолог"]);
 
-  if (!vaccineReady || !toothReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка данных профиля…</div>;
+  if (!vaccineReady || !toothReady) return <div role="status" aria-live="polite" aria-busy="true" className="p-8 text-sm text-muted-foreground">Загрузка данных профиля…</div>;
   if (vaccineError || toothError) return <div role="alert" className="p-8 text-sm text-red-600">{vaccineError ?? toothError}</div>;
 
   return (
-    <div className="p-8 max-w-xl">
-      <button onClick={onBack} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
+    <div className="mx-auto w-full max-w-xl p-4 sm:p-8" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); onBack(); } }}>
+      <button type="button" autoFocus aria-label="Вернуться к семье" onClick={onBack} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft size={13}/> Вернуться к семье
       </button>
       <div className="flex items-center gap-4 mb-6">
@@ -48,9 +49,9 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
           <span className="inline-block mt-1 text-[11px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{agePeriod}</span>
         </div>
       </div>
-      <div role="tablist" aria-label="Разделы здоровья ребёнка" className="flex flex-wrap gap-1 bg-muted p-1 rounded-lg mb-6">
+      <div role="tablist" aria-label="Разделы здоровья ребёнка" aria-orientation="horizontal" className="flex flex-wrap gap-1 bg-muted p-1 rounded-lg mb-6">
         {tabs.map(([id,label]) => (
-          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} onClick={() => setTab(id)} className={`flex-1 min-w-[88px] py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
+          <button key={id} id={`${tabsId}-tab-${id}`} type="button" role="tab" aria-selected={tab===id} aria-controls={`${tabsId}-panel-${id}`} tabIndex={tab===id ? 0 : -1} onKeyDown={handleTabListKeyDown} onClick={() => setTab(id)} className={`flex-1 min-w-[88px] py-1.5 text-xs rounded-md transition-all font-medium ${tab===id?"bg-card shadow-sm text-foreground":"text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
       <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f" storageKey={`childHealth:${child.id}:labUploads`}/></div>
@@ -71,6 +72,12 @@ export function FamilySection() {
   const [events, setEvents, eventsReady, eventsError] = usePersistentState<FamilyDate[]>("familyEvents", FAMILY_EVENTS_INIT.map(event => ({ ...event, recurringYearly: false, reminder: { enabled: false, leadDays: 1, time: "09:00" } })));
   const [editMode, setEditMode] = useState(false);
   const [viewingChild, setViewingChild] = useState<Child|null>(null);
+  const childProfileTriggerRef = useRef<HTMLButtonElement>(null);
+  const wasViewingChildRef = useRef(false);
+  useEffect(() => {
+    if (wasViewingChildRef.current && !viewingChild) childProfileTriggerRef.current?.focus();
+    wasViewingChildRef.current = !!viewingChild;
+  }, [viewingChild]);
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddChild, setShowAddChild] = useState(false);
   const [showAddEvent, setShowAddEvent] = useState(false);
@@ -83,7 +90,7 @@ export function FamilySection() {
   const [formError, setFormError] = useState<string | null>(null);
   const [childDeleteError, setChildDeleteError] = useState<string | null>(null);
 
-  if (!membersReady || !childrenReady || !eventsReady || !notificationSettingsReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка семейных данных…</div>;
+  if (!membersReady || !childrenReady || !eventsReady || !notificationSettingsReady) return <div role="status" aria-live="polite" aria-busy="true" className="p-8 text-sm text-muted-foreground">Загрузка семейных данных…</div>;
   if (membersError || childrenError || eventsError) return <div role="alert" className="p-8 text-sm text-red-600">{membersError ?? childrenError ?? eventsError}</div>;
 
   function addMember() {
@@ -128,7 +135,7 @@ export function FamilySection() {
 
   return (
     <>
-    <div hidden={!!viewingChild} className="p-8 max-w-xl">
+    <div hidden={!!viewingChild} className="mx-auto w-full max-w-xl p-4 sm:p-8">
       <div className="flex items-start justify-between mb-7">
         <div>
           <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily:"'Playfair Display', serif" }}>Семья</h1>
@@ -154,10 +161,10 @@ export function FamilySection() {
         <div className="bg-card border border-primary/20 rounded-xl p-4 mb-5">
           <p className="text-xs font-semibold text-foreground mb-3">Добавить взрослого</p>
           <div className="grid grid-cols-2 gap-2 mb-3">
-            <input value={mForm.name} onChange={e=>setMForm(f=>({...f,name:e.target.value}))} placeholder="Имя" maxLength={80} required className={INP}/>
-            <input value={mForm.emoji} onChange={e=>setMForm(f=>({...f,emoji:e.target.value}))} placeholder="Emoji" maxLength={16} className={INP}/>
-            <input value={mForm.relation} onChange={e=>setMForm(f=>({...f,relation:e.target.value}))} placeholder="Кто (Мама, Муж...)" maxLength={60} className={INP}/>
-            <input value={mForm.age} onChange={e=>setMForm(f=>({...f,age:e.target.value}))} placeholder="Возраст" type="number" min={0} max={120} step={1} className={INP}/>
+            <input aria-label="Имя взрослого" value={mForm.name} onChange={e=>setMForm(f=>({...f,name:e.target.value}))} placeholder="Имя" maxLength={80} required className={INP}/>
+            <input aria-label="Эмодзи взрослого" value={mForm.emoji} onChange={e=>setMForm(f=>({...f,emoji:e.target.value}))} placeholder="Emoji" maxLength={16} className={INP}/>
+            <input aria-label="Родство" value={mForm.relation} onChange={e=>setMForm(f=>({...f,relation:e.target.value}))} placeholder="Кто (Мама, Муж...)" maxLength={60} className={INP}/>
+            <input aria-label="Возраст взрослого" value={mForm.age} onChange={e=>setMForm(f=>({...f,age:e.target.value}))} placeholder="Возраст" type="number" min={0} max={120} step={1} className={INP}/>
           </div>
           {formError && <p role="alert" className="mb-2 text-xs text-red-600">{formError}</p>}
           <div className="flex gap-2 justify-end">
@@ -188,7 +195,7 @@ export function FamilySection() {
                 className="relative bg-card border border-primary/15 rounded-xl p-4 text-center hover:border-primary/40 hover:shadow-sm transition-all group"
               >
                 {editMode && <div className="absolute top-1.5 right-1.5 z-10"><DelBtn ariaLabel={`Удалить профиль ребёнка ${child.name}`} onClick={() => void deleteChild(child)}/></div>}
-                <button type="button" disabled={editMode} aria-haspopup="true" aria-label={`Открыть профиль ребёнка ${child.name}, ${age} лет`} onClick={() => setViewingChild(child)} className="w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-default">
+                <button type="button" disabled={editMode} aria-haspopup="true" aria-label={`Открыть профиль ребёнка ${child.name}, ${age} лет`} ref={childProfileTriggerRef} onClick={() => setViewingChild(child)} className="w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-default">
                   <div className="text-3xl mb-2">{child.emoji}</div>
                   <p className="text-xs font-semibold text-foreground">{child.name}</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">{age} {age===1?"год":age<5?"года":"лет"}</p>
@@ -207,10 +214,10 @@ export function FamilySection() {
         <div className="bg-card border border-primary/20 rounded-xl p-4 mb-5">
           <p className="text-xs font-semibold text-foreground mb-3">Добавить ребёнка</p>
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <input value={cForm.name} onChange={e=>setCForm(f=>({...f,name:e.target.value}))} placeholder="Имя" maxLength={80} required className={INP}/>
-            <input value={cForm.emoji} onChange={e=>setCForm(f=>({...f,emoji:e.target.value}))} placeholder="Emoji 👶" maxLength={16} className={INP}/>
+            <input aria-label="Имя ребёнка" value={cForm.name} onChange={e=>setCForm(f=>({...f,name:e.target.value}))} placeholder="Имя" maxLength={80} required className={INP}/>
+            <input aria-label="Эмодзи ребёнка" value={cForm.emoji} onChange={e=>setCForm(f=>({...f,emoji:e.target.value}))} placeholder="Emoji 👶" maxLength={16} className={INP}/>
           </div>
-          <input value={cForm.birthYear} onChange={e=>setCForm(f=>({...f,birthYear:e.target.value}))} placeholder="Год рождения (2022)" type="number" min={1900} max={CURRENT_YEAR} step={1} required className={`${INP} mb-3`}/>
+          <input aria-label="Год рождения ребёнка" value={cForm.birthYear} onChange={e=>setCForm(f=>({...f,birthYear:e.target.value}))} placeholder="Год рождения (2022)" type="number" min={1900} max={CURRENT_YEAR} step={1} required className={`${INP} mb-3`}/>
           {formError && <p role="alert" className="mb-2 text-xs text-red-600">{formError}</p>}
           <div className="flex gap-2 justify-end">
             <button onClick={()=>setShowAddChild(false)} className="text-xs px-3 py-1.5 border border-border rounded-lg text-muted-foreground">Отмена</button>
@@ -244,8 +251,8 @@ export function FamilySection() {
       {editMode && (showAddEvent ? (
         <div className="bg-card border border-primary/20 rounded-xl p-4 mt-3">
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <input value={eForm.title} onChange={e=>setEForm(f=>({...f,title:e.target.value}))} placeholder="Название события" maxLength={100} required className={INP}/>
-            <input value={eForm.emoji} onChange={e=>setEForm(f=>({...f,emoji:e.target.value}))} placeholder="Emoji" maxLength={16} className={INP}/>
+            <input aria-label="Название памятной даты" value={eForm.title} onChange={e=>setEForm(f=>({...f,title:e.target.value}))} placeholder="Название события" maxLength={100} required className={INP}/>
+            <input aria-label="Эмодзи памятной даты" value={eForm.emoji} onChange={e=>setEForm(f=>({...f,emoji:e.target.value}))} placeholder="Emoji" maxLength={16} className={INP}/>
           </div>
           <input type="date" aria-label="Дата памятного события" value={eForm.date} onChange={e=>setEForm(f=>({...f,date:e.target.value}))} className={`${INP} mb-3`}/>
           <label className="flex items-center gap-2 text-xs mb-2"><input type="checkbox" checked={eForm.recurringYearly} onChange={e=>setEForm(f=>({...f,recurringYearly:e.target.checked}))}/> Повторять каждый год</label>
@@ -263,11 +270,9 @@ export function FamilySection() {
         </button>
       ))}
     </div>
-    {children.map(child => (
-      <div key={child.id} hidden={viewingChild?.id !== child.id}>
-        <ChildHealthView child={child} onBack={() => setViewingChild(null)}/>
-      </div>
-    ))}
+    {viewingChild && children.some(child => child.id === viewingChild.id) && (
+      <ChildHealthView child={viewingChild} onBack={() => setViewingChild(null)}/>
+    )}
     </>
   );
 }
