@@ -270,11 +270,9 @@ export function FamilySection() {
         </button>
       ))}
     </div>
-    {children.map(child => (
-      <div key={child.id} hidden={viewingChild?.id !== child.id}>
-        <ChildHealthView child={child} onBack={() => setViewingChild(null)}/>
-      </div>
-    ))}
+    {viewingChild && children.some(child => child.id === viewingChild.id) && (
+      <ChildHealthView child={viewingChild} onBack={() => setViewingChild(null)}/>
+    )}
     </>
   );
 }
