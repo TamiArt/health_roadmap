@@ -13,7 +13,7 @@ const CalendarSection = lazy(() => import("./CalendarSection").then(module => ({
 const AnalyticsSection = lazy(() => import("./AnalyticsSection").then(module => ({ default: module.AnalyticsSection })));
 
 function SectionFallback() {
-  return <div role="status" className="p-8 text-sm text-muted-foreground">Загрузка раздела…</div>;
+  return <div role="status" aria-live="polite" aria-busy="true" className="p-8 text-sm text-muted-foreground">Загрузка раздела…</div>;
 }
 
 export default function App() {
