@@ -406,6 +406,23 @@ test("opens a child profile card with the keyboard", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Открыть профиль ребёнка Клавиатурный профиль, 6 лет" })).toBeFocused();
 });
 
+test("gives family form fields accessible names", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+
+  await page.getByRole("button", { name: "Добавить взрослого" }).click();
+  await expect(page.getByRole("textbox", { name: "Имя взрослого" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Эмодзи взрослого" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Родство" })).toBeVisible();
+  await expect(page.getByRole("spinbutton", { name: "Возраст взрослого" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Отмена" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await expect(page.getByRole("textbox", { name: "Имя ребёнка" })).toBeVisible();
+  await expect(page.getByRole("spinbutton", { name: "Год рождения ребёнка" })).toBeVisible();
+});
+
 test("validates child creation without creating an empty profile", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Семья" }).click();
