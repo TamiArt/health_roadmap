@@ -1095,13 +1095,13 @@ test("keeps lab measurements isolated between child profiles after switching and
   await page.getByRole("button", { name: "Семья" }).click();
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
-  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeHidden();
+  await expect(visibleMeasurement("12.1")).toHaveCount(1);
+  await expect(visibleMeasurement("9.2")).toHaveCount(0);
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
-  await expect(page.getByText("9.2 г/л", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("12.1 г/л", { exact: true }).first()).toBeHidden();
+  await expect(visibleMeasurement("9.2")).toHaveCount(1);
+  await expect(visibleMeasurement("12.1")).toHaveCount(0);
 });
 
 
