@@ -38,7 +38,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
 
   return (
     <div className="mx-auto w-full max-w-xl p-4 sm:p-8" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); onBack(); } }}>
-      <button type="button" autoFocus aria-label="Вернуться к списку семьи" onClick={onBack} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
+      <button type="button" autoFocus aria-label="Вернуться к семье" onClick={onBack} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft size={13}/> Вернуться к семье
       </button>
       <div className="flex items-center gap-4 mb-6">
