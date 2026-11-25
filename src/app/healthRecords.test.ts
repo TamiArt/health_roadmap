@@ -3,7 +3,9 @@ import {
   isIsoDate,
   nextOccurrence,
   validateHealthEvent,
-  validateLabResult,\n  validateVaccineAdministration,\n  validateMonitoringReading,
+  validateLabResult,
+  validateVaccineAdministration,
+  validateMonitoringReading,
   validateMonitoringItem,
 } from "./healthRecords";
 
