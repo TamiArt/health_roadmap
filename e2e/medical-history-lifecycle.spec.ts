@@ -96,7 +96,7 @@ test("medical events support create, edit, search and confirmed delete", async (
   await page.getByLabel("Описание события").fill("Первоначальное описание");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
 
-  await expect(page.getByText("Операция для проверки CRUD", { exact: true })).toBeVisible();
+  await expect(page.getByText("Операция для проверки CRUD", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Изменить событие Операция для проверки CRUD" }).click();
   await page.getByLabel("Название события").fill("Операция обновлена");
   await page.getByLabel("Описание события").fill("Изменённое описание");
