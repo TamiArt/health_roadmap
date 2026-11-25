@@ -5,7 +5,9 @@ import type { Child, DentalRecord, FamilyEvent, LabMeasurement, UploadedResult }
 import type { FamilyDate, HealthEvent, HealthMonitoringItem, LabResultEntry, VaccineAdministration } from "./healthRecords";
 import { buildMedicalHistory, filterMedicalHistory, type MedicalHistoryEntry, type MedicalHistoryKind, type MedicalHistorySource } from "./medicalHistoryModel";
 
-const EMPTY_PROFILES: Child[] = [];\n\nconst KIND_LABELS: Record<MedicalHistoryKind, string> = {
+const EMPTY_PROFILES: Child[] = [];
+
+const KIND_LABELS: Record<MedicalHistoryKind, string> = {
   analysis: "Анализы", manual: "Ручные измерения", event: "Медицинские события",
   vaccine: "Вакцинация", dental: "Стоматология", monitoring: "Контроль показателей",
   document: "Документы", family: "Семейная история",
