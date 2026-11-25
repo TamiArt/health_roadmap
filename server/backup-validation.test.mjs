@@ -83,6 +83,11 @@ describe("server backup validation", () => {
       indicators: [{ id: "hb", name: "Hb", value: 120, unit: "г/л" }, { id: "hb", name: "Hb2", value: 121, unit: "г/л" }],
     }] } };
     assert.equal(validateBackupPayload(duplicateIndicators), false);
+    const duplicateLabEntries = { ...valid, records: { labResultEntries: [
+      { id: "same", testName: "ОАК", date: "2026-11-20", indicators: [{ id: "hb1", name: "Hb", value: 120, unit: "г/л" }] },
+      { id: "same", testName: "ОАК", date: "2026-11-20", indicators: [{ id: "hb2", name: "Hb", value: 121, unit: "г/л" }] },
+    ] } };
+    assert.equal(validateBackupPayload(duplicateLabEntries), false);
   });
 
   it("rejects malformed medical measurements and excessive nesting", () => {

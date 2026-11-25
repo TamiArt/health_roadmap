@@ -279,8 +279,8 @@ function hasUniqueIds(items: unknown[]): boolean {
 
 function validateRecordValue(key: string, value: unknown): void {
   if (key === "labResultEntries" || key.endsWith(":labResultEntries")) {
-    if (!Array.isArray(value) || value.some(entry => {
-      if (!isPlainRecord(entry) || typeof entry.id !== "string" || typeof entry.testName !== "string" ||
+    if (!Array.isArray(value) || !hasUniqueIds(value) || value.some(entry => {
+      if (!isPlainRecord(entry) || typeof entry.id !== "string" || !entry.id.trim() || typeof entry.testName !== "string" ||
           typeof entry.date !== "string" || !isValidBackupDate(entry.date) ||
           !Array.isArray(entry.indicators) || entry.indicators.length === 0 || !hasUniqueIds(entry.indicators)) return true;
       if (entry.indicators.some(indicator => !isPlainRecord(indicator) || typeof indicator.id !== "string" ||

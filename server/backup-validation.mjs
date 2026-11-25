@@ -51,7 +51,7 @@ function validateRecord(key, value) {
             !validDate(record.date) || typeof record.dose !== "string" ||
             typeof record.facility !== "string" || typeof record.notes !== "string") return false;
         if (record.documents === undefined) return true;
-        return Array.isArray(record.documents) && record.documents.every(document =>
+        return Array.isArray(record.documents) && uniqueIds(record.documents) && record.documents.every(document =>
           isRecord(document) && typeof document.id === "string" && typeof document.name === "string" &&
           typeof document.mimeType === "string" && isEncodedBlob(document.blob));
       });
@@ -71,8 +71,8 @@ function validateRecord(key, value) {
     return true;
   }
   if (baseKey === "labResultEntries") {
-    return Array.isArray(value) && value.every(entry => {
-      if (!isRecord(entry) || typeof entry.id !== "string" || typeof entry.testName !== "string" ||
+    return Array.isArray(value) && uniqueIds(value) && value.every(entry => {
+      if (!isRecord(entry) || typeof entry.id !== "string" || !entry.id.trim() || typeof entry.testName !== "string" ||
           !validDate(entry.date) || !Array.isArray(entry.indicators) || entry.indicators.length === 0 || !uniqueIds(entry.indicators)) return false;
       if (!entry.indicators.every(item => isRecord(item) && typeof item.id === "string" &&
           typeof item.name === "string" && typeof item.value === "number" &&

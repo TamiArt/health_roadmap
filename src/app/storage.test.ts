@@ -143,7 +143,7 @@ describe("local backup schema", () => {
       format: BACKUP_FORMAT,
       schemaVersion: CURRENT_SCHEMA_VERSION,
       exportedAt: "2026-01-01T00:00:00.000Z",
-      records: { children: [], "childHealth:deleted-child:healthEvents": [{ id: "orphan" }] },
+      records: { children: [], "childHealth:deleted-child:healthEvents": [{ id: "orphan", date: "2026-11-06" }] },
     })).toThrow("отсутствующего профиля ребёнка");
   });
 
