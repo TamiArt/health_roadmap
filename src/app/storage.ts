@@ -59,6 +59,7 @@ const ALLOWED_KEYS = new Set([
   "healthEvents",
   "healthMonitoring",
   "labResultEntries",
+  "syncTombstones",
   "notificationSettings",
 ]);
 
@@ -176,6 +177,62 @@ export async function deleteChildHealthRecords(childId: string): Promise<void> {
   }
 }
 
+const VERSIONED_COLLECTION_KEYS = new Set([
+  "lifeEvents", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords", "labResultEntries",
+]);
+type RecordTombstones = Record<string, Record<string, { version: number; deletedAt: string }>>;
+
+function stripRecordVersion(value: Record<string, unknown>): Record<string, unknown> {
+  const { _version: _version, _updatedAt: _updatedAt, ...content } = value;
+  return content;
+}
+
+function versionCollection(path: string, previous: unknown, next: unknown, tombstones: RecordTombstones, now: string): unknown[] {
+  const oldItems = Array.isArray(previous) ? previous : [];
+  const nextItems = Array.isArray(next) ? next : [];
+  const oldById = new Map(oldItems.filter((item): item is Record<string, unknown> =>
+    Boolean(item) && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).id === "string")
+    .map(item => [String(item.id), item]));
+  const nextIds = new Set<string>();
+  const versions = tombstones[path] ?? {};
+  const output = nextItems.map(item => {
+    if (!item || typeof item !== "object" || Array.isArray(item) || typeof (item as Record<string, unknown>).id !== "string") return item;
+    const record = item as Record<string, unknown>;
+    const id = String(record.id);
+    nextIds.add(id);
+    const old = oldById.get(id);
+    const oldVersion = typeof old?._version === "number" ? old._version : 0;
+    const same = old ? JSON.stringify(stripRecordVersion(old)) === JSON.stringify(stripRecordVersion(record)) : false;
+    const version = same ? oldVersion : Math.max(oldVersion, versions[id]?.version ?? 0) + 1;
+    delete versions[id];
+    return { ...record, _version: version, _updatedAt: same && typeof old?._updatedAt === "string" ? old._updatedAt : now };
+  });
+  for (const [id, old] of oldById) {
+    if (!nextIds.has(id)) {
+      const version = typeof old._version === "number" ? old._version : 1;
+      versions[id] = { version, deletedAt: now };
+    }
+  }
+  if (Object.keys(versions).length) tombstones[path] = versions;
+  else delete tombstones[path];
+  return output;
+}
+
+function versionMedicalValue(key: string, previous: unknown, next: unknown, tombstones: RecordTombstones): unknown {
+  const now = new Date().toISOString();
+  const shortKey = key.split(":").at(-1) ?? key;
+  if (VERSIONED_COLLECTION_KEYS.has(shortKey) && Array.isArray(next)) {
+    return versionCollection(key, previous, next, tombstones, now);
+  }
+  if (shortKey === "labMeasurements" && next && typeof next === "object" && !Array.isArray(next)) {
+    const oldMap = previous && typeof previous === "object" && !Array.isArray(previous) ? previous as Record<string, unknown> : {};
+    return Object.fromEntries(Object.entries(next as Record<string, unknown>).map(([testId, values]) => [
+      testId, versionCollection(key + "." + testId, oldMap[testId], values, tombstones, now),
+    ]));
+  }
+  return next;
+}
+
 /** Compare-and-write: a stale tab cannot overwrite a newer IndexedDB revision. */
 export async function writeRecord<T>(key: string, value: T, expectedRevision?: number): Promise<VersionedRecord<T> & { conflict: boolean }> {
   if (!isAllowedRecordKey(key)) throw new Error("Недопустимый ключ пользовательских данных.");
@@ -184,16 +241,19 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
   const store = transaction.objectStore(STORE_NAME);
   let result: VersionedRecord<T> & { conflict: boolean } = { value, revision: 0, conflict: false };
   const request = store.get(scopedKey(key));
+  const tombstonesRequest = store.get(scopedKey("syncTombstones"));
   const childMatch = /^childHealth:([a-zA-Z0-9_-]+):/.exec(key);
   const childrenRequest = childMatch ? store.get(scopedKey("children")) : undefined;
   let recordLoaded = false;
+  let tombstonesLoaded = false;
   let childrenLoaded = !childrenRequest;
   let current: StoredRecord | undefined;
+  let tombstonesRecord: StoredRecord | undefined;
   let childrenValue: unknown;
   let profileDeleted = false;
 
   const commitIfReady = () => {
-    if (!recordLoaded || !childrenLoaded) return;
+    if (!recordLoaded || !tombstonesLoaded || !childrenLoaded) return;
     const currentRevision = current?.revision ?? 0;
     if (childMatch) {
       const exists = Array.isArray(childrenValue) && childrenValue.some(
@@ -209,13 +269,24 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
       result = { value: current?.value as T | undefined, revision: currentRevision, conflict: true };
       return;
     }
-    result = { value, revision: currentRevision + 1, conflict: false };
-    store.put({ key: scopedKey(key), value, revision: result.revision } satisfies StoredRecord);
+    const tombstones = (tombstonesRecord?.value && typeof tombstonesRecord.value === "object"
+      ? tombstonesRecord.value : {}) as RecordTombstones;
+    const persistedValue = versionMedicalValue(key, current?.value, value, tombstones);
+    result = { value: persistedValue as T, revision: currentRevision + 1, conflict: false };
+    store.put({ key: scopedKey(key), value: persistedValue, revision: result.revision } satisfies StoredRecord);
+    if (JSON.stringify(tombstones) !== JSON.stringify(tombstonesRecord?.value ?? {})) {
+      store.put({ key: scopedKey("syncTombstones"), value: tombstones, revision: (tombstonesRecord?.revision ?? 0) + 1 } satisfies StoredRecord);
+    }
   };
 
   request.onsuccess = () => {
     current = request.result as StoredRecord | undefined;
     recordLoaded = true;
+    commitIfReady();
+  };
+  tombstonesRequest.onsuccess = () => {
+    tombstonesRecord = tombstonesRequest.result as StoredRecord | undefined;
+    tombstonesLoaded = true;
     commitIfReady();
   };
   if (childrenRequest) {
@@ -233,7 +304,7 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
   if (profileDeleted) throw new Error("Профиль ребёнка удалён. Изменения не сохранены.");
   if (!result.conflict && typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
-    channel.postMessage({ key, value, revision: result.revision, scope: activeStorageScope });
+    channel.postMessage({ key, value: result.value, revision: result.revision, scope: activeStorageScope });
     channel.close();
   }
   return result;
