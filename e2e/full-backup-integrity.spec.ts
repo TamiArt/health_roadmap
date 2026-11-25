@@ -23,7 +23,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
         ["labMeasurements", { ferritin: [{ id: "adult-measurement", date: "2026-11-25", value: "32", unit: "ng/ml" }] }],
         ["healthEvents", [{ id: "adult-health-event", date: "2026-11-25", title: "Adult check" }]],
         ["healthMonitoring", [{ id: "adult-monitor", measurements: [{ id: "adult-reading", date: "2026-11-25", value: 5.2, unit: "mmol/l" }] }]],
-        ["labResultEntries", [{ id: "adult-result", testName: "CBC", date: "2026-11-25", indicators: [{ id: "hb", name: "Hemoglobin", value: 125, unit: "g/l" }], document: { id: "adult-doc", name: "adult.pdf", blob: new Blob(["adult-document"], { type: "application/pdf" }) } }]],
+        ["labResultEntries", [{ id: "adult-result", testName: "CBC", date: "2026-11-25", indicators: [{ id: "hb", name: "Hemoglobin", value: 125, unit: "g/l" }], document: { id: "adult-doc", name: "adult.pdf", blob: new Blob(["adult-document"], { type: "application/pdf" }) }, documents: [{ id: "adult-doc-2", name: "adult-extra.pdf", mimeType: "application/pdf", blob: new Blob(["adult-extra-document"], { type: "application/pdf" }) }] }]],
         ["notificationSettings", { enabled: false }],
       ];
       for (const [key, value] of records) store.put({ key, value, revision: 1 });
@@ -36,7 +36,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
           ["labMeasurements", { ferritin: [{ id: childId + "-measurement", date: "2026-11-25", value: "14", unit: "ng/ml" }] }],
           ["healthEvents", [{ id: childId + "-event", date: "2026-11-25", title: "Child check" }]],
           ["healthMonitoring", [{ id: childId + "-monitor", measurements: [{ id: childId + "-reading", date: "2026-11-25", value: 4.8, unit: "mmol/l" }] }]],
-          ["labResultEntries", [{ id: childId + "-result", testName: "CBC", date: "2026-11-25", indicators: [{ id: "hb", name: "Hemoglobin", value: 120, unit: "g/l" }], document: { id: childId + "-doc", name: "child.pdf", blob: new Blob([childId + "-document"], { type: "application/pdf" }) } }]],
+          ["labResultEntries", [{ id: childId + "-result", testName: "CBC", date: "2026-11-25", indicators: [{ id: "hb", name: "Hemoglobin", value: 120, unit: "g/l" }], document: { id: childId + "-doc", name: "child.pdf", blob: new Blob([childId + "-document"], { type: "application/pdf" }) }, documents: [{ id: childId + "-doc-2", name: "child-extra.pdf", mimeType: "application/pdf", blob: new Blob([childId + "-extra-document"], { type: "application/pdf" }) }] }]],
         ];
         for (const [type, value] of childRecords) store.put({ key: "childHealth:" + childId + ":" + type, value, revision: 1 });
       }
@@ -77,6 +77,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
       const map = new Map(values.map(item => [item.key, item.value]));
       const adultFile = map.get("labUploads").cbc[0].blob as Blob;
       const adultDocument = map.get("labResultEntries")[0].document.blob as Blob;
+      const adultExtraDocument = map.get("labResultEntries")[0].documents[0].blob as Blob;
       const childFiles = ["child-1", "child-2"].map(id => {
         const upload = map.get("childHealth:" + id + ":labUploads").cbc[0].blob as Blob;
         const document = map.get("childHealth:" + id + ":labResultEntries")[0].document.blob as Blob;
@@ -100,8 +101,9 @@ test("complete local backup round-trip preserves adult, family, child and file d
           map.has("childHealth:" + id + ":labResultEntries")),
         attachments: await adultFile.text() === "adult-file" &&
           await adultDocument.text() === "adult-document" &&
+          await adultExtraDocument.text() === "adult-extra-document" &&
           await Promise.all(childFiles.map(async item => [await item.upload, await item.document])).then(items =>
-            items.flat().join("|") === "child-1-file|child-1-document|child-2-file|child-2-document"),
+            items.flat().join("|") === "child-1-file|child-1-document|child-1-extra-document|child-2-file|child-2-document|child-2-extra-document"),
       };
     });
     expect(snapshot.keys).toBe(29);
