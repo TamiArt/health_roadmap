@@ -173,7 +173,9 @@ export function createAppServer({
         try {
           database.createUser(account);
         } catch (error) {
-          if (error?.code === "ERR_SQLITE_CONSTRAINT_UNIQUE") {
+          // SQLite driver error codes differ between Node releases. Confirm the
+          // unique-email condition from the database instead of matching a code.
+          if (database.getUserByEmail(email)) {
             sendJson(response, 409, { error: "Аккаунт с таким адресом уже существует." });
             return;
           }
