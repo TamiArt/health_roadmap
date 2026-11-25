@@ -70,7 +70,7 @@ export function CalendarEventManager({ storagePrefix = "", profileLabel = "Вз�
     <section aria-label="Планирование медицинских событий" className="mb-6 rounded-2xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold text-foreground"><CalendarPlus size={17}/> Планы и напоминания</h2>
+          <h2 aria-live="polite" aria-atomic="true" className="flex items-center gap-2 text-base font-semibold text-foreground"><CalendarPlus size={17}/> Планы и напоминания</h2>
           <p className="mt-1 text-xs text-muted-foreground">{profileLabel} · приёмы, обследования, анализы, вакцинация и курсы лечения</p>
         </div>
         <button type="button" onClick={openNew} className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground">Добавить событие</button>
@@ -148,7 +148,7 @@ export function CalendarEventManager({ storagePrefix = "", profileLabel = "Вз�
                   <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{CALENDAR_EVENT_TYPES[event.type]}</span>
                   <span className="text-[10px] text-muted-foreground">{CALENDAR_EVENT_STATUSES[event.status]}</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{new Date(event.date + "T00:00:00").toLocaleDateString("ru-RU")} · {event.time}{event.endDate ? ` — ${new Date(event.endDate + "T00:00:00").toLocaleDateString("ru-RU")}` : ""}{event.facility ? ` · ${event.facility}` : ""}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{new Date(event.date + "T00:00:00").toLocaleDateString("ru-RU")} · {event.time}{event.endDate ? ` · курс до ${event.endDate}` : ""}{event.facility ? ` · ${event.facility}` : ""}</p>
                 {event.details && <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{event.details}</p>}
                 {event.link && <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-primary"><span className="flex items-center gap-1"><Link2 size={12}/> Связано: {event.link.label}</span>{onOpenHistory && <button type="button" onClick={onOpenHistory} className="font-medium underline underline-offset-2">Открыть медицинскую историю</button>}</div>}
                 {event.reminder.enabled && event.status === "planned" && <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><Bell size={11}/> За {event.reminder.leadDays} дн. · {event.reminder.time}</p>}
