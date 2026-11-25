@@ -1198,6 +1198,7 @@ test("an open stale tab cannot recreate child records after the profile is delet
     const { writeRecord } = await import("/src/app/storage.ts");
     const values: Record<string, unknown> = {
       vaccineStatuses: {},
+      vaccineRecords: [],
       toothData: {},
       labUploads: {},
       labMeasurements: {},
