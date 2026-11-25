@@ -1,15 +1,16 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
-import { HEALTH_ROADMAP, VACCINES } from "./healthData";
+import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X, Trash2 } from "lucide-react";
+import { HEALTH_ROADMAP } from "./healthData";
 import { getLabStages } from "./labCatalog";
 import type { LifeStage } from "./labCatalog";
-import type { DentalRecord, ToothStatus, UploadedResult, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
-import { childAgeVaccines, createId, validateLabMeasurement, validateLabUpload } from "./shared";
+import type { DentalRecord, ToothStatus, UploadedResult, LabMeasurement, VaccineStatus } from "./models";
+import { createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
+import { VaccinesTab } from "./VaccinesTab";
 import { handleTabListKeyDown } from "./tabNavigation";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
@@ -31,6 +32,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingId = useRef<string|null>(null);
+  const pendingReplace = useRef<{ testId: string; uploadId: string } | null>(null);
   const objectUrls = useMemo(() => {
     const urls = new Map<string, string>();
     Object.values(uploads).flat().forEach(upload => urls.set(upload.id, URL.createObjectURL(upload.blob)));
@@ -52,8 +54,10 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     const id = pendingId.current;
+    const replacement = pendingReplace.current;
     pendingId.current = null;
-    if (!file || !id) { e.target.value = ""; return; }
+    pendingReplace.current = null;
+    if (!file || (!id && !replacement)) { e.target.value = ""; return; }
     const validationError = validateLabUpload(file);
     if (validationError) {
       setUploadError(validationError);
@@ -68,7 +72,13 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
       blob:file,
       isPdf:file.name.toLowerCase().endsWith(".pdf"),
     };
-    setUploads(prev => ({ ...prev, [id]:[...(prev[id] ?? []), result] }));
+    if (replacement) {
+      const current = (uploads[replacement.testId] ?? []).find(item => item.id === replacement.uploadId);
+      if (!current || !window.confirm("Заменить выбранный документ? Старый файл будет удалён.")) { e.target.value = ""; return; }
+      setUploads(prev => ({ ...prev, [replacement.testId]: (prev[replacement.testId] ?? []).map(item => item.id === replacement.uploadId ? result : item) }));
+    } else if (id) {
+      setUploads(prev => ({ ...prev, [id]:[...(prev[id] ?? []), result] }));
+    }
     e.target.value="";
   }
 
@@ -103,7 +113,14 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   }
 
   function removeMeasurement(testId: string, measurementId: string) {
+    if (!window.confirm("Удалить это значение анализа?")) return;
     setMeasurements(prev => ({ ...prev, [testId]: (prev[testId] ?? []).filter(item => item.id !== measurementId) }));
+  }
+
+  function replaceUpload(testId: string, uploadId: string) {
+    if (!uploadsReady || uploadsError) return;
+    pendingReplace.current = { testId, uploadId };
+    fileRef.current?.click();
   }
 
   function removeUpload(testId: string, uploadId: string) {
@@ -194,6 +211,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                                     {r.isPdf?<FileText size={12} className="text-primary shrink-0"/>:<ImageIcon size={12} className="text-primary shrink-0"/>}
                                     <a href={objectUrls.get(r.id)} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate flex-1">{r.name}</a>
                                     <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{r.date}</span>
+                                    <button type="button" aria-label={`Заменить файл ${r.name}`} onClick={() => replaceUpload(test.id, r.id)}><Upload size={11} className="text-muted-foreground hover:text-primary"/></button>
                                     <button type="button" aria-label={`Удалить файл ${r.name}`} onClick={() => removeUpload(test.id, r.id)}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
                                   </div>
                                 ))}
@@ -243,75 +261,6 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
 
 // ─── Vaccines Tab ─────────────────────────────────────────────────────────────
 
-const VACCINE_STATUS_CFG: Record<VaccineStatus, { label:string; bg:string; text:string }> = {
-  done:           { label:"Сделана",       bg:"bg-emerald-100", text:"text-emerald-700" },
-  due:            { label:"Нужна",         bg:"bg-amber-100",   text:"text-amber-700"   },
-  overdue:        { label:"Просрочена",    bg:"bg-red-100",     text:"text-red-700"     },
-  not_applicable: { label:"Не актуальна", bg:"bg-slate-100",   text:"text-slate-500"   },
-};
-
-export function VaccinesTab({
-  statuses, setStatuses, filterAge,
-}: {
-  statuses: Record<string, VaccineStatus>;
-  setStatuses: (v: Record<string, VaccineStatus>) => void;
-  filterAge?: number;
-}) {
-  const vaccines = filterAge !== undefined ? childAgeVaccines(filterAge) : VACCINES;
-  const mandatory = vaccines.filter(v => v.mandatory);
-  const recommended = vaccines.filter(v => !v.mandatory);
-  const countDone = (list: VaccineRecord[]) => list.filter(v => statuses[v.id]==="done").length;
-  function cycle(id: string) {
-    const order: VaccineStatus[] = ["done","due","overdue","not_applicable"];
-    setStatuses({ ...statuses, [id]: order[(order.indexOf(statuses[id]??order[1])+1)%order.length] });
-  }
-
-  function VCard({ v }: { v: VaccineRecord }) {
-    const s = statuses[v.id]??"due";
-    const cfg = VACCINE_STATUS_CFG[s];
-    return (
-      <div className={`bg-card border rounded-xl p-4 ${v.mandatory&&s!=="done"&&s!=="not_applicable"?"border-red-200/60":"border-border"}`}>
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-foreground">{v.name}</span>
-            {v.mandatory && <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Обязательная</span>}
-          </div>
-          <button type="button" aria-label={`Изменить статус вакцины «${v.name}». Текущий статус: ${cfg.label}`} onClick={() => cycle(v.id)} className={`shrink-0 text-[11px] px-2.5 py-1 rounded-lg font-medium cursor-pointer transition-all ${cfg.bg} ${cfg.text}`}>{cfg.label}</button>
-        </div>
-        <p className="text-xs text-muted-foreground mb-1">{v.protects}</p>
-        <p className="text-[11px] text-muted-foreground/70 italic mb-1" style={{ fontFamily:"'DM Mono', monospace" }}>{v.schedule}</p>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">{v.note}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-800">
-        Нажмите на статус вакцины для изменения. Национальный календарь РФ + рекомендации ВОЗ.
-      </div>
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <div className="bg-card border border-border rounded-xl p-4">
-          <p className="text-xs text-muted-foreground mb-0.5">Обязательных</p>
-          <p className="text-xl font-bold text-foreground" style={{ fontFamily:"'DM Mono', monospace" }}>{countDone(mandatory)}/{mandatory.length}</p>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <p className="text-xs text-muted-foreground mb-0.5">Рекомендованных</p>
-          <p className="text-xl font-bold text-foreground" style={{ fontFamily:"'DM Mono', monospace" }}>{countDone(recommended)}/{recommended.length}</p>
-        </div>
-      </div>
-      {mandatory.length>0 && <>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Обязательные</p>
-        <div className="space-y-2 mb-5">{mandatory.map(v=><VCard key={v.id} v={v}/>)}</div>
-      </>}
-      {recommended.length>0 && <>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Рекомендованные</p>
-        <div className="space-y-2">{recommended.map(v=><VCard key={v.id} v={v}/>)}</div>
-      </>}
-    </div>
-  );
-}
-
 // ─── Dental Tab ───────────────────────────────────────────────────────────────
 
 const TOOTH_STATUS_CFG: Record<ToothStatus, { label:string; bg:string; text:string; fill:string }> = {
@@ -345,6 +294,7 @@ export function DentalTab({
   const pick = (n: number) => { setSelected(n); setNote(data[n]?.note??""); };
   const setStatus = (n: number, s: ToothStatus) => onChange({ ...data, [n]:{ status:s, note:data[n]?.note??"" } });
   const saveNote = () => { if (!selected) return; onChange({ ...data, [selected]:{ status:data[selected]?.status??"healthy", note } }); };
+  const removeToothRecord = () => { if (!selected || !data[selected]) return; if (!window.confirm(`Удалить всю запись о зубе ${selected}?`)) return; const next = { ...data }; delete next[selected]; onChange(next); setNote(""); };
 
   function ToothCell({ n, upper }: { n:number; upper:boolean }) {
     const t=data[n]; const cfg=t?TOOTH_STATUS_CFG[t.status]:null; const isSel=selected===n;
@@ -396,9 +346,10 @@ export function DentalTab({
               return <button key={s} type="button" aria-pressed={selData?.status===s} onClick={() => setStatus(selected,s)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${selData?.status===s?`${c.bg} ${c.text}`:"bg-muted text-muted-foreground hover:bg-muted/80"}`}>{c.label}</button>;
             })}
           </div>
-          <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={saveNote} placeholder="Заметки: дата, врач, жалобы..." rows={2}
+          <textarea aria-label="Заметки о зубе" maxLength={1000} value={note} onChange={e=>setNote(e.target.value)} onBlur={saveNote} placeholder="Заметки: дата, врач, жалобы..." rows={2}
             className="w-full text-xs p-3 rounded-lg border border-border bg-muted/30 text-foreground resize-none focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/60"
           />
+          {data[selected] && <button type="button" onClick={removeToothRecord} className="mt-2 inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50"><Trash2 size={12}/> Удалить запись о зубе</button>}
         </div>
       ) : (
         <div className="text-center text-xs text-muted-foreground py-5 bg-card border border-dashed border-border rounded-xl">
@@ -421,7 +372,7 @@ export function HealthSection({
   const tabsId = useId();
   const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"],["events","События"],["monitoring","На контроле"],["history","История"]] as const;
   const [openIdx, setOpenIdx] = useState<number|null>(3);
-  const [toothData, setToothData, toothDataReady, toothDataError] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
+  const [toothData, setToothData, toothDataReady, toothDataError, toothDataConflict] = usePersistentState<Record<number,{status:ToothStatus;note:string}>>("adultToothData", {});
 
   if (!toothDataReady) return <div className="p-8 text-sm text-muted-foreground">Загрузка стоматологических записей…</div>;
   if (toothDataError) return <div role="alert" className="p-8 text-sm text-red-600">{toothDataError}</div>;
@@ -483,7 +434,7 @@ export function HealthSection({
       </div>
       <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab/></div>
       <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses}/></div>
-      <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>
+      <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}>{toothDataConflict && <p role="status" className="mb-3 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">Стоматологические записи изменены в другой вкладке. Загружена последняя сохранённая версия.</p>}<DentalTab data={toothData} onChange={setToothData}/></div>
       <div id={`${tabsId}-panel-events`} role="tabpanel" aria-labelledby={`${tabsId}-tab-events`} hidden={tab !== "events"}><HealthEventsTab/></div>
       <div id={`${tabsId}-panel-monitoring`} role="tabpanel" aria-labelledby={`${tabsId}-tab-monitoring`} hidden={tab !== "monitoring"}><MonitoringTab/></div>
       <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab/><div className="mt-6"><LabResultsTab/></div></div>

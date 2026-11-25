@@ -724,7 +724,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   await page.getByLabel("Тип события").selectOption("fracture");
   await page.getByLabel("Название события").fill("E2E перелом");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await expect(page.getByText("E2E перелом", { exact: true })).toBeVisible();
+  await expect(page.getByText("E2E перелом", { exact: true }).first()).toBeVisible();
 
   await page.getByRole("tab", { name: "На контроле", exact: true }).click();
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
@@ -734,7 +734,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.getByText("E2E глюкоза", { exact: true })).toBeVisible();
   await page.getByLabel("Значение E2E глюкоза").fill("5.4");
-  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить значение", exact: true }).click();
   await expect(page.getByText("5.4", { exact: true }).first()).toBeVisible();
 
   await page.getByRole("tab", { name: "История", exact: true }).click();
@@ -755,12 +755,12 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
     buffer: Buffer.from("%PDF-1.4 first"),
   });
   await page.getByRole("button", { name: "Сохранить анализ" }).click();
-  await expect(page.getByText("E2E биохимия", { exact: true })).toBeVisible();
+  await expect(page.getByText("E2E биохимия", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Креатинин", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "first-result.pdf" })).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Заменить прикреплённый документ" }).click();
+  await page.getByRole("button", { name: "Заменить документ first-result.pdf" }).click();
   await page.locator('input[aria-label="Выбрать документ для замены"]').setInputFiles({
     name: "replacement-result.pdf",
     mimeType: "application/pdf",
@@ -1139,19 +1139,19 @@ test("isolates every child-owned health record from other children and adult rec
   });
   const values = await page.evaluate(async ids => {
     const { writeRecord, readRecord } = await import("/src/app/storage.ts");
-    const childKeys = ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
-    const adultKeys = ["vaccineStatuses", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
+    const childKeys = ["vaccineStatuses", "vaccineRecords", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
+    const adultKeys = ["vaccineStatuses", "vaccineRecords", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
     const marker = (name: string, key: string) => ({ owner: name, kind: key });
     for (const [name, id] of Object.entries(ids)) {
       for (const key of childKeys) {
-        const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries"
+        const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries" || key === "vaccineRecords"
           ? [{ id: name + "-" + key, ...marker(name, key) }]
           : marker(name, key);
         await writeRecord("childHealth:" + id + ":" + key, value);
       }
     }
     for (const key of adultKeys) {
-      const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries"
+      const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries" || key === "vaccineRecords"
         ? [{ id: "adult-" + key, ...marker("adult", key) }]
         : marker("adult", key);
       await writeRecord(key, value);
@@ -1165,7 +1165,7 @@ test("isolates every child-owned health record from other children and adult rec
   }, profileIds);
 
   for (const name of ["Профиль матрицы A", "Профиль матрицы B"]) {
-    for (const key of ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
+    for (const key of ["vaccineStatuses", "vaccineRecords", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
       const value = values[name + ":" + key] as { owner?: string } | Array<{ owner?: string }>;
       expect(Array.isArray(value) ? value[0].owner : value.owner).toBe(name);
     }
@@ -1191,13 +1191,14 @@ test("an open stale tab cannot recreate child records after the profile is delet
     const children = await readRecord<Array<{ id: string; name: string }>>("children");
     return children!.find(child => child.name === "Удаляемый открытый профиль")!.id;
   });
-  const childRecordKeys = ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]
+  const childRecordKeys = ["vaccineStatuses", "vaccineRecords", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]
     .map(name => "childHealth:" + childId + ":" + name);
   const recordKey = "childHealth:" + childId + ":healthEvents";
   await page.evaluate(async keys => {
     const { writeRecord } = await import("/src/app/storage.ts");
     const values: Record<string, unknown> = {
       vaccineStatuses: {},
+      vaccineRecords: [],
       toothData: {},
       labUploads: {},
       labMeasurements: {},

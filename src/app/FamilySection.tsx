@@ -5,7 +5,8 @@ import { ArrowLeft, Baby, Heart, Plus } from "lucide-react";
 import { FAMILY_EVENTS_INIT, FAMILY_MEMBERS_INIT } from "./familyData";
 import type { Child, DentalRecord, VaccineStatus } from "./models";
 import { CURRENT_YEAR, childAgeStages, childAgeVaccines, createId, isValidRequiredText, parseBoundedInteger, DelBtn, EditToggle, INP } from "./shared";
-import { DentalTab, LabTestsTab, VaccinesTab } from "./HealthSection";
+import { DentalTab, LabTestsTab } from "./HealthSection";
+import { VaccinesTab } from "./VaccinesTab";
 import { HealthEventsTab, MonitoringTab, ReminderPermission } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
@@ -23,7 +24,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
     `childHealth:${child.id}:vaccineStatuses`,
     Object.fromEntries(childAgeVaccines(age).map(v => [v.id, v.status]))
   );
-  const [toothData, setToothData, toothReady, toothError] = usePersistentState<Record<number,DentalRecord>>(
+  const [toothData, setToothData, toothReady, toothError, toothConflict] = usePersistentState<Record<number,DentalRecord>>(
     `childHealth:${child.id}:toothData`,
     {}
   );
@@ -55,8 +56,8 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
         ))}
       </div>
       <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f" storageKey={`childHealth:${child.id}:labUploads`}/></div>
-      <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age}/></div>
-      {age>=5 && <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}><DentalTab data={toothData} onChange={setToothData}/></div>}
+      <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age} recordsStorageKey={`childHealth:${child.id}:vaccineRecords`}/></div>
+      {age>=5 && <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}>{toothConflict && <p role="status" className="mb-3 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">Стоматологические записи изменены в другой вкладке. Загружена последняя сохранённая версия.</p>}<DentalTab data={toothData} onChange={setToothData}/></div>}
       <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab storagePrefix={`childHealth:${child.id}:`}/><div className="mt-6"><LabResultsTab storageKey={`childHealth:${child.id}:labResultEntries`}/></div></div>
       <div id={`${tabsId}-panel-events`} role="tabpanel" aria-labelledby={`${tabsId}-tab-events`} hidden={tab !== "events"}><HealthEventsTab storageKey={`childHealth:${child.id}:healthEvents`}/></div>
       <div id={`${tabsId}-panel-monitoring`} role="tabpanel" aria-labelledby={`${tabsId}-tab-monitoring`} hidden={tab !== "monitoring"}><MonitoringTab storageKey={`childHealth:${child.id}:healthMonitoring`}/></div>

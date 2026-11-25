@@ -23,6 +23,7 @@ const ALLOWED_KEYS = new Set([
   "children",
   "familyEvents",
   "vaccineStatuses",
+  "vaccineRecords",
   "adultToothData",
   "labUploads",
   "labMeasurements",
@@ -33,7 +34,7 @@ const ALLOWED_KEYS = new Set([
 ]);
 
 export function isAllowedRecordKey(key: string): boolean {
-  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/.test(key);
+  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/.test(key);
 }
 
 let databasePromise: Promise<IDBDatabase> | undefined;
@@ -260,6 +261,13 @@ export async function decodeBackupValue(value: unknown): Promise<unknown> {
   return value;
 }
 
+function isValidBackupDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + "T00:00:00");
+  return !Number.isNaN(date.getTime()) && date.getFullYear() === Number(value.slice(0, 4)) &&
+    date.getMonth() + 1 === Number(value.slice(5, 7)) && date.getDate() === Number(value.slice(8, 10));
+}
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -273,20 +281,39 @@ function validateRecordValue(key: string, value: unknown): void {
       if (entry.indicators.some(indicator => !isPlainRecord(indicator) || typeof indicator.id !== "string" ||
           typeof indicator.name !== "string" || typeof indicator.value !== "number" || !Number.isFinite(indicator.value) ||
           typeof indicator.unit !== "string")) return true;
-      if (entry.document === undefined) return false;
-      if (!isPlainRecord(entry.document) || typeof entry.document.id !== "string" || typeof entry.document.name !== "string" || !isPlainRecord(entry.document.blob)) return true;
-      const blob = entry.document.blob;
-      return !(typeof Blob !== "undefined" && blob instanceof Blob) && !(blob.__lifeMapsBlob === true && typeof blob.base64 === "string" && typeof blob.mimeType === "string");
+      const documents = [...(Array.isArray(entry.documents) ? entry.documents : []), ...(entry.document ? [entry.document] : [])];
+      if (entry.documents !== undefined && !Array.isArray(entry.documents)) return true;
+      return documents.some(document => {
+        if (!isPlainRecord(document) || typeof document.id !== "string" || typeof document.name !== "string" ||
+            (document.mimeType !== undefined && typeof document.mimeType !== "string") || !isPlainRecord(document.blob)) return true;
+        const blob = document.blob;
+        return !(typeof Blob !== "undefined" && blob instanceof Blob) &&
+          !(blob.__lifeMapsBlob === true && typeof blob.base64 === "string" && typeof blob.mimeType === "string");
+      });
     })) throw new Error("Повреждена история результатов анализов.");
     return;
   }
 
-  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring"]);
+  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords"]);
   const arrayKey = arrayKeys.has(key) || [...arrayKeys].some(name => key.endsWith(`:${name}`));
   if (arrayKey) {
     if (!Array.isArray(value)) throw new Error(`Повреждён список данных: ${key}`);
     if (value.some(item => !isPlainRecord(item) || typeof item.id !== "string")) {
       throw new Error(`В списке ${key} обнаружена некорректная запись.`);
+    }
+    if (key === "vaccineRecords" || key.endsWith(":vaccineRecords")) {
+      const invalid = value.some(item => {
+        if (!isPlainRecord(item) || typeof item.vaccineId !== "string" || typeof item.vaccineName !== "string" ||
+            typeof item.date !== "string" || !isValidBackupDate(item.date) ||
+            typeof item.dose !== "string" || typeof item.facility !== "string" || typeof item.notes !== "string") return true;
+        if (item.documents === undefined) return false;
+        return !Array.isArray(item.documents) || item.documents.some(document =>
+          !isPlainRecord(document) || typeof document.id !== "string" || typeof document.name !== "string" ||
+          typeof document.mimeType !== "string" || !isPlainRecord(document.blob) ||
+          !((typeof Blob !== "undefined" && document.blob instanceof Blob) ||
+            (document.blob.__lifeMapsBlob === true && typeof document.blob.base64 === "string" && typeof document.blob.mimeType === "string")));
+      });
+      if (invalid) throw new Error(`Повреждена история вакцинации: ${key}.`);
     }
     if (key === "healthMonitoring" || key.endsWith(":healthMonitoring")) {
       const hasInvalidMeasurements = value.some(item => {

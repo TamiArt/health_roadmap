@@ -33,6 +33,16 @@ describe("local backup schema", () => {
     expect(migrated.records.lifeEvents).toEqual([]);
   });
 
+  it("preserves vaccination records and rejects malformed vaccine history", () => {
+    const payload: BackupPayload = {
+      format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
+      records: { vaccineRecords: [{ id: "dose-1", vaccineId: "mmr", vaccineName: "MMR", date: "2026-04-12", dose: "1", facility: "", notes: "" }] },
+    };
+    expect(migrateBackup(payload)).toEqual(payload);
+    const vaccine = (payload.records.vaccineRecords as Array<Record<string, unknown>>)[0];
+    expect(() => migrateBackup({ ...payload, records: { vaccineRecords: [{ ...vaccine, date: "2026-02-30" }] } })).toThrow("история вакцинации");
+  });
+
   it("rejects unknown record types rather than silently importing them", () => {
     expect(() => migrateBackup({
       format: BACKUP_FORMAT,
@@ -155,4 +165,18 @@ describe("local backup schema", () => {
       records: {},
     })).toThrow("Версия резервной копии не поддерживается");
   });
+  it("round-trips multiple Blob documents attached to one medical record", async () => {
+    const source = {
+      documents: [
+        { id: "doc-1", name: "first.pdf", mimeType: "application/pdf", blob: new Blob(["first"]) },
+        { id: "doc-2", name: "second.pdf", mimeType: "application/pdf", blob: new Blob(["second"]) },
+      ],
+    };
+    const encoded = await encodeBackupValue(source);
+    const decoded = await decodeBackupValue(encoded) as typeof source;
+    expect(decoded.documents).toHaveLength(2);
+    expect(await decoded.documents[0].blob.text()).toBe("first");
+    expect(await decoded.documents[1].blob.text()).toBe("second");
+  });
+
 });

@@ -1,10 +1,10 @@
 const ALLOWED_KEYS = new Set([
-  "lifeEvents", "familyMembers", "children", "familyEvents", "vaccineStatuses",
+  "lifeEvents", "familyMembers", "children", "familyEvents", "vaccineStatuses", "vaccineRecords",
   "adultToothData", "labUploads", "labMeasurements", "healthEvents",
   "healthMonitoring", "labResultEntries", "notificationSettings",
 ]);
-const CHILD_KEY = /^childHealth:([a-zA-Z0-9_-]+):(vaccineStatuses|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/;
-const ARRAY_KEYS = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring"]);
+const CHILD_KEY = /^childHealth:([a-zA-Z0-9_-]+):(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/;
+const ARRAY_KEYS = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords"]);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function isRecord(value) {
@@ -39,6 +39,17 @@ function validateRecord(key, value) {
   const baseKey = key.startsWith("childHealth:") ? key.slice(key.lastIndexOf(":") + 1) : key;
   if (ARRAY_KEYS.has(baseKey)) {
     if (!Array.isArray(value) || value.some(item => !isRecord(item) || typeof item.id !== "string")) return false;
+    if (baseKey === "vaccineRecords") {
+      return value.every(record => {
+        if (typeof record.vaccineId !== "string" || typeof record.vaccineName !== "string" ||
+            !validDate(record.date) || typeof record.dose !== "string" ||
+            typeof record.facility !== "string" || typeof record.notes !== "string") return false;
+        if (record.documents === undefined) return true;
+        return Array.isArray(record.documents) && record.documents.every(document =>
+          isRecord(document) && typeof document.id === "string" && typeof document.name === "string" &&
+          typeof document.mimeType === "string" && isEncodedBlob(document.blob));
+      });
+    }
     if (baseKey === "healthMonitoring") return value.every(item => {
       const readings = item.measurements ?? [];
       return Array.isArray(readings) && readings.every(reading => isRecord(reading) &&
@@ -48,14 +59,23 @@ function validateRecord(key, value) {
     });
     return true;
   }
-  if (baseKey === "labResultEntries") return Array.isArray(value) && value.every(entry =>
-    isRecord(entry) && typeof entry.id === "string" && typeof entry.testName === "string" &&
-    validDate(entry.date) && Array.isArray(entry.indicators) && entry.indicators.length > 0 &&
-    entry.indicators.every(item => isRecord(item) && typeof item.id === "string" &&
-      typeof item.name === "string" && typeof item.value === "number" &&
-      Number.isFinite(item.value) && typeof item.unit === "string") &&
-    (entry.document === undefined || (isRecord(entry.document) && typeof entry.document.id === "string" &&
-      typeof entry.document.name === "string" && isEncodedBlob(entry.document.blob))));
+  if (baseKey === "labResultEntries") {
+    return Array.isArray(value) && value.every(entry => {
+      if (!isRecord(entry) || typeof entry.id !== "string" || typeof entry.testName !== "string" ||
+          !validDate(entry.date) || !Array.isArray(entry.indicators) || entry.indicators.length === 0) return false;
+      if (!entry.indicators.every(item => isRecord(item) && typeof item.id === "string" &&
+          typeof item.name === "string" && typeof item.value === "number" &&
+          Number.isFinite(item.value) && typeof item.unit === "string")) return false;
+      const validDocument = (document, requireMimeType = true) => isRecord(document) &&
+        typeof document.id === "string" && typeof document.name === "string" &&
+        (typeof document.mimeType === "string" || (!requireMimeType && document.mimeType === undefined)) &&
+        isEncodedBlob(document.blob);
+      if (entry.document !== undefined && !validDocument(entry.document, false)) return false;
+      if (entry.documents !== undefined &&
+          (!Array.isArray(entry.documents) || !entry.documents.every(document => validDocument(document)))) return false;
+      return true;
+    });
+  }
   if (!isRecord(value)) return false;
   if (baseKey === "labMeasurements") return Object.values(value).every(items =>
     Array.isArray(items) && items.every(item => isRecord(item) && typeof item.id === "string" &&

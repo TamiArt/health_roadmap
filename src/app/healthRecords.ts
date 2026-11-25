@@ -66,6 +66,7 @@ export interface LabResultEntry {
     mimeType: string;
     blob: Blob;
   };
+  documents?: MedicalDocument[];
   notes: string;
 }
 
@@ -146,4 +147,40 @@ export function nextOccurrence(date: string, recurringYearly: boolean, now = new
 
 export function buildHealthEvent(input: Omit<HealthEvent, "id">): HealthEvent {
   return { ...input, id: createId() };
+}
+
+export interface MedicalDocument {
+  id: string;
+  name: string;
+  mimeType: string;
+  blob: Blob;
+}
+
+export interface VaccineAdministration {
+  id: string;
+  vaccineId: string;
+  vaccineName: string;
+  date: string;
+  dose: string;
+  facility: string;
+  notes: string;
+  documents?: MedicalDocument[];
+}
+
+export function validateVaccineAdministration(input: Omit<VaccineAdministration, "id" | "documents">): string | null {
+  if (!isValidRequiredText(input.vaccineId, 120) || !isValidRequiredText(input.vaccineName, 120)) return "Выберите вакцину.";
+  if (!isIsoDate(input.date)) return "Укажите корректную дату вакцинации.";
+  if (!isValidRequiredText(input.dose, 60)) return "Укажите дозу или номер этапа вакцинации.";
+  if (input.facility.length > 160 || input.notes.length > 1000) return "Проверьте длину учреждения или примечания.";
+  return null;
+}
+
+export function validateMonitoringReading(input: { date: string; value: string }): string | null {
+  if (!isIsoDate(input.date)) return "Укажите корректную дату измерения.";
+  if (!input.value.trim() || !Number.isFinite(Number(input.value))) return "Введите корректное числовое значение.";
+  return null;
+}
+
+export function sortByDateNewest<T extends { date: string; id: string }>(records: T[]): T[] {
+  return [...records].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
 }

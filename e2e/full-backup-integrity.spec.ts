@@ -17,24 +17,26 @@ test("complete local backup round-trip preserves adult, family, child and file d
         ["children", [{ id: "child-1", name: "Child one" }, { id: "child-2", name: "Child two" }]],
         ["familyEvents", [{ id: "family-event-1", title: "Family event" }]],
         ["vaccineStatuses", { vaccineA: "done" }],
+        ["vaccineRecords", [{ id: "adult-dose", vaccineId: "mmr", vaccineName: "MMR", date: "2026-11-10", dose: "1", facility: "", notes: "" }]],
         ["adultToothData", { "11": { status: "healthy" } }],
         ["labUploads", { cbc: [{ id: "adult-upload", blob: new Blob(["adult-file"], { type: "application/pdf" }) }] }],
         ["labMeasurements", { ferritin: [{ id: "adult-measurement", date: "2026-11-25", value: "32", unit: "ng/ml" }] }],
         ["healthEvents", [{ id: "adult-health-event", date: "2026-11-25", title: "Adult check" }]],
         ["healthMonitoring", [{ id: "adult-monitor", measurements: [{ id: "adult-reading", date: "2026-11-25", value: 5.2, unit: "mmol/l" }] }]],
-        ["labResultEntries", [{ id: "adult-result", testName: "CBC", date: "2026-11-25", indicators: [{ id: "hb", name: "Hemoglobin", value: 125, unit: "g/l" }], document: { id: "adult-doc", name: "adult.pdf", blob: new Blob(["adult-document"], { type: "application/pdf" }) } }]],
+        ["labResultEntries", [{ id: "adult-result", testName: "CBC", date: "2026-11-25", indicators: [{ id: "hb", name: "Hemoglobin", value: 125, unit: "g/l" }], document: { id: "adult-doc", name: "adult.pdf", blob: new Blob(["adult-document"], { type: "application/pdf" }) }, documents: [{ id: "adult-doc-2", name: "adult-extra.pdf", mimeType: "application/pdf", blob: new Blob(["adult-extra-document"], { type: "application/pdf" }) }] }]],
         ["notificationSettings", { enabled: false }],
       ];
       for (const [key, value] of records) store.put({ key, value, revision: 1 });
       for (const childId of ["child-1", "child-2"]) {
         const childRecords: Array<[string, unknown]> = [
           ["vaccineStatuses", { vaccineA: "done" }],
+          ["vaccineRecords", [{ id: childId + "-dose", vaccineId: "dtp", vaccineName: "DTP", date: "2026-11-11", dose: "1", facility: "", notes: "" }]],
           ["toothData", { "21": { status: "healthy" } }],
           ["labUploads", { cbc: [{ id: childId + "-upload", blob: new Blob([childId + "-file"], { type: "application/pdf" }) }] }],
           ["labMeasurements", { ferritin: [{ id: childId + "-measurement", date: "2026-11-25", value: "14", unit: "ng/ml" }] }],
           ["healthEvents", [{ id: childId + "-event", date: "2026-11-25", title: "Child check" }]],
           ["healthMonitoring", [{ id: childId + "-monitor", measurements: [{ id: childId + "-reading", date: "2026-11-25", value: 4.8, unit: "mmol/l" }] }]],
-          ["labResultEntries", [{ id: childId + "-result", testName: "CBC", date: "2026-11-25", indicators: [{ id: "hb", name: "Hemoglobin", value: 120, unit: "g/l" }], document: { id: childId + "-doc", name: "child.pdf", blob: new Blob([childId + "-document"], { type: "application/pdf" }) } }]],
+          ["labResultEntries", [{ id: childId + "-result", testName: "CBC", date: "2026-11-25", indicators: [{ id: "hb", name: "Hemoglobin", value: 120, unit: "g/l" }], document: { id: childId + "-doc", name: "child.pdf", blob: new Blob([childId + "-document"], { type: "application/pdf" }) }, documents: [{ id: childId + "-doc-2", name: "child-extra.pdf", mimeType: "application/pdf", blob: new Blob([childId + "-extra-document"], { type: "application/pdf" }) }] }]],
         ];
         for (const [type, value] of childRecords) store.put({ key: "childHealth:" + childId + ":" + type, value, revision: 1 });
       }
@@ -75,10 +77,12 @@ test("complete local backup round-trip preserves adult, family, child and file d
       const map = new Map(values.map(item => [item.key, item.value]));
       const adultFile = map.get("labUploads").cbc[0].blob as Blob;
       const adultDocument = map.get("labResultEntries")[0].document.blob as Blob;
+      const adultExtraDocument = map.get("labResultEntries")[0].documents[0].blob as Blob;
       const childFiles = ["child-1", "child-2"].map(id => {
         const upload = map.get("childHealth:" + id + ":labUploads").cbc[0].blob as Blob;
         const document = map.get("childHealth:" + id + ":labResultEntries")[0].document.blob as Blob;
-        return { upload: upload.text(), document: document.text() };
+        const extraDocument = map.get("childHealth:" + id + ":labResultEntries")[0].documents[0].blob as Blob;
+        return { upload: upload.text(), document: document.text(), extraDocument: extraDocument.text() };
       });
       return {
         keys: values.length,
@@ -89,6 +93,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
           map.get("children").map((item: any) => item.id).join(",") === "child-1,child-2",
         childRecords: ["child-1", "child-2"].every(id =>
           map.has("childHealth:" + id + ":vaccineStatuses") &&
+          map.has("childHealth:" + id + ":vaccineRecords") &&
           map.has("childHealth:" + id + ":toothData") &&
           map.has("childHealth:" + id + ":labUploads") &&
           map.has("childHealth:" + id + ":labMeasurements") &&
@@ -97,11 +102,12 @@ test("complete local backup round-trip preserves adult, family, child and file d
           map.has("childHealth:" + id + ":labResultEntries")),
         attachments: await adultFile.text() === "adult-file" &&
           await adultDocument.text() === "adult-document" &&
-          await Promise.all(childFiles.map(async item => [await item.upload, await item.document])).then(items =>
-            items.flat().join("|") === "child-1-file|child-1-document|child-2-file|child-2-document"),
+          await adultExtraDocument.text() === "adult-extra-document" &&
+          await Promise.all(childFiles.map(async item => [await item.upload, await item.document, await item.extraDocument])).then(items =>
+            items.flat().join("|") === "child-1-file|child-1-document|child-1-extra-document|child-2-file|child-2-document|child-2-extra-document"),
       };
     });
-    expect(snapshot.keys).toBe(26);
+    expect(snapshot.keys).toBe(29);
     expect(snapshot.adults).toBe(true);
     expect(snapshot.family).toBe(true);
     expect(snapshot.childRecords).toBe(true);
