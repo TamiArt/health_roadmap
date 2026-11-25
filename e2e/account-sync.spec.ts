@@ -44,10 +44,10 @@ test("registers an account and restores its full backup in a separate browser pr
   await page.getByLabel("Электронная почта").fill(email);
   await page.getByLabel(/Пароль/).fill(password);
   await page.getByRole("button", { name: "Создать аккаунт" }).click();
-  await expect(page.getByRole("status")).toContainText("Аккаунт создан");
+  await expect(page.locator("#backup-status")).toContainText("Аккаунт создан");
 
   await page.getByRole("button", { name: "Сохранить локальные данные в аккаунте" }).click();
-  await expect(page.getByRole("status")).toContainText("Все локальные данные и вложения сохранены");
+  await expect(page.locator("#backup-status")).toContainText("Все локальные данные и вложения сохранены");
 
   const secondContext = await browser.newContext();
   try {
@@ -58,9 +58,9 @@ test("registers an account and restores its full backup in a separate browser pr
     await secondPage.getByLabel("Электронная почта").fill(email);
     await secondPage.getByLabel(/Пароль/).fill(password);
     await secondPage.getByRole("button", { name: "Войти", exact: true }).click();
-    await expect(secondPage.getByRole("status")).toContainText("На сервере есть сохранённые данные");
+    await expect(secondPage.locator("#backup-status")).toContainText("На сервере есть сохранённые данные");
     await secondPage.getByRole("button", { name: "Восстановить данные из аккаунта" }).click();
-    await expect(secondPage.getByRole("status")).toContainText("Данные аккаунта восстановлены на этом устройстве");
+    await expect(secondPage.locator("#backup-status")).toContainText("Данные аккаунта восстановлены на этом устройстве");
     await secondPage.getByRole("button", { name: /^Все события/ }).click();
     await expect(secondPage.getByText(eventTitle, { exact: true })).toBeVisible();
   } finally {
