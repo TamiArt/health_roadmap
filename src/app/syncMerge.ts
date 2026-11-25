@@ -17,7 +17,7 @@ function mergeValue(base: Value, local: Value, remote: Value, path: string, conf
   }
   if (Array.isArray(local) && Array.isArray(remote) && (base === missing || Array.isArray(base))) {
     const all = [...local, ...remote, ...(Array.isArray(base) ? base : [])];
-    if (!all.every(v => isObject(v) && typeof v.id === "string")) { conflicts.push(path); return local; }
+    if (!all.every(v => isObject(v) && typeof v.id === "string")) { if (strategy) return strategy === "local" ? local : remote; conflicts.push(path); return local; }
     const map = (values: unknown[]) => new Map(values.map(v => [(v as {id:string}).id, v]));
     const b = map(Array.isArray(base) ? base : []), l = map(local), r = map(remote), out: unknown[] = [];
     for (const id of new Set([...l.keys(), ...r.keys(), ...b.keys()])) {
