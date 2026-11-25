@@ -3,6 +3,7 @@ import { FileText, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { usePersistentState } from "./storage";
 import { validateLabResult, type LabIndicatorValue, type LabResultEntry } from "./healthRecords";
 import { createId, INP, validateLabUpload } from "./shared";
+import { LabIndicatorTrend } from "./LabIndicatorTrend";
 
 type IndicatorDraft = { name: string; value: string; unit: string; referenceRange: string };
 const emptyIndicator = (): IndicatorDraft => ({ name: "", value: "", unit: "", referenceRange: "" });
@@ -158,6 +159,12 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
     {visibleResults.length === 0 ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">{results.length ? "По запросу анализов нет." : "История пока пуста. Добавьте анализ и внесите все его показатели."}</div> : <div className="space-y-3">{visibleResults.map(result => <article key={result.id} id={`medical-source-tests-${result.id}`} className="rounded-xl border bg-card p-4">
       <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold">{result.testName}</h3><p className="mt-1 text-xs text-muted-foreground">{result.date}</p></div><div className="flex gap-1"><button type="button" aria-label={`Изменить анализ ${result.testName} от ${result.date}`} onClick={() => startEdit(result)} className="p-1 text-muted-foreground hover:text-primary"><Pencil size={14}/></button><button type="button" aria-label={`Удалить анализ ${result.testName} от ${result.date}`} onClick={() => { if (window.confirm("Удалить всю запись анализа вместе с показателями и документом?")) setResults(previous => previous.filter(item => item.id !== result.id)); }} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={14}/></button></div></div>
       <div className="mt-3 divide-y divide-border/70">{result.indicators.map(indicator => <div key={indicator.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2"><span className="text-xs text-muted-foreground">{indicator.name}{indicator.referenceRange ? ` · референс: ${indicator.referenceRange}` : ""}</span><strong className="text-sm tabular-nums">{indicator.value} <span className="text-xs font-normal text-muted-foreground">{indicator.unit}</span></strong></div>)}</div>
+      {result.indicators.map(indicator => {
+        const points = results.flatMap(entry => entry.indicators
+          .filter(item => item.name.trim().toLocaleLowerCase("ru") === indicator.name.trim().toLocaleLowerCase("ru") && item.unit === indicator.unit)
+          .map(item => ({ date: entry.date, value: item.value })));
+        return <LabIndicatorTrend key={indicator.id} name={indicator.name} unit={indicator.unit} points={points} />;
+      })}
       {result.notes && <p className="mt-2 text-xs text-muted-foreground">{result.notes}</p>}
       {[...(result.documents ?? []), ...(result.document ? [result.document] : [])].map(document => <div key={document.id} className="mt-2 flex items-center gap-2 rounded-lg bg-muted/60 p-2"><FileText size={14}/><a href={objectUrls.get(document.id)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-xs text-primary hover:underline">{document.name}</a><button type="button" aria-label={`Заменить документ ${document.name}`} onClick={() => replaceDocument(result, document)} className="rounded border px-2 py-1 text-[10px]">Заменить</button><button type="button" aria-label={`Удалить документ ${document.name}`} onClick={() => removeDocument(result, document)} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={13}/></button></div>)}
     </article>)}</div>}
