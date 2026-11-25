@@ -1,10 +1,10 @@
 const ALLOWED_KEYS = new Set([
   "lifeEvents", "familyMembers", "children", "familyEvents", "vaccineStatuses", "vaccineRecords",
   "adultToothData", "labUploads", "labMeasurements", "healthEvents",
-  "healthMonitoring", "labResultEntries", "syncTombstones", "notificationSettings",
+  "healthMonitoring", "labResultEntries", "syncTombstones", "notificationSettings", "calendarEvents",
 ]);
-const CHILD_KEY = /^childHealth:([a-zA-Z0-9_-]+):(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/;
-const ARRAY_KEYS = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords"]);
+const CHILD_KEY = /^childHealth:([a-zA-Z0-9_-]+):(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries|calendarEvents)$/;
+const ARRAY_KEYS = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords", "calendarEvents"]);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function isRecord(value) {
@@ -56,6 +56,27 @@ function validateRecord(key, value) {
           typeof document.mimeType === "string" && isEncodedBlob(document.blob));
       });
     }
+    if (baseKey === "calendarEvents") return value.every(event => {
+      const reminder = event.reminder;
+      const types = new Set(["appointment", "examination", "lab", "vaccination", "medication", "treatment", "other"]);
+      const statuses = new Set(["planned", "completed", "cancelled"]);
+      const linkTypes = new Set(["health", "lab", "vaccine", "monitoring"]);
+      return isRecord(event) && typeof event.id === "string" && event.id.length > 0 &&
+        types.has(event.type) && statuses.has(event.status) &&
+        typeof event.title === "string" && event.title.trim().length > 0 && event.title.length <= 120 &&
+        validDate(event.date) && (event.endDate === "" || (validDate(event.endDate) && event.endDate >= event.date)) &&
+        typeof event.time === "string" && (event.time === "" || /^([01]\\d|2[0-3]):[0-5]\\d$/.test(event.time)) &&
+        typeof event.facility === "string" && event.facility.length <= 160 &&
+        typeof event.details === "string" && event.details.length <= 1500 &&
+        isRecord(reminder) && typeof reminder.enabled === "boolean" &&
+        Number.isInteger(reminder.leadDays) && reminder.leadDays >= 0 && reminder.leadDays <= 365 &&
+        typeof reminder.time === "string" && /^([01]\\d|2[0-3]):[0-5]\\d$/.test(reminder.time) &&
+        (event.link === undefined || (isRecord(event.link) && linkTypes.has(event.link.type) &&
+          typeof event.link.id === "string" && event.link.id.length > 0 &&
+          typeof event.link.label === "string" && event.link.label.length <= 300)) &&
+        typeof event.createdAt === "string" && !Number.isNaN(Date.parse(event.createdAt)) &&
+        typeof event.updatedAt === "string" && !Number.isNaN(Date.parse(event.updatedAt));
+    });
     if (baseKey === "healthMonitoring") return value.every(item => {
       const reminder = item.reminder;
       const readings = item.measurements ?? [];
