@@ -48,6 +48,19 @@ describe("local backup schema", () => {
     expect(() => migrateBackup({ ...payload, records: { vaccineRecords: [duplicateDocuments] } })).toThrow("история вакцинации");
   });
 
+  it("accepts versioned deletion tombstones and rejects malformed tombstone metadata", () => {
+    const payload: BackupPayload = {
+      format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
+      records: { lifeEvents: [], syncTombstones: {
+        lifeEvents: { "event-1": { version: 2, deletedAt: "2026-11-25T12:00:00.000Z" } },
+      } },
+    };
+    expect(migrateBackup(payload)).toEqual(payload);
+    expect(() => migrateBackup({ ...payload, records: { syncTombstones: {
+      lifeEvents: { "event-1": { version: 0, deletedAt: "not-a-date" } },
+    } } })).toThrow("Журнал удалений");
+  });
+
   it("rejects unknown record types rather than silently importing them", () => {
     expect(() => migrateBackup({
       format: BACKUP_FORMAT,
