@@ -55,6 +55,16 @@ async function readJson(request) {
 }
 
 
+function changedLogicalKeys(previousRecords = {}, nextRecords = {}) {
+  const keys = new Set([...Object.keys(previousRecords), ...Object.keys(nextRecords)]);
+  const changed = [];
+  for (const key of keys) {
+    if (JSON.stringify(previousRecords[key]) === JSON.stringify(nextRecords[key])) continue;
+    changed.push(key.startsWith("childHealth:") ? "childHealth" : key);
+  }
+  return [...new Set(changed)].sort();
+}
+
 function createRateLimiter() {
   const attempts = new Map();
   return (key, limit, windowMs) => {
@@ -268,10 +278,13 @@ export function createAppServer({
         }
         const serializedPayload = JSON.stringify(body.payload.records);
         const requestHash = createHash("sha256").update(serializedPayload).digest("hex");
+        const previousStored = database.getBackup(user.id);
+        const previousPayload = previousStored ? decryptPayload(previousStored, encryptionKey) : null;
+        const changeSummary = changedLogicalKeys(previousPayload?.records, body.payload.records);
         const encrypted = encryptPayload(body.payload, encryptionKey);
         const recordCount = Object.values(body.payload.records).reduce((total, value) => total + (Array.isArray(value) ? value.length : 1), 0);
         const saved = database.saveBackup(user.id, encrypted, body.expectedRevision, new Date().toISOString(),
-          body.operationId, requestHash, recordCount);
+          body.operationId, requestHash, recordCount, changeSummary);
         if (saved.conflict) {
           sendJson(response, 409, { error: saved.reason === "operation-id-reused"
             ? "Идентификатор операции уже использован для другого содержимого."
