@@ -42,7 +42,7 @@ export default function App() {
 }
 
 function AppContent() {
-  const [section, setSection] = useState<Section>("map");
+  const [section, setSection] = useState<Section>("map");\n  const [healthInitialTab, setHealthInitialTab] = useState<"roadmap" | "history">("roadmap");
   const [visitedSections, setVisitedSections] = useState<Set<Section>>(() => new Set(["map"]));
   const [children, , childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
   const [vaccineStatuses, setVaccineStatuses, storageReady, storageError] = usePersistentState<Record<string, VaccineStatus>>(
@@ -86,7 +86,7 @@ function AppContent() {
         )}
         {visitedSections.has("health") && (
           <motion.div hidden={section !== "health"} initial={false} animate={section === "health" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-            <Suspense fallback={<SectionFallback />}><HealthSection vaccineStatuses={vaccineStatuses} setVaccineStatuses={setVaccineStatuses} onNavigate={navigateTo} children={children} /></Suspense>
+            <Suspense fallback={<SectionFallback />}><HealthSection vaccineStatuses={vaccineStatuses} setVaccineStatuses={setVaccineStatuses} onNavigate={navigateTo} children={children} initialTab={healthInitialTab} /></Suspense>
           </motion.div>
         )}
         {visitedSections.has("family") && (
@@ -96,7 +96,7 @@ function AppContent() {
         )}
         {visitedSections.has("calendar") && (
           <motion.div hidden={section !== "calendar"} initial={false} animate={section === "calendar" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-            <Suspense fallback={<SectionFallback />}><CalendarSection /></Suspense>
+            <Suspense fallback={<SectionFallback />}><CalendarSection onOpenHistory={() => { setHealthInitialTab("history"); navigateTo("health"); }} /></Suspense>
           </motion.div>
         )}
         {visitedSections.has("analytics") && (
