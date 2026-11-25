@@ -66,11 +66,13 @@ function validateRecord(key, value) {
       if (!entry.indicators.every(item => isRecord(item) && typeof item.id === "string" &&
           typeof item.name === "string" && typeof item.value === "number" &&
           Number.isFinite(item.value) && typeof item.unit === "string")) return false;
-      const validDocument = document => isRecord(document) && typeof document.id === "string" &&
-        typeof document.name === "string" && typeof document.mimeType === "string" && isEncodedBlob(document.blob);
-      if (entry.document !== undefined && !validDocument(entry.document)) return false;
+      const validDocument = (document, requireMimeType = true) => isRecord(document) &&
+        typeof document.id === "string" && typeof document.name === "string" &&
+        (typeof document.mimeType === "string" || (!requireMimeType && document.mimeType === undefined)) &&
+        isEncodedBlob(document.blob);
+      if (entry.document !== undefined && !validDocument(entry.document, false)) return false;
       if (entry.documents !== undefined &&
-          (!Array.isArray(entry.documents) || !entry.documents.every(validDocument))) return false;
+          (!Array.isArray(entry.documents) || !entry.documents.every(document => validDocument(document)))) return false;
       return true;
     });
   }
