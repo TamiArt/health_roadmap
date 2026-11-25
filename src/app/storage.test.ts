@@ -71,7 +71,7 @@ describe("local backup schema", () => {
     };
     const payload: BackupPayload = {
       format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
-      records: { calendarEvents: [event], "childHealth:child-1:calendarEvents": [{ ...event, id: "child-calendar-1", link: undefined }] },
+      records: { children: [{ id: "child-1", name: "Ребёнок", birthYear: 2021, emoji: "🧒" }], calendarEvents: [event], "childHealth:child-1:calendarEvents": [{ ...event, id: "child-calendar-1", link: undefined }] },
     };
     expect(migrateBackup(payload)).toEqual(payload);
     expect(() => migrateBackup({ ...payload, records: { calendarEvents: [{ ...event, time: "99:99" }] } })).toThrow("календаря");
