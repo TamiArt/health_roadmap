@@ -1,4 +1,4 @@
-import type { DentalRecord, LabMeasurement } from "./models";
+import type { DentalRecord, LabMeasurement, UploadedResult } from "./models";
 import type { LifeStage } from "./labCatalog";
 import type {
   HealthEvent,
@@ -7,7 +7,7 @@ import type {
   VaccineAdministration,
 } from "./healthRecords";
 
-export type MedicalHistoryKind = "analysis" | "manual" | "event" | "vaccine" | "dental" | "monitoring";
+export type MedicalHistoryKind = "analysis" | "manual" | "event" | "vaccine" | "dental" | "monitoring" | "document";
 export interface MedicalHistoryEntry {
   id: string;
   kind: MedicalHistoryKind;
@@ -58,12 +58,12 @@ export function buildMedicalHistory(input: {
     });
   }
 
-  for (const result of input.labResults) {
+  for (const [testId, files] of Object.entries(input.uploads)) {\n    for (const file of files) {\n      const [day, month, year] = file.date.split(".");\n      const parsedDate = day && month && year ? `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}` : null;\n      entries.push({\n        id: `document:${testId}:${file.id}`, kind: "document", date: parsedDate,\n        title: tests.get(testId) ?? testId, details: file.name, searchable: [testId, tests.get(testId), file.name].filter(Boolean).join(" "),\n      });\n    }\n  }\n\n  for (const result of input.labResults) {
     for (const indicator of result.indicators) entries.push({
       id: `analysis:${result.id}:${indicator.id}`, kind: "analysis", date: result.date,
       title: result.testName,
       details: `${indicator.name}: ${indicator.value} ${indicator.unit}${indicator.referenceRange ? ` · референс: ${indicator.referenceRange}` : ""}${result.documents?.length || result.document ? " · есть вложения" : ""}`,
-      searchable: [result.testName, result.notes, indicator.name, indicator.value, indicator.unit, indicator.referenceRange].filter(Boolean).join(" "),
+      searchable: [result.testName, result.notes, indicator.name, indicator.value, indicator.unit, indicator.referenceRange, ...(result.documents ?? []).map(document => document.name), ...(result.document ? [result.document.name] : [])].filter(Boolean).join(" "),
     });
   }
 
@@ -76,7 +76,7 @@ export function buildMedicalHistory(input: {
   for (const vaccine of input.vaccines) entries.push({
     id: `vaccine:${vaccine.id}`, kind: "vaccine", date: vaccine.date, title: vaccine.vaccineName,
     details: [vaccine.dose, vaccine.facility, vaccine.notes, vaccine.documents?.length ? `Документов: ${vaccine.documents.length}` : ""].filter(Boolean).join(" · "),
-    searchable: [vaccine.vaccineName, vaccine.vaccineId, vaccine.dose, vaccine.facility, vaccine.notes].filter(Boolean).join(" "),
+    searchable: [vaccine.vaccineName, vaccine.vaccineId, vaccine.dose, vaccine.facility, vaccine.notes, ...(vaccine.documents ?? []).map(document => document.name)].filter(Boolean).join(" "),
   });
 
   for (const [tooth, record] of Object.entries(input.dental)) entries.push({
