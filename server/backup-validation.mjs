@@ -59,11 +59,11 @@ function validateRecord(key, value) {
     if (baseKey === "healthMonitoring") return value.every(item => {
       const reminder = item.reminder;
       const readings = item.measurements ?? [];
-      return validDate(item.nextDueDate) &&
+      (item.nextDueDate === undefined || item.nextDueDate === "" || validDate(item.nextDueDate)) &&
         (item.lastCheckedDate === undefined || item.lastCheckedDate === "" || validDate(item.lastCheckedDate)) &&
-        isRecord(reminder) && typeof reminder.enabled === "boolean" &&
-        Number.isInteger(reminder.leadDays) && reminder.leadDays >= 0 && reminder.leadDays <= 365 &&
-        typeof reminder.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time) &&
+        (reminder === undefined || (isRecord(reminder) && typeof reminder.enabled === "boolean" &&
+          Number.isInteger(reminder.leadDays) && reminder.leadDays >= 0 && reminder.leadDays <= 365 &&
+          typeof reminder.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time))) &&
         Array.isArray(readings) && uniqueIds(readings) && readings.every(reading => isRecord(reading) &&
           validDate(reading.date) && typeof reading.value === "number" && Number.isFinite(reading.value) &&
           typeof reading.unit === "string");
