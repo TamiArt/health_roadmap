@@ -165,4 +165,18 @@ describe("local backup schema", () => {
       records: {},
     })).toThrow("Версия резервной копии не поддерживается");
   });
+  it("round-trips multiple Blob documents attached to one medical record", async () => {
+    const source = {
+      documents: [
+        { id: "doc-1", name: "first.pdf", mimeType: "application/pdf", blob: new Blob(["first"]) },
+        { id: "doc-2", name: "second.pdf", mimeType: "application/pdf", blob: new Blob(["second"]) },
+      ],
+    };
+    const encoded = await encodeBackupValue(source);
+    const decoded = await decodeBackupValue(encoded) as typeof source;
+    expect(decoded.documents).toHaveLength(2);
+    expect(await decoded.documents[0].blob.text()).toBe("first");
+    expect(await decoded.documents[1].blob.text()).toBe("second");
+  });
+
 });
