@@ -174,7 +174,9 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
         const resolved = mergeBackups(meta.base, meta.conflictLocal, meta.conflictRemote, strategy);
         if (resolved.conflicts.length) throw new Error("Не удалось разрешить все конфликтующие поля.");
         ensureActive();
-        const revision = await push(resolved.payload, meta.revision, crypto.randomUUID());
+        const operationId = meta.operationId ?? crypto.randomUUID();
+        await writeSyncMetadata(key(accountId), { ...meta, operationId, pending: true } satisfies Meta);
+        const revision = await push(resolved.payload, meta.revision, operationId);
         ensureActive();
         await restore(resolved.payload);
         const updatedAt = new Date().toISOString();
