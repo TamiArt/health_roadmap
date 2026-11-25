@@ -422,6 +422,16 @@ function hasUniqueIds(items: unknown[]): boolean {
 }
 
 function validateRecordValue(key: string, value: unknown): void {
+  if (key === "syncTombstones") {
+    if (!isPlainRecord(value) || Object.entries(value).some(([path, entries]) =>
+      !path || path.length > 256 || !isPlainRecord(entries) || Object.entries(entries).some(([id, tombstone]) =>
+        !id || !isPlainRecord(tombstone) || !Number.isSafeInteger(tombstone.version) ||
+        Number(tombstone.version) < 1 || typeof tombstone.deletedAt !== "string" ||
+        Number.isNaN(Date.parse(tombstone.deletedAt))))) {
+      throw new Error("Журнал удалений содержит некорректные версии записей.");
+    }
+    return;
+  }
   if (key === "labResultEntries" || key.endsWith(":labResultEntries")) {
     if (!Array.isArray(value) || !hasUniqueIds(value) || value.some(entry => {
       if (!isPlainRecord(entry) || typeof entry.id !== "string" || !entry.id.trim() || typeof entry.testName !== "string" ||
