@@ -69,6 +69,22 @@ describe("unified medical history", () => {
     expect(parseHistoryDate("")).toMatchObject({ date: null, datePrecision: "unknown" });
   });
 
+  it("includes partial-date periods when a date filter intersects the period", () => {
+    const summer = parseHistoryDate("Лето 2024");
+    const partial = { ...entries[0], id: "family:summer", kind: "family" as const, ...summer };
+    expect(filterMedicalHistory([partial], { ...filters, fromDate: "2024-08-30", toDate: "2024-08-31" })).toHaveLength(1);
+    expect(filterMedicalHistory([partial], { ...filters, fromDate: "2024-09-01", toDate: "" })).toHaveLength(0);
+  });
+
+  it("orders same-day and historical records deterministically", () => {
+    const sameDay = [
+      { ...entries[0], id: "event:z", sortDate: "2001-01-01", date: "2001-01-01", dateEnd: "2001-01-01" },
+      { ...entries[0], id: "event:a", sortDate: "2001-01-01", date: "2001-01-01", dateEnd: "2001-01-01" },
+    ];
+    expect(filterMedicalHistory(sameDay, { ...filters, sort: "oldest" }).map(entry => entry.id)).toEqual(["event:a", "event:z"]);
+    expect(filterMedicalHistory(sameDay, filters).map(entry => entry.id)).toEqual(["event:a", "event:z"]);
+  });
+
   it("supports large histories without mutating source order", () => {
     const large = Array.from({ length: 1000 }, (_, index) => ({
       ...entries[0], id: `event:${index}`, source: { key: "healthEvents", recordId: String(index), section: "events" as const },
