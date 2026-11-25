@@ -69,3 +69,29 @@ test("treatment courses keep their end date and can be edited or deleted", async
   await page.locator("article").filter({ hasText: "Курс лечения" }).last().getByRole("button", { name: "Удалить: Курс лечения" }).click();
   await expect(page.locator("article").filter({ hasText: "Курс лечения" })).toHaveCount(0);
 });
+
+test("calendar plans stay isolated between adult and child profiles", async ({ page }) => {
+  const childName = `Профиль календаря ${Date.now()}`;
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByPlaceholder("Имя").fill(childName);
+  await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  await page.getByRole("button", { name: "Календарь" }).click();
+  const profile = page.getByLabel("Планирование для профиля");
+  await profile.selectOption({ label: childName });
+  await page.getByRole("button", { name: "Добавить событие" }).click();
+  await page.getByLabel("Название", { exact: true }).fill("Детское обследование");
+  await page.getByLabel("Дата начала").fill("2026-12-18");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+  await expect(page.locator("article").filter({ hasText: "Детское обследование" }).last()).toBeVisible();
+
+  await profile.selectOption("adult");
+  await expect(page.locator("article").filter({ hasText: "Детское обследование" })).toHaveCount(0);
+  await profile.selectOption({ label: childName });
+  await expect(page.locator("article").filter({ hasText: "Детское обследование" }).last()).toBeVisible();
+});
