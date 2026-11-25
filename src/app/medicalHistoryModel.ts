@@ -155,7 +155,7 @@ export function buildMedicalHistory(input: MedicalHistoryInput): MedicalHistoryE
     searchable: [tooth, DENTAL_STATUS[record.status], record.note].filter(Boolean).join(" "),
   });
   for (const item of input.monitoring) for (const reading of item.measurements ?? []) add({
-    id: `monitoring:${item.id}:${reading.id}`, source: { key: `${prefix}healthMonitoring`, recordId: item.id, section: "monitoring" },
+    id: `monitoring:${item.id}:${reading.id}`, source: { key: `${prefix}healthMonitoring`, recordId: `${item.id}-${reading.id}`, section: "monitoring" },
     kind: "monitoring", ...parseHistoryDate(reading.date), title: item.name,
     details: `${reading.value} ${reading.unit || item.unit}`.trim(),
     searchable: [item.name, item.notes, reading.value, reading.unit, item.unit].filter(Boolean).join(" "),
