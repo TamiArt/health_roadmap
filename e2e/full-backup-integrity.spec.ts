@@ -84,7 +84,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
       const childFiles = ["child-1", "child-2"].map(id => {
         const upload = get("childHealth:" + id + ":labUploads").cbc[0].blob as Blob;
         const document = get("childHealth:" + id + ":labResultEntries")[0].document.blob as Blob;
-        const extraDocument = map.get("guest::childHealth:" + id + ":labResultEntries")[0].documents[0].blob as Blob;
+        const extraDocument = get("childHealth:" + id + ":labResultEntries")[0].documents[0].blob as Blob;
         return { upload: upload.text(), document: document.text(), extraDocument: extraDocument.text() };
       });
       return {
@@ -96,13 +96,13 @@ test("complete local backup round-trip preserves adult, family, child and file d
           get("children").map((item: any) => item.id).join(",") === "child-1,child-2",
         childRecords: ["child-1", "child-2"].every(id =>
           map.has(scope + "::childHealth:" + id + ":vaccineStatuses") &&
-          map.has("guest::childHealth:" + id + ":vaccineRecords") &&
-          map.has("guest::childHealth:" + id + ":toothData") &&
-          map.has("guest::childHealth:" + id + ":labUploads") &&
-          map.has("guest::childHealth:" + id + ":labMeasurements") &&
-          map.has("guest::childHealth:" + id + ":healthEvents") &&
-          map.has("guest::childHealth:" + id + ":healthMonitoring") &&
-          map.has("guest::childHealth:" + id + ":labResultEntries")),
+          map.has(scope + "::childHealth:" + id + ":vaccineRecords") &&
+          map.has(scope + "::childHealth:" + id + ":toothData") &&
+          map.has(scope + "::childHealth:" + id + ":labUploads") &&
+          map.has(scope + "::childHealth:" + id + ":labMeasurements") &&
+          map.has(scope + "::childHealth:" + id + ":healthEvents") &&
+          map.has(scope + "::childHealth:" + id + ":healthMonitoring") &&
+          map.has(scope + "::childHealth:" + id + ":labResultEntries")),
         attachments: await adultFile.text() === "adult-file" &&
           await adultDocument.text() === "adult-document" &&
           await adultExtraDocument.text() === "adult-extra-document" &&
