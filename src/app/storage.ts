@@ -162,6 +162,17 @@ export async function deleteChildHealthRecords(childId: string): Promise<void> {
     const childrenRevision = (childrenRecord?.revision ?? 0) + 1;
     store.put({ key: scopedKey("children"), value: nextChildren, revision: childrenRevision } satisfies StoredRecord);
     changed.unshift({ key: "children", value: nextChildren, revision: childrenRevision });
+
+    const tombstoneRecord = records.find(record => record.key === scopedKey("syncTombstones"));
+    const tombstones = tombstoneRecord?.value && typeof tombstoneRecord.value === "object"
+      ? tombstoneRecord.value as RecordTombstones : {};
+    const deletedChild = children.find(child => child.id === childId) as Record<string, unknown>;
+    tombstones.children = { ...(tombstones.children ?? {}), [childId]: {
+      version: typeof deletedChild._version === "number" ? deletedChild._version : 1,
+      deletedAt: new Date().toISOString(),
+    } };
+    store.put({ key: scopedKey("syncTombstones"), value: tombstones,
+      revision: (tombstoneRecord?.revision ?? 0) + 1 } satisfies StoredRecord);
   };
 
   await new Promise<void>((resolve, reject) => {
