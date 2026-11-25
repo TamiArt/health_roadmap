@@ -42,6 +42,7 @@ export class AppDatabase {
       deleteSession: this.database.prepare("DELETE FROM sessions WHERE token_hash = ?"),
       deleteExpiredSessions: this.database.prepare("DELETE FROM sessions WHERE expires_at <= ?"),
       backupByUser: this.database.prepare("SELECT encrypted_payload, iv, auth_tag, revision, updated_at FROM user_backups WHERE user_id = ?"),
+      backupMetadataByUser: this.database.prepare("SELECT revision, updated_at FROM user_backups WHERE user_id = ?"),
       insertBackup: this.database.prepare("INSERT INTO user_backups (user_id, encrypted_payload, iv, auth_tag, revision, updated_at) VALUES (?, ?, ?, ?, 1, ?)"),
       updateBackup: this.database.prepare("UPDATE user_backups SET encrypted_payload = ?, iv = ?, auth_tag = ?, revision = ?, updated_at = ? WHERE user_id = ? AND revision = ?"),
     };
@@ -77,6 +78,10 @@ export class AppDatabase {
 
   getBackup(userId) {
     return this.statements.backupByUser.get(userId);
+  }
+
+  getBackupMetadata(userId) {
+    return this.statements.backupMetadataByUser.get(userId) ?? null;
   }
 
   saveBackup(userId, encrypted, expectedRevision, updatedAt) {

@@ -211,6 +211,19 @@ export function createAppServer({
         return;
       }
 
+      if (method === "GET" && url.pathname === "/api/sync/status") {
+        if (!user) {
+          sendJson(response, 401, { error: "Требуется вход в аккаунт." });
+          return;
+        }
+        const metadata = database.getBackupMetadata(user.id);
+        sendJson(response, 200, {
+          revision: metadata?.revision ?? null,
+          updatedAt: metadata?.updated_at ?? null,
+        });
+        return;
+      }
+
       if (url.pathname === "/api/data" && (method === "GET" || method === "PUT")) {
         if (!user) {
           sendJson(response, 401, { error: "Требуется вход в аккаунт." });
