@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Bell, BellRing, CalendarPlus, Link2, Pencil, Trash2 } from "lucide-react";
 import { usePersistentState } from "./storage";
-import { useBrowserReminders } from "./useBrowserReminders";
 import { CALENDAR_EVENT_STATUSES, CALENDAR_EVENT_TYPES, createCalendarEvent, sortCalendarEvents, validateCalendarEvent, type CalendarEventStatus, type CalendarEventType, type CalendarLinkType, type CalendarPlanEvent } from "./calendarModel";
 import type { HealthEvent, HealthMonitoringItem, LabResultEntry, VaccineAdministration } from "./healthRecords";
 
@@ -26,9 +25,6 @@ export function CalendarEventManager({ storagePrefix = "", profileLabel = "Вз�
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [formError, setFormError] = useState("");
-  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
-    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported",
-  );
 
   const linkOptions = useMemo<LinkOption[]>(() => [
     ...healthEvents.map(item => ({ value: `health:${item.id}`, label: `Событие здоровья · ${item.date} · ${item.title}`, type: "health" as const, id: item.id })),
@@ -36,14 +32,6 @@ export function CalendarEventManager({ storagePrefix = "", profileLabel = "Вз�
     ...vaccines.map(item => ({ value: `vaccine:${item.id}`, label: `Вакцинация · ${item.date} · ${item.vaccineName}`, type: "vaccine" as const, id: item.id })),
     ...monitoring.map(item => ({ value: `monitoring:${item.id}`, label: `Контроль · ${item.name}`, type: "monitoring" as const, id: item.id })),
   ], [healthEvents, labs, vaccines, monitoring]);
-
-  const reminders = useMemo(() => events.map(event => ({
-    id: `calendar:${storagePrefix}${event.id}`, title: event.title, date: event.date,
-    enabled: event.reminder.enabled && event.status === "planned",
-    leadDays: event.reminder.leadDays, time: event.reminder.time,
-    notificationTitle: "Напоминание календаря",
-  })), [events, storagePrefix]);
-  useBrowserReminders(reminders, permission === "granted");
 
   const ordered = sortCalendarEvents(events);
   const openNew = () => { setDraft(emptyDraft()); setEditingId(null); setFormError(""); setFormOpen(true); };
@@ -58,7 +46,7 @@ export function CalendarEventManager({ storagePrefix = "", profileLabel = "Вз�
     const normalized: EventDraft = {
       ...draft,
       title: draft.title.trim(), facility: draft.facility.trim(), details: draft.details.trim(),
-      link: selected ? { type: selected.type, id: selected.id, label: selected.label } : undefined,
+      link: selected ? { type: selected.type, id: selected.id, label: selected.label } : draft.link,
     };
     const timestamp = new Date().toISOString();
     if (editingId) {
@@ -75,12 +63,6 @@ export function CalendarEventManager({ storagePrefix = "", profileLabel = "Вз�
   const updateStatus = (id: string, status: CalendarEventStatus) => {
     setEvents(current => current.map(event => event.id === id ? { ...event, status, updatedAt: new Date().toISOString() } : event));
   };
-  const requestPermission = async () => {
-    if (typeof window === "undefined" || !("Notification" in window)) { setPermission("unsupported"); return; }
-    const result = await Notification.requestPermission();
-    setPermission(result);
-  };
-
   if (!ready) return <p role="status" aria-busy="true" className="text-xs text-muted-foreground">Загрузка планов календаря…</p>;
   if (error) return <p role="alert" className="text-xs text-red-600">{error}</p>;
 
@@ -94,14 +76,7 @@ export function CalendarEventManager({ storagePrefix = "", profileLabel = "Вз�
         <button type="button" onClick={openNew} className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground">Добавить событие</button>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-muted/40 p-3">
-        <Bell size={15} className="text-muted-foreground"/>
-        <span className="flex-1 text-xs text-muted-foreground">
-          {permission === "granted" ? "Уведомления браузера разрешены." : permission === "denied" ? "Уведомления заблокированы в настройках браузера." : permission === "unsupported" ? "Этот браузер не поддерживает уведомления." : "Разрешите уведомления, чтобы получать напоминания, пока приложение открыто."}
-        </span>
-        {permission === "default" && <button type="button" onClick={() => void requestPermission()} className="rounded-lg border border-border px-2.5 py-1.5 text-xs">Разрешить</button>}
-        {permission === "granted" && <span className="text-xs text-emerald-700"><BellRing size={13} className="inline"/> Включено</span>}
-      </div>
+      <p className="mt-2 text-xs text-muted-foreground">Напоминания настраиваются для каждого события; разрешение браузера на уведомления управляется в календаре.</p>
       {conflict && <p role="status" className="mt-2 text-xs text-amber-700">Запись была изменена в другой вкладке. Проверьте актуальные данные перед редактированием.</p>}
 
       {formOpen && <div className="mt-4 rounded-xl border border-border p-3 sm:p-4">
