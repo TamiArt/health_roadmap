@@ -27,8 +27,6 @@ export function MedicalHistoryTab({
   const [measurements, , measurementsReady, measurementsError, measurementsConflict] =
     usePersistentState<Record<string, LabMeasurement[]>>(`${storagePrefix}labMeasurements`, {});
   const [uploads, , uploadsReady, uploadsError, uploadsConflict] =
-    usePersistentState<Record<string, import("./models").UploadedResult[]>>(`${storagePrefix}labUploads`, {});
-  const [uploads, , uploadsReady, uploadsError, uploadsConflict] =
     usePersistentState<Record<string, UploadedResult[]>>(`${storagePrefix}labUploads`, {});
   const [labResults, , resultsReady, resultsError, resultsConflict] =
     usePersistentState<LabResultEntry[]>(`${storagePrefix}labResultEntries`, []);
