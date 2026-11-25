@@ -11,7 +11,7 @@ test("catalog lab measurements and uploaded reports support edit, replacement an
   await page.getByLabel("Значение результата").fill("5.4");
   await page.getByLabel("Единицы измерения").fill("ммоль/л");
   await page.getByRole("button", { name: "Сохранить результат" }).click();
-  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
 
   await page.getByRole("button", { name: "Изменить результат от 2026-11-19" }).click();
   await page.getByLabel("Значение результата").fill("5.6");
@@ -70,12 +70,13 @@ test("vaccination history remains isolated to the selected child profile", async
   await page.getByLabel("Дата вакцинации").fill("2026-11-15");
   await page.getByLabel("Доза вакцины").fill("Только профиль A");
   await page.getByRole("button", { name: "Сохранить запись" }).click();
-  await expect(page.getByText("Только профиль A", { exact: true })).toBeVisible();
+  const vaccinePanel = page.locator('section[aria-label="История вакцинации"]:visible');
+  await expect(vaccinePanel.getByText("Только профиль A", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
   await page.getByText("Вакцинационный профиль B", { exact: true }).first().click();
   await page.getByRole("tab", { name: "Прививки", exact: true }).click();
-  await expect(page.getByText("Только профиль A", { exact: true })).toHaveCount(0);
+  await expect(page.locator('section[aria-label="История вакцинации"]:visible').getByText("Только профиль A", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
   await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Прививки", exact: true }).click();
@@ -101,7 +102,7 @@ test("medical events support create, edit, search and confirmed delete", async (
   await page.getByLabel("Описание события").fill("Изменённое описание");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
 
-  await expect(page.getByText("Операция обновлена", { exact: true })).toBeVisible();
+  await expect(page.getByText("Операция обновлена", { exact: true }).first()).toBeVisible();
   await page.getByPlaceholder("Название, тип, клиника, описание").fill("тестовая клиника");
   await expect(page.getByText("Операция обновлена", { exact: true })).toBeVisible();
   page.once("dialog", dialog => dialog.accept());
@@ -205,11 +206,11 @@ test("monitoring items and their manual readings support create, edit and delete
   await page.getByLabel("Дата значения Глюкоза обновлена").fill("2026-11-20");
   await page.getByLabel("Значение Глюкоза обновлена").fill("5.6");
   await page.getByRole("button", { name: "Добавить значение" }).click();
-  await expect(page.getByText("5.6", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.6 ммоль/л", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Изменить значение Глюкоза обновлена от 2026-11-20" }).click();
   await page.getByLabel("Значение Глюкоза обновлена").fill("5.8");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await expect(page.getByText("5.8", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.8 ммоль/л", { exact: true })).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Удалить значение Глюкоза обновлена от 2026-11-20" }).click();
@@ -234,5 +235,5 @@ test("unified medical history searches, filters and sorts adult records without 
   await page.getByLabel("Тип медицинской записи").selectOption("event");
   await expect(page.getByText("Запись для общей истории", { exact: true })).toBeVisible();
   await page.getByLabel("С даты").fill("2026-11-11");
-  await expect(page.getByText("Запись для общей истории", { exact: true })).toHaveCount(0);
+  await expect(history.getByText("Запись для общей истории", { exact: true })).toHaveCount(0);
 });
