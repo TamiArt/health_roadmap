@@ -1139,19 +1139,19 @@ test("isolates every child-owned health record from other children and adult rec
   });
   const values = await page.evaluate(async ids => {
     const { writeRecord, readRecord } = await import("/src/app/storage.ts");
-    const childKeys = ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
+    const childKeys = ["vaccineStatuses", "vaccineRecords", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
     const adultKeys = ["vaccineStatuses", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
     const marker = (name: string, key: string) => ({ owner: name, kind: key });
     for (const [name, id] of Object.entries(ids)) {
       for (const key of childKeys) {
-        const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries"
+        const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries" || key === "vaccineRecords"
           ? [{ id: name + "-" + key, ...marker(name, key) }]
           : marker(name, key);
         await writeRecord("childHealth:" + id + ":" + key, value);
       }
     }
     for (const key of adultKeys) {
-      const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries"
+      const value = key === "healthEvents" || key === "healthMonitoring" || key === "labResultEntries" || key === "vaccineRecords"
         ? [{ id: "adult-" + key, ...marker("adult", key) }]
         : marker("adult", key);
       await writeRecord(key, value);
@@ -1165,7 +1165,7 @@ test("isolates every child-owned health record from other children and adult rec
   }, profileIds);
 
   for (const name of ["Профиль матрицы A", "Профиль матрицы B"]) {
-    for (const key of ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
+    for (const key of ["vaccineStatuses", "vaccineRecords", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
       const value = values[name + ":" + key] as { owner?: string } | Array<{ owner?: string }>;
       expect(Array.isArray(value) ? value[0].owner : value.owner).toBe(name);
     }
@@ -1191,7 +1191,7 @@ test("an open stale tab cannot recreate child records after the profile is delet
     const children = await readRecord<Array<{ id: string; name: string }>>("children");
     return children!.find(child => child.name === "Удаляемый открытый профиль")!.id;
   });
-  const childRecordKeys = ["vaccineStatuses", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]
+  const childRecordKeys = ["vaccineStatuses", "vaccineRecords", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]
     .map(name => "childHealth:" + childId + ":" + name);
   const recordKey = "childHealth:" + childId + ":healthEvents";
   await page.evaluate(async keys => {
