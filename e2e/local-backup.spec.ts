@@ -11,9 +11,9 @@ test("local backup round-trips child records and a binary attachment", async ({ 
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction("app-records", "readwrite");
       const store = tx.objectStore("app-records");
-      store.put({ key: "lifeEvents", value: [{ id: "evt-1", title: "Round trip" }], revision: 1 });
-      store.put({ key: "children", value: [{ id: "child-1", name: "Profile" }], revision: 1 });
-      store.put({ key: "childHealth:child-1:labUploads", value: {
+      store.put({ key: "guest::lifeEvents", value: [{ id: "evt-1", title: "Round trip" }], revision: 1 });
+      store.put({ key: "guest::children", value: [{ id: "child-1", name: "Profile" }], revision: 1 });
+      store.put({ key: "guest::childHealth:child-1:labUploads", value: {
         cbc: [{ id: "file-1", name: "report.pdf", blob: new Blob(["attachment-content"], { type: "application/pdf" }) }],
       }, revision: 1 });
       tx.oncomplete = () => resolve();
@@ -44,7 +44,7 @@ test("local backup round-trips child records and a binary attachment", async ({ 
       });
       const tx = db.transaction("app-records", "readonly");
       const store = tx.objectStore("app-records");
-      const values = await Promise.all(["lifeEvents", "children", "childHealth:child-1:labUploads"].map(key =>
+      const values = await Promise.all(["guest::lifeEvents", "guest::children", "guest::childHealth:child-1:labUploads"].map(key =>
         new Promise<any>((resolve, reject) => {
           const request = store.get(key);
           request.onsuccess = () => resolve(request.result?.value);

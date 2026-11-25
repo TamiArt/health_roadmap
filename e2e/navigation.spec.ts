@@ -611,7 +611,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get("labMeasurements");
+      const read = transaction.objectStore("app-records").get("guest::labMeasurements");
       read.onsuccess = () => resolve(read.result?.revision ?? 0);
       read.onerror = () => reject(read.error);
     };
@@ -836,7 +836,7 @@ test("deleting a child profile removes its health records and keeps tombstone re
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get("children");
+      const read = transaction.objectStore("app-records").get("guest::children");
       read.onsuccess = () => resolve(read.result.value.find((child: { name: string }) => child.name === "Профиль для удаления").id);
       read.onerror = () => reject(read.error);
     };
@@ -847,7 +847,7 @@ test("deleting a child profile removes its health records and keeps tombstone re
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get(key);
+      const read = transaction.objectStore("app-records").get("guest::" + key);
       read.onsuccess = () => resolve(read.result.revision);
       read.onerror = () => reject(read.error);
     };

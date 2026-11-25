@@ -81,13 +81,13 @@ test("vaccination history remains isolated to the selected child profile", async
     });
     const store = db.transaction("app-records", "readonly").objectStore("app-records");
     const children = await new Promise<any>((resolve, reject) => {
-      const request = store.get("children");
+      const request = store.get("guest::children");
       request.onsuccess = () => resolve(request.result?.value ?? []);
       request.onerror = () => reject(request.error);
     });
     const child = children.find((item: any) => item.name === "Вакцинационный профиль A");
     const records = await new Promise<any>((resolve, reject) => {
-      const request = store.get("childHealth:" + child.id + ":vaccineRecords");
+      const request = store.get("guest::childHealth:" + child.id + ":vaccineRecords");
       request.onsuccess = () => resolve(request.result?.value ?? []);
       request.onerror = () => reject(request.error);
     });
