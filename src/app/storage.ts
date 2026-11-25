@@ -16,7 +16,13 @@ function readPersistedScope(): string {
   } catch { return "guest"; }
 }
 let activeStorageScope = readPersistedScope();
-export function getStorageScope(): string { return activeStorageScope; }
+export function getStorageScope(): string {
+  try {
+    const value = localStorage.getItem(ACTIVE_SCOPE_KEY);
+    if (value && /^[a-zA-Z0-9_-]{1,128}$/.test(value)) activeStorageScope = value;
+  } catch { /* Use the in-memory scope. */ }
+  return activeStorageScope;
+}
 export function setStorageScope(scope: string): void {
   if (!/^(guest|[a-zA-Z0-9_-]{1,128})$/.test(scope)) throw new Error("Некорректный идентификатор локального пространства.");
   if (activeStorageScope === scope) return;
@@ -82,7 +88,7 @@ function openDatabase(): Promise<IDBDatabase> {
           const cursor = cursorRequest.result;
           if (!cursor) return;
           const record = cursor.value as StoredRecord;
-          if (!record.key.includes("::")) cursor.update({ ...record, key: scopedKey(record.key, "guest") });
+          if (!record.key.includes("::")) { cursor.delete(); store.put({ ...record, key: scopedKey(record.key, "guest") }); }
           cursor.continue();
         };
       }
@@ -546,7 +552,7 @@ export function usePersistentState<T>(
   const updateGeneration = useRef(0);
 
   useEffect(() => {
-    const updateScope = () => setScope(getStorageScope());
+    const updateScope = () => { setReady(false); setScope(getStorageScope()); };
     window.addEventListener(SCOPE_EVENT, updateScope);
     window.addEventListener("storage", updateScope);
     return () => {
