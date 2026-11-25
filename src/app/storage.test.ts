@@ -61,6 +61,12 @@ describe("local backup schema", () => {
     } } })).toThrow("Журнал удалений");
   });
 
+  it("allows calendar plans in adult and child backup namespaces", () => {
+    expect(isAllowedRecordKey("calendarEvents")).toBe(true);
+    expect(isAllowedRecordKey("childHealth:child-1:calendarEvents")).toBe(true);
+    expect(isAllowedRecordKey("childHealth:child-1:calendarSecret")).toBe(false);
+  });
+
   it("rejects unknown record types rather than silently importing them", () => {
     expect(() => migrateBackup({
       format: BACKUP_FORMAT,
