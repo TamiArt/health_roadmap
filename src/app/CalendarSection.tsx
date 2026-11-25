@@ -147,7 +147,8 @@ export function CalendarSection({ onOpenHistory }: { onOpenHistory?: () => void 
 
   const requestPermission = async () => {
     if (typeof window === "undefined" || !("Notification" in window)) { setPermission("unsupported"); return; }
-    try { setPermission(await Notification.requestPermission()); } catch { setPermission(Notification.permission); }\n    window.dispatchEvent(new Event("life-maps:notification-permission"));
+    try { setPermission(await Notification.requestPermission()); } catch { setPermission(Notification.permission); }
+    window.dispatchEvent(new Event("life-maps:notification-permission"));
   };
   const toggleSource = (source: CalendarSource) => setActiveSources(current => current.includes(source)
     ? current.filter(item => item !== source) : [...current, source]);
