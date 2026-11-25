@@ -42,7 +42,8 @@ export default function App() {
 }
 
 function AppContent() {
-  const [section, setSection] = useState<Section>("map");\n  const [healthInitialTab, setHealthInitialTab] = useState<"roadmap" | "history">("roadmap");
+  const [section, setSection] = useState<Section>("map");
+  const [healthInitialTab, setHealthInitialTab] = useState<"roadmap" | "history">("roadmap");
   const [visitedSections, setVisitedSections] = useState<Set<Section>>(() => new Set(["map"]));
   const [children, , childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
   const [vaccineStatuses, setVaccineStatuses, storageReady, storageError] = usePersistentState<Record<string, VaccineStatus>>(
