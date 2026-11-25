@@ -5,6 +5,7 @@ import { activateAccountWorkspace, startAccountSync, type SyncView } from "./acc
 
 type Account = { id: string; email: string; createdAt: string };
 type AuthMode = "login" | "register";
+type SyncChange = { revision: number; operation_id: string; created_at: string; record_count: number };
 
 async function readApiError(response: Response): Promise<string> {
   try {
@@ -37,6 +38,7 @@ export function DataManagementPanel({
   const resolveSync = useRef<((strategy: "local" | "remote") => Promise<void>) | null>(null);
   const [accountExpanded, setAccountExpanded] = useState(false);
   const [serverAvailable, setServerAvailable] = useState(true);
+  const [changeLog, setChangeLog] = useState<SyncChange[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -96,6 +98,19 @@ export function DataManagementPanel({
       window.removeEventListener("storage", handleWorkspaceChange);
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!account) { setChangeLog([]); return () => { active = false; }; }
+    void fetch("/api/sync/changes?after=0", { credentials: "same-origin", cache: "no-store" })
+      .then(async response => {
+        if (!response.ok) throw new Error(await readApiError(response));
+        return response.json() as Promise<{ changes: SyncChange[] }>;
+      })
+      .then(result => { if (active) setChangeLog(result.changes.slice(-20).reverse()); })
+      .catch(() => { if (active) setChangeLog([]); });
+    return () => { active = false; };
+  }, [account?.id, syncState.status, syncState.updatedAt]);
 
   useEffect(() => {
     if (!account || !storageReady || storageError || workspaceConflicts.length) return;
@@ -252,6 +267,17 @@ export function DataManagementPanel({
                     {syncState.pending && <p className="mt-1">Есть изменения, ожидающие отправки.</p>}
                     {workspaceConflicts.length > 0 && <p className="mt-1">Не объединены записи: {workspaceConflicts.slice(0, 3).join(", ")}</p>}
                   </div>
+                  {changeLog.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-foreground">Журнал синхронизации</p>
+                      <ul className="max-h-36 space-y-1 overflow-y-auto text-[11px] text-muted-foreground">
+                        {changeLog.map(item => <li key={item.operation_id} className="flex items-start justify-between gap-2 border-b border-border/50 pb-1">
+                          <span>Ревизия {item.revision} · {item.record_count} записей</span>
+                          <time dateTime={item.created_at} className="shrink-0">{new Date(item.created_at).toLocaleString("ru-RU")}</time>
+                        </li>)}
+                      </ul>
+                    </div>
+                  )}
                   {syncState.status === "conflict" && (
                     <div className="space-y-2">
                       <p className="text-[11px] leading-relaxed text-muted-foreground">
