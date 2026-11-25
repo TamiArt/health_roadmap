@@ -760,7 +760,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   await expect(page.getByRole("link", { name: "first-result.pdf" })).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Заменить прикреплённый документ" }).click();
+  await page.getByRole("button", { name: "Заменить документ result.pdf" }).click();
   await page.locator('input[aria-label="Выбрать документ для замены"]').setInputFiles({
     name: "replacement-result.pdf",
     mimeType: "application/pdf",
