@@ -119,6 +119,24 @@ describe("self-hosted account API", () => {
     assert.equal(stale.status, 409);
   });
 
+  it("rejects invalid backups without changing the stored revision", async () => {
+    const login = await request("/api/auth/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "owner@example.com", password: "a-secure-password-123" }),
+    });
+    const cookie = cookieFrom(login);
+    const invalid = await request("/api/data", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ payload: { ...backup, records: { ...backup.records, credentials: { token: "invalid" } } }, expectedRevision: 2 }),
+    });
+    assert.equal(invalid.status, 400);
+    const current = await request("/api/data", { headers: { Cookie: cookie } });
+    const data = await current.json();
+    assert.equal(data.revision, 2);
+    assert.equal(data.payload.records.lifeEvents[0].title, "Private event");
+  });
+
   it("rejects cross-origin state-changing requests", async () => {
     const response = await request("/api/auth/login", {
       method: "POST",
