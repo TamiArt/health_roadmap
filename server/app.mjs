@@ -266,7 +266,7 @@ export function createAppServer({
           sendJson(response, 400, { error: "Некорректная версия данных." });
           return;
         }
-        const serializedPayload = JSON.stringify(body.payload);
+        const serializedPayload = JSON.stringify(body.payload.records);
         const requestHash = createHash("sha256").update(serializedPayload).digest("hex");
         const encrypted = encryptPayload(body.payload, encryptionKey);
         const recordCount = Object.values(body.payload.records).reduce((total, value) => total + (Array.isArray(value) ? value.length : 1), 0);
