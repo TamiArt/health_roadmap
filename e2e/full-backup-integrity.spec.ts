@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("complete local backup round-trip preserves adult, family, child and file data", async ({ page, browser }) => {
-  await page.goto("about:blank");
+  await page.goto("/");
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("life-maps", 1);
@@ -45,7 +45,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
     db.close();
   });
 
-  await page.goto("/");
+  await page.reload();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Экспорт" }).click();
   const download = await downloadPromise;
