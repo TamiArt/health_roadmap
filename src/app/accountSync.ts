@@ -1,4 +1,4 @@
-import { exportBackup, importBackup, readSyncMetadata, writeSyncMetadata, type BackupPayload } from "./storage";
+import { exportBackup, getStorageScope, importBackup, readSyncMetadata, setStorageScope, writeSyncMetadata, type BackupPayload } from "./storage";
 import { backupsEqual, isPristineBackup, mergeBackups } from "./syncMerge";
 export type SyncStatus = "syncing" | "synced" | "offline" | "conflict" | "error";
 export type SyncView = { status: SyncStatus; updatedAt: string | null; pending: boolean; detail: string };
@@ -27,6 +27,23 @@ async function local(): Promise<BackupPayload> {
 async function restore(payload: BackupPayload): Promise<void> {
   await importBackup(new File([JSON.stringify(payload)], "account-sync.json", { type: "application/json" }));
 }
+export async function activateAccountWorkspace(accountId: string, claimGuest = false): Promise<{ guestDataMoved: boolean; conflicts: string[] }> {
+  const previousScope = getStorageScope();
+  if (previousScope === accountId) return { guestDataMoved: false, conflicts: [] };
+  const guestPayload = claimGuest && previousScope === "guest" ? await local() : null;
+  setStorageScope(accountId);
+  if (!guestPayload || isPristineBackup(guestPayload)) return { guestDataMoved: false, conflicts: [] };
+  const accountPayload = await local();
+  if (isPristineBackup(accountPayload)) {
+    await restore(guestPayload);
+    return { guestDataMoved: true, conflicts: [] };
+  }
+  const combined = mergeBackups(null, accountPayload, guestPayload);
+  if (combined.conflicts.length) return { guestDataMoved: false, conflicts: combined.conflicts };
+  await restore(combined.payload);
+  return { guestDataMoved: true, conflicts: [] };
+}
+
 export function startAccountSync(accountId: string, notify: (state: SyncView) => void) {
   let stopped = false, running = false, queued = false, retryDelay = 2000;
   let debounce: ReturnType<typeof setTimeout> | undefined, retry: ReturnType<typeof setTimeout> | undefined;
