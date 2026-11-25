@@ -1,4 +1,4 @@
-import type { DentalRecord, LabMeasurement, VaccineRecord, VaccineStatus } from "./models";
+import type { LabMeasurement } from "./models";
 import type { HealthMonitoringItem, LabResultEntry } from "./healthRecords";
 export type AnalyticsCategory = "all" | "laboratory" | "monitoring";
 export interface AnalyticsPoint { id: string; date: string; value: number; unit: string; referenceRange?: string; source: "lab-result" | "manual" | "monitoring"; sourceId: string; sourceLabel: string; }
@@ -56,21 +56,4 @@ export function getSeriesChange(points: AnalyticsPoint[]): { delta: number; perc
   if (points.length < 2) return null;
   const first = points[0].value; const last = points[points.length - 1].value;
   return { delta: last - first, percent: first === 0 ? null : ((last - first) / Math.abs(first)) * 100, direction: last > first ? "up" : last < first ? "down" : "same" };
-}
-
-export interface VaccineSummary { total: number; done: number; due: number; overdue: number; notApplicable: number; }
-export function buildVaccineSummary(vaccines: VaccineRecord[], statuses: Record<string, VaccineStatus>): VaccineSummary {
-  const summary: VaccineSummary = { total: vaccines.length, done: 0, due: 0, overdue: 0, notApplicable: 0 };
-  vaccines.forEach(vaccine => {
-    const status = statuses[vaccine.id] ?? vaccine.status;
-    if (status === "done") summary.done += 1;
-    else if (status === "due") summary.due += 1;
-    else if (status === "overdue") summary.overdue += 1;
-    else if (status === "not_applicable") summary.notApplicable += 1;
-  });
-  return summary;
-}
-export function buildDentalSummary(records: Record<number, DentalRecord>): { recorded: number; attention: number } {
-  const values = Object.values(records);
-  return { recorded: values.length, attention: values.filter(record => record.status !== "healthy").length };
 }
