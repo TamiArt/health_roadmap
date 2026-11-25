@@ -21,7 +21,7 @@ export default function App() {
   const [workspaceReady, setWorkspaceReady] = useState(false);
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me", { credentials: "same-origin" })
+    fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" })
       .then(async response => {
         if (!response.ok) throw new Error("Account service unavailable");
         return response.json() as Promise<{ user: { id: string } | null }>;
