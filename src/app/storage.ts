@@ -1,12 +1,35 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 const DB_NAME = "life-maps";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "app-records";
 export const BACKUP_FORMAT = "life-maps-backup";
 export const CURRENT_SCHEMA_VERSION = 1;
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const RESTORE_EVENT = "life-maps:backup-restored";
+const SCOPE_EVENT = "life-maps:storage-scope";
+const ACTIVE_SCOPE_KEY = "life-maps:active-storage-scope";
+function readPersistedScope(): string {
+  try {
+    const value = localStorage.getItem(ACTIVE_SCOPE_KEY);
+    return value && /^[a-zA-Z0-9_-]{1,128}$/.test(value) ? value : "guest";
+  } catch { return "guest"; }
+}
+let activeStorageScope = readPersistedScope();
+export function getStorageScope(): string { return activeStorageScope; }
+export function setStorageScope(scope: string): void {
+  if (!/^(guest|[a-zA-Z0-9_-]{1,128})$/.test(scope)) throw new Error("Некорректный идентификатор локального пространства.");
+  if (activeStorageScope === scope) return;
+  activeStorageScope = scope;
+  try { localStorage.setItem(ACTIVE_SCOPE_KEY, scope); } catch { /* IndexedDB remains authoritative. */ }
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SCOPE_EVENT, { detail: scope }));
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("life-maps:workspace");
+    channel.postMessage({ scope });
+    channel.close();
+  }
+}
+function scopedKey(key: string, scope = activeStorageScope): string { return `${scope}::${key}`; }
 
 type StoredRecord = { key: string; value: unknown; revision?: number };
 type VersionedRecord<T> = { value: T | undefined; revision: number };
@@ -47,10 +70,21 @@ function openDatabase(): Promise<IDBDatabase> {
 
   databasePromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = event => {
       const database = request.result;
-      if (!database.objectStoreNames.contains(STORE_NAME)) {
-        database.createObjectStore(STORE_NAME, { keyPath: "key" });
+      const transaction = request.transaction;
+      if (!database.objectStoreNames.contains(STORE_NAME)) database.createObjectStore(STORE_NAME, { keyPath: "key" });
+      if (!database.objectStoreNames.contains("sync-meta")) database.createObjectStore("sync-meta", { keyPath: "key" });
+      if (event.oldVersion < 2 && transaction) {
+        // Existing unscoped data is migrated intact into the guest workspace.
+        const cursorRequest = transaction.objectStore(STORE_NAME).openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor) return;
+          const record = cursor.value as StoredRecord;
+          if (!record.key.includes("::")) cursor.update({ ...record, key: scopedKey(record.key, "guest") });
+          cursor.continue();
+        };
       }
     };
     request.onsuccess = () => {
@@ -82,7 +116,7 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
 export async function readRecordState<T>(key: string): Promise<VersionedRecord<T>> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readonly");
-  const record = await requestResult<StoredRecord | undefined>(transaction.objectStore(STORE_NAME).get(key));
+  const record = await requestResult<StoredRecord | undefined>(transaction.objectStore(STORE_NAME).get(scopedKey(key)));
   return { value: record?.value as T | undefined, revision: record?.revision ?? 0 };
 }
 
@@ -93,7 +127,7 @@ export async function readRecord<T>(key: string): Promise<T | undefined> {
 /** Remove a child profile and all of its health records atomically. */
 export async function deleteChildHealthRecords(childId: string): Promise<void> {
   if (!/^[a-zA-Z0-9_-]+$/.test(childId)) throw new Error("Некорректный идентификатор профиля ребёнка.");
-  const prefix = `childHealth:${childId}:`;
+  const prefix = scopedKey(`childHealth:${childId}:`);
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
@@ -102,7 +136,7 @@ export async function deleteChildHealthRecords(childId: string): Promise<void> {
 
   request.onsuccess = () => {
     const records = request.result as StoredRecord[];
-    const childrenRecord = records.find(record => record.key === "children");
+    const childrenRecord = records.find(record => record.key === scopedKey("children"));
     const children = Array.isArray(childrenRecord?.value) ? childrenRecord.value as Array<{ id?: unknown }> : [];
     if (!children.some(child => child.id === childId)) {
       transaction.abort();
@@ -118,7 +152,7 @@ export async function deleteChildHealthRecords(childId: string): Promise<void> {
 
     const nextChildren = children.filter(child => child.id !== childId);
     const childrenRevision = (childrenRecord?.revision ?? 0) + 1;
-    store.put({ key: "children", value: nextChildren, revision: childrenRevision } satisfies StoredRecord);
+    store.put({ key: scopedKey("children"), value: nextChildren, revision: childrenRevision } satisfies StoredRecord);
     changed.unshift({ key: "children", value: nextChildren, revision: childrenRevision });
   };
 
@@ -130,7 +164,7 @@ export async function deleteChildHealthRecords(childId: string): Promise<void> {
 
   if (changed.length && typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
-    for (const record of changed) channel.postMessage(record);
+    for (const record of changed) channel.postMessage({ ...record, scope: activeStorageScope });
     channel.close();
   }
 }
@@ -142,9 +176,9 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
   const transaction = database.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
   let result: VersionedRecord<T> & { conflict: boolean } = { value, revision: 0, conflict: false };
-  const request = store.get(key);
+  const request = store.get(scopedKey(key));
   const childMatch = /^childHealth:([a-zA-Z0-9_-]+):/.exec(key);
-  const childrenRequest = childMatch ? store.get("children") : undefined;
+  const childrenRequest = childMatch ? store.get(scopedKey("children")) : undefined;
   let recordLoaded = false;
   let childrenLoaded = !childrenRequest;
   let current: StoredRecord | undefined;
@@ -169,7 +203,7 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
       return;
     }
     result = { value, revision: currentRevision + 1, conflict: false };
-    store.put({ key, value, revision: result.revision } satisfies StoredRecord);
+    store.put({ key: scopedKey(key), value, revision: result.revision } satisfies StoredRecord);
   };
 
   request.onsuccess = () => {
@@ -192,7 +226,7 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
   if (profileDeleted) throw new Error("Профиль ребёнка удалён. Изменения не сохранены.");
   if (!result.conflict && typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
-    channel.postMessage({ key, value, revision: result.revision });
+    channel.postMessage({ key, value, revision: result.revision, scope: activeStorageScope });
     channel.close();
   }
   return result;
@@ -202,7 +236,9 @@ async function readAllRecords(): Promise<Record<string, unknown>> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readonly");
   const records = await requestResult<StoredRecord[]>(transaction.objectStore(STORE_NAME).getAll());
-  return Object.fromEntries(records.filter(record => record.value !== undefined).map(record => [record.key, record.value]));
+  const prefix = `${activeStorageScope}::`;
+  return Object.fromEntries(records.filter(record => record.key.startsWith(prefix) && record.value !== undefined)
+    .map(record => [record.key.slice(prefix.length), record.value]));
 }
 
 type EncodedBlob = { __lifeMapsBlob: true; mimeType: string; base64: string };
@@ -451,16 +487,15 @@ export async function importBackup(file: File): Promise<void> {
   const store = transaction.objectStore(STORE_NAME);
   const existingRequest = store.getAll();
   existingRequest.onsuccess = () => {
-    const previousRecords = existingRequest.result as StoredRecord[];
-    const previousByKey = new Map(previousRecords.map(record => [record.key, record]));
+    const prefix = `${activeStorageScope}::`;
+    const previousRecords = (existingRequest.result as StoredRecord[]).filter(record => record.key.startsWith(prefix));
+    const previousByKey = new Map(previousRecords.map(record => [record.key.slice(prefix.length), record]));
     const allKeys = new Set([...previousByKey.keys(), ...Object.keys(decodedRecords)]);
-    store.clear();
     for (const key of allKeys) {
       const previousRevision = previousByKey.get(key)?.revision ?? 0;
       const value = Object.prototype.hasOwnProperty.call(decodedRecords, key) ? decodedRecords[key] : undefined;
-      // Advance revisions for restored and removed records. Tombstones prevent
-      // a stale tab from recreating keys that are absent from the backup.
-      store.put({ key, value, revision: previousRevision + 1 } satisfies StoredRecord);
+      // Advance revisions for restored and removed records; preserve other account workspaces.
+      store.put({ key: scopedKey(key), value, revision: previousRevision + 1 } satisfies StoredRecord);
     }
   };
 
@@ -471,10 +506,27 @@ export async function importBackup(file: File): Promise<void> {
   });
   if (typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
-    channel.postMessage({ type: "restore" });
+    channel.postMessage({ type: "restore", scope: activeStorageScope });
     channel.close();
   }
   window.dispatchEvent(new Event(RESTORE_EVENT));
+}
+
+export async function readSyncMetadata<T>(key: string): Promise<T | undefined> {
+  const database = await openDatabase();
+  const transaction = database.transaction("sync-meta", "readonly");
+  const record = await requestResult<{ key: string; value: T } | undefined>(transaction.objectStore("sync-meta").get(key));
+  return record?.value;
+}
+export async function writeSyncMetadata<T>(key: string, value: T): Promise<void> {
+  const database = await openDatabase();
+  const transaction = database.transaction("sync-meta", "readwrite");
+  transaction.objectStore("sync-meta").put({ key, value });
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось сохранить очередь синхронизации."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Сохранение очереди синхронизации отменено."));
+  });
 }
 
 export function usePersistentState<T>(
@@ -484,12 +536,24 @@ export function usePersistentState<T>(
   const [value, setValue] = useState<T>(initialValue);
   const [ready, setReady] = useState(false);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [scope, setScope] = useState(getStorageScope);
+  const [loadedScope, setLoadedScope] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
   const skipNextWrite = useRef<{ value: T } | null>(null);
   const revision = useRef(0);
   const writeQueue = useRef<Promise<void>>(Promise.resolve());
   const updateGeneration = useRef(0);
+
+  useEffect(() => {
+    const updateScope = () => setScope(getStorageScope());
+    window.addEventListener(SCOPE_EVENT, updateScope);
+    window.addEventListener("storage", updateScope);
+    return () => {
+      window.removeEventListener(SCOPE_EVENT, updateScope);
+      window.removeEventListener("storage", updateScope);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -511,6 +575,7 @@ export function usePersistentState<T>(
           skipNextWrite.current = { value: loadedValue };
           setValue(loadedValue);
           setLoadedKey(key);
+          setLoadedScope(scope);
         }
         if (active) setError(null);
       } catch (cause) {
@@ -531,7 +596,8 @@ export function usePersistentState<T>(
     const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("life-maps:records") : undefined;
     if (channel) {
       channel.onmessage = event => {
-        const message = event.data as { type?: unknown; key?: unknown; value?: unknown; revision?: unknown };
+        const message = event.data as { type?: unknown; key?: unknown; value?: unknown; revision?: unknown; scope?: unknown };
+        if (message?.scope !== scope) return;
         if (message?.type === "restore") {
           void load();
           return;
@@ -551,10 +617,10 @@ export function usePersistentState<T>(
       window.removeEventListener(RESTORE_EVENT, reload);
       channel?.close();
     };
-  }, [key]);
+  }, [key, scope]);
 
   useEffect(() => {
-    if (!ready || error || loadedKey !== key) return;
+    if (!ready || error || loadedKey !== key || loadedScope !== scope) return;
     if (skipNextWrite.current) {
       const remoteUpdate = skipNextWrite.current;
       skipNextWrite.current = null;
@@ -580,7 +646,7 @@ export function usePersistentState<T>(
     }).catch(cause => {
       setError(cause instanceof Error ? cause.message : "Не удалось сохранить локальные данные.");
     });
-  }, [key, value, ready, loadedKey, error]);
+  }, [key, scope, value, ready, loadedKey, loadedScope, error]);
 
   return [value, setValue, ready, error, conflict];
 }
