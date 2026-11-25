@@ -5,7 +5,8 @@ import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
 import { VACCINES } from "./healthData";
 import type { Child, Section, VaccineStatus } from "./models";
-import { Sidebar } from "./Sidebar";\nimport { CalendarReminderService } from "./CalendarReminderService";
+import { Sidebar } from "./Sidebar";
+import { CalendarReminderService } from "./CalendarReminderService";
 
 const LifeMapSection = lazy(() => import("./LifeMapSection").then(module => ({ default: module.LifeMapSection })));
 const HealthSection = lazy(() => import("./HealthSection").then(module => ({ default: module.HealthSection })));
@@ -79,7 +80,8 @@ function AppContent() {
         className="order-first sm:order-last min-h-0 min-w-0 flex-1 overflow-y-auto pb-28 sm:pb-8 focus:outline-none"
         style={{ backgroundImage: "radial-gradient(circle, rgba(44,95,90,0.045) 1px, transparent 1px)", backgroundSize: "26px 26px" }}
       >
-        <DataManagementPanel storageReady={storageReady && childrenReady} storageError={storageError ?? childrenError} />\n        <CalendarReminderService />
+        <DataManagementPanel storageReady={storageReady && childrenReady} storageError={storageError ?? childrenError} />
+        <CalendarReminderService />
         {visitedSections.has("map") && (
           <motion.div hidden={section !== "map"} initial={false} animate={section === "map" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
             <Suspense fallback={<SectionFallback />}><LifeMapSection /></Suspense>
