@@ -623,7 +623,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get("labMeasurements");
+      const read = transaction.objectStore("app-records").get("guest::labMeasurements");
       read.onsuccess = () => resolve(read.result?.revision ?? 0);
       read.onerror = () => reject(read.error);
     };
@@ -638,7 +638,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get("labMeasurements");
+      const read = transaction.objectStore("app-records").get("guest::labMeasurements");
       read.onsuccess = () => resolve(read.result?.revision ?? 0);
       read.onerror = () => reject(read.error);
     };
@@ -705,7 +705,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get("labMeasurements");
+      const read = transaction.objectStore("app-records").get("guest::labMeasurements");
       read.onsuccess = () => resolve(read.result?.revision ?? 0);
       read.onerror = () => reject(read.error);
     };
