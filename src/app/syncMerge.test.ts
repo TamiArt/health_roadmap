@@ -58,6 +58,46 @@ describe("multi-device backup merge", () => {
     expect(result.payload.records.lifeEvents).toEqual([]);
   });
 
+  it("merges populated local and server databases on first login without a baseline", () => {
+    const local = payload({ lifeEvents: [{ id: "local-event", title: "Локальная история" }] });
+    const remote = payload({ lifeEvents: [{ id: "remote-event", title: "Серверная история" }] });
+    const result = mergeBackups(null, local, remote);
+    expect(result.conflicts).toEqual([]);
+    expect(result.payload.records.lifeEvents).toEqual([
+      { id: "local-event", title: "Локальная история" },
+      { id: "remote-event", title: "Серверная история" },
+    ]);
+  });
+
+  it("keeps first-login collisions unresolved instead of silently choosing a device", () => {
+    const local = payload({ lifeEvents: [{ id: "same-event", title: "Локальная версия" }] });
+    const remote = payload({ lifeEvents: [{ id: "same-event", title: "Серверная версия" }] });
+    const result = mergeBackups(null, local, remote);
+    expect(result.conflicts).toContain("records.lifeEvents[same-event].title");
+  });
+
+  it("does not resurrect a deleted record when a first-login device has a stale local copy", () => {
+    const local = payload({ lifeEvents: [{ id: "old-event", title: "Старая запись", _version: 1 }] });
+    const remote = payload({
+      lifeEvents: [],
+      syncTombstones: { lifeEvents: { "old-event": { version: 1, deletedAt: "2026-11-25T12:00:00.000Z" } } },
+    });
+    const result = mergeBackups(null, local, remote);
+    expect(result.conflicts).toEqual([]);
+    expect(result.payload.records.lifeEvents).toEqual([]);
+    expect(result.payload.records.syncTombstones).toEqual(remote.records.syncTombstones);
+  });
+
+  it("keeps a genuinely newer record when an older tombstone arrives", () => {
+    const local = payload({ lifeEvents: [{ id: "event-1", title: "Обновлено", _version: 2 }] });
+    const remote = payload({
+      lifeEvents: [],
+      syncTombstones: { lifeEvents: { "event-1": { version: 1, deletedAt: "2026-11-25T12:00:00.000Z" } } },
+    });
+    const result = mergeBackups(null, local, remote);
+    expect(result.payload.records.lifeEvents).toEqual([{ id: "event-1", title: "Обновлено", _version: 2 }]);
+  });
+
   it("treats untouched defaults as pristine but keeps user-edited defaults", () => {
     expect(isPristineBackup(payload({ lifeEvents: [], vaccineStatuses:
       Object.fromEntries(VACCINES.map(vaccine => [vaccine.id, vaccine.status])),
