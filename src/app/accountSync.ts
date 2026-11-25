@@ -1,4 +1,4 @@
-import { exportBackup, getStorageScope, importBackup, readSyncMetadata, setStorageScope, writeSyncMetadata, type BackupPayload } from "./storage";
+import { clearStorageWorkspace, exportBackup, getStorageScope, importBackup, readSyncMetadata, setStorageScope, writeSyncMetadata, type BackupPayload } from "./storage";
 import { backupsEqual, isPristineBackup, mergeBackups } from "./syncMerge";
 export type SyncStatus = "syncing" | "synced" | "offline" | "conflict" | "error";
 export type SyncView = { status: SyncStatus; updatedAt: string | null; pending: boolean; detail: string };
@@ -41,11 +41,13 @@ export async function activateAccountWorkspace(accountId: string, claimGuest = f
   const accountPayload = await local();
   if (isPristineBackup(accountPayload)) {
     await restore(guestPayload);
+    await clearStorageWorkspace("guest");
     return { guestDataMoved: true, conflicts: [] };
   }
   const combined = mergeBackups(null, accountPayload, guestPayload);
   if (combined.conflicts.length) return { guestDataMoved: false, conflicts: combined.conflicts };
   await restore(combined.payload);
+  await clearStorageWorkspace("guest");
   return { guestDataMoved: true, conflicts: [] };
 }
 
