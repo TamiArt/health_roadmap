@@ -231,9 +231,10 @@ test("unified medical history searches, filters and sorts adult records without 
 
   await page.getByRole("tab", { name: "История", exact: true }).click();
   await page.getByLabel("Поиск по всей истории").fill("общей истории");
-  await expect(page.getByText("Запись для общей истории", { exact: true })).toBeVisible();
+  const history = page.getByRole("region", { name: "Единая медицинская история" });
+  await expect(history.getByText("Запись для общей истории", { exact: true })).toBeVisible();
   await page.getByLabel("Тип медицинской записи").selectOption("event");
-  await expect(page.getByText("Запись для общей истории", { exact: true })).toBeVisible();
+  await expect(history.getByText("Запись для общей истории", { exact: true })).toBeVisible();
   await page.getByLabel("С даты").fill("2026-11-11");
   await expect(history.getByText("Запись для общей истории", { exact: true })).toHaveCount(0);
 });
