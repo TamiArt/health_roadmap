@@ -75,9 +75,9 @@ test("complete local backup round-trip preserves adult, family, child and file d
       });
       db.close();
       const map = new Map(values.map(item => [item.key, item.value]));
-      const adultFile = map.get("labUploads").cbc[0].blob as Blob;
-      const adultDocument = map.get("labResultEntries")[0].document.blob as Blob;
-      const adultExtraDocument = map.get("labResultEntries")[0].documents[0].blob as Blob;
+      const adultFile = map.get("guest::labUploads").cbc[0].blob as Blob;
+      const adultDocument = map.get("guest::labResultEntries")[0].document.blob as Blob;
+      const adultExtraDocument = map.get("guest::labResultEntries")[0].documents[0].blob as Blob;
       const childFiles = ["child-1", "child-2"].map(id => {
         const upload = map.get("guest::childHealth:" + id + ":labUploads").cbc[0].blob as Blob;
         const document = map.get("guest::childHealth:" + id + ":labResultEntries")[0].document.blob as Blob;
