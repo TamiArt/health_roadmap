@@ -38,7 +38,7 @@ test("automatically syncs records and attachments across devices and retries que
   await page.getByLabel("Электронная почта").fill(email);
   await page.getByLabel(/Пароль/).fill(password);
   await page.getByRole("button", { name: "Создать аккаунт" }).click();
-  await expect(page.getByText("Синхронизировано", { exact: true })).toBeVisible({ timeout: 20000 });
+  await expect.poll(async () => page.locator('[aria-label="Резервное копирование"]').innerText(), { timeout: 20000 }).toContain("Синхронизировано");
 
   const ownerId = await accountId(page);
   await page.evaluate(async ({ ownerId }) => {
