@@ -42,11 +42,12 @@
 | `healthEvents` | Медицинские события основного профиля |
 | `healthMonitoring` | Контрольные показатели основного профиля |
 | `labResultEntries` | Подробные результаты анализов основного профиля |
+| `calendarEvents` | Запланированные медицинские события основного профиля |
 | `syncTombstones` | Версии и время удаления записей для межустройственной синхронизации |
 | `notificationSettings` | Настройки уведомлений |
 | `childHealth:{childId}:{type}` | Изолированные медицинские данные ребёнка |
 
-Для дочернего профиля разрешены только типы: `vaccineStatuses`, `vaccineRecords`, `toothData`, `labUploads`, `labMeasurements`, `healthEvents`, `healthMonitoring`, `labResultEntries`. Идентификатор профиля должен соответствовать `[a-zA-Z0-9_-]+` и существовать в записи `children`. Ключи проверяются allowlist-ом на клиенте и сервере.
+Для дочернего профиля разрешены только типы: `vaccineStatuses`, `vaccineRecords`, `toothData`, `labUploads`, `labMeasurements`, `healthEvents`, `healthMonitoring`, `labResultEntries`, `calendarEvents`. Планы взрослого и ребёнка хранятся соответственно в `calendarEvents` и `childHealth:{childId}:calendarEvents`. Идентификатор профиля должен соответствовать `[a-zA-Z0-9_-]+` и существовать в записи `children`. Ключи проверяются allowlist-ом на клиенте и сервере.
 
 ## Идентификаторы и даты
 
