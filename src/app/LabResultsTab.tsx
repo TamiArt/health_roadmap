@@ -163,7 +163,7 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
       <div className="mt-3 divide-y divide-border/70">{result.indicators.map(indicator => <div key={indicator.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2"><span className="text-xs text-muted-foreground">{indicator.name}{indicator.referenceRange ? ` · референс: ${indicator.referenceRange}` : ""}</span><strong className="text-sm tabular-nums">{indicator.value} <span className="text-xs font-normal text-muted-foreground">{indicator.unit}</span></strong></div>)}</div>
       {result.indicators.map(indicator => {
         const points = results.flatMap(entry => entry.indicators
-          .filter(item => item.name.trim().toLocaleLowerCase("ru") === indicator.name.trim().toLocaleLowerCase("ru") && item.unit === indicator.unit)
+          .filter(item => entry.testId === result.testId && item.name.trim().toLocaleLowerCase("ru") === indicator.name.trim().toLocaleLowerCase("ru") && item.unit === indicator.unit)
           .map(item => ({ date: entry.date, value: item.value })));
         return <LabIndicatorTrend key={indicator.id} name={indicator.name} unit={indicator.unit} points={points} />;
       })}
