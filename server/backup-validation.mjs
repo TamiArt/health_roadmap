@@ -1,7 +1,7 @@
 const ALLOWED_KEYS = new Set([
   "lifeEvents", "familyMembers", "children", "familyEvents", "vaccineStatuses", "vaccineRecords",
   "adultToothData", "labUploads", "labMeasurements", "healthEvents",
-  "healthMonitoring", "labResultEntries", "notificationSettings",
+  "healthMonitoring", "labResultEntries", "syncTombstones", "notificationSettings",
 ]);
 const CHILD_KEY = /^childHealth:([a-zA-Z0-9_-]+):(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/;
 const ARRAY_KEYS = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords"]);
@@ -90,6 +90,11 @@ function validateRecord(key, value) {
     });
   }
   if (!isRecord(value)) return false;
+  if (baseKey === "syncTombstones") return Object.entries(value).every(([path, entries]) =>
+    typeof path === "string" && path.length <= 256 && isRecord(entries) &&
+    Object.entries(entries).every(([id, tombstone]) => typeof id === "string" && id.length > 0 &&
+      isRecord(tombstone) && Number.isSafeInteger(tombstone.version) && tombstone.version >= 1 &&
+      typeof tombstone.deletedAt === "string" && !Number.isNaN(Date.parse(tombstone.deletedAt))));
   if (baseKey === "labMeasurements") return Object.values(value).every(items =>
     Array.isArray(items) && uniqueIds(items) && items.every(item => isRecord(item) &&
       typeof item.value === "string" && typeof item.unit === "string" && validDate(item.date)));
