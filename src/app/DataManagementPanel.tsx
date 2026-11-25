@@ -40,7 +40,7 @@ export function DataManagementPanel({
 
   useEffect(() => {
     let active = true;
-    void fetch("/api/auth/me", { credentials: "same-origin" })
+    void fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" })
       .then(async response => {
         if (!response.ok) throw new Error(await readApiError(response));
         return response.json() as Promise<{ user: Account | null }>;
@@ -63,6 +63,38 @@ export function DataManagementPanel({
         if (active) setServerAvailable(false);
       });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const handleWorkspaceChange = (event: StorageEvent) => {
+      if (event.key !== "life-maps:active-storage-scope") return;
+      void fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" })
+        .then(async response => {
+          if (!response.ok) throw new Error(await readApiError(response));
+          return response.json() as Promise<{ user: Account | null }>;
+        })
+        .then(async result => {
+          if (!active) return;
+          if (result.user) {
+            const activation = await activateAccountWorkspace(result.user.id);
+            if (!active) return;
+            setWorkspaceConflicts(activation.conflicts);
+            setAccount(result.user);
+            setAccountExpanded(true);
+          } else {
+            setWorkspaceConflicts([]);
+            setAccount(null);
+            setAccountExpanded(false);
+          }
+        })
+        .catch(() => { if (active) setServerAvailable(false); });
+    };
+    window.addEventListener("storage", handleWorkspaceChange);
+    return () => {
+      active = false;
+      window.removeEventListener("storage", handleWorkspaceChange);
+    };
   }, []);
 
   useEffect(() => {
