@@ -114,7 +114,8 @@ test("lab result entries support edit, multiple documents, replacement and delet
   await page.goto("/");
   await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "История", exact: true }).click();
-  const resultsPanel = page.getByRole("region", { name: "Подробные результаты анализов" });\n  await page.getByRole("button", { name: "Добавить анализ" }).click();
+  const resultsPanel = page.getByRole("region", { name: "Подробные результаты анализов" });
+  await page.getByRole("button", { name: "Добавить анализ" }).click();
 
   await page.getByLabel("Название анализа").fill("Панель лабораторных показателей");
   await page.getByLabel("Дата анализа").fill("2026-11-21");
