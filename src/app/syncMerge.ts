@@ -52,6 +52,7 @@ export function isPristineBackup(payload: BackupPayload): boolean {
   return Object.entries(payload.records).every(([key, value]) => {
     if (Array.isArray(value)) return value.length === 0;
     if (!isObject(value)) return value === null || value === undefined;
+    if (key === "notificationSettings") return equal(value, { enabled: false });
     if (key === "vaccineStatuses") {
       const defaults = Object.fromEntries(VACCINES.map(vaccine => [vaccine.id, vaccine.status]));
       return equal(value, defaults);
