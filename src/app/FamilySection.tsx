@@ -22,6 +22,7 @@ function ChildHealthView({ child, onBack, initialSource }: { child:Child; onBack
   const [tab, setTab] = useState<"tests"|"vaccines"|"dental"|"history"|"events"|"monitoring">(() => initialSource?.source.key.endsWith("labResultEntries") ? "history" : initialSource && initialSource.source.section !== "family" ? initialSource.source.section : "tests");
   useEffect(() => {
     if (!initialSource) return;
+    setTab(initialSource.source.key.endsWith("labResultEntries") ? "history" : initialSource.source.section !== "family" ? initialSource.source.section : "tests");
     const target = `medical-source-${initialSource.source.section}-${initialSource.source.recordId}`;
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
   }, [initialSource]);
