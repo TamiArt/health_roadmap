@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { getStorageScope, setStorageScope, usePersistentState } from "./storage";
+import { setStorageScope, usePersistentState } from "./storage";
+import { activateAccountWorkspace } from "./accountSync";
 import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
 import { VACCINES } from "./healthData";
@@ -25,10 +26,10 @@ export default function App() {
         if (!response.ok) throw new Error("Account service unavailable");
         return response.json() as Promise<{ user: { id: string } | null }>;
       })
-      .then(result => { if (active) setStorageScope(result.user?.id ?? "guest"); })
+      .then(async result => { if (!active) return; if (result.user) await activateAccountWorkspace(result.user.id); else setStorageScope("guest"); })
       .catch(() => {
         // Retain the last authenticated workspace while offline.
-        if (active) setStorageScope(getStorageScope());
+        if (active) setStorageScope("guest");
       })
       .finally(() => { if (active) setWorkspaceReady(true); });
     return () => { active = false; };
