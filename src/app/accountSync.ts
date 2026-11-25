@@ -75,7 +75,7 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
     try {
       let meta = await readSyncMetadata<Meta>(key(accountId));
       if (meta?.accountId !== accountId) meta = undefined;
-      const localData = await local();
+      let localData = await local();
       const remoteStatus = await syncStatus();
       if (meta?.base && !meta.pending && meta.revision === remoteStatus.revision && backupsEqual(localData, meta.base)) {
         emit("synced", false, "Все изменения синхронизированы.", remoteStatus.updatedAt ?? meta.updatedAt);
@@ -96,6 +96,10 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
         }
         result = combined.payload;
       }
+      if (remote.payload && !backupsEqual(result, localData)) {
+        await restore(result);
+        localData = result;
+      }
       let revision = remote.revision;
       if (!remote.payload || !backupsEqual(result, remote.payload)) {
         try { revision = await push(result, remote.revision); }
@@ -103,7 +107,8 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
           if (!(cause instanceof Error) || (cause as Error & {status?:number}).status !== 409) throw cause;
           remote = await pull();
           if (!remote.payload) throw cause;
-          const retryMerge = mergeBackups(meta?.base ?? null, await local(), remote.payload);
+          const retryLocal = await local();
+          const retryMerge = mergeBackups(meta?.base ?? null, retryLocal, remote.payload);
           if (retryMerge.conflicts.length) {
             await writeSyncMetadata(key(accountId), { accountId, revision: remote.revision,
               updatedAt: remote.updatedAt, base: meta?.base ?? null, pending: true,
@@ -112,6 +117,7 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
             return;
           }
           result = retryMerge.payload;
+          if (!backupsEqual(result, retryLocal)) await restore(result);
           revision = backupsEqual(result, remote.payload) ? remote.revision : await push(result, remote.revision);
         }
       }
