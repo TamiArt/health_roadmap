@@ -36,6 +36,8 @@ test("medical calendar creates, links, completes and persists planned events", a
   await expect(planned).toContainText("Приём врача");
   await expect(planned).toContainText("Связано: Событие здоровья");
   await expect(planned).toContainText("Городская клиника");
+  await planned.getByRole("button", { name: "Открыть медицинскую историю" }).click();
+  await expect(page.getByRole("tab", { name: "История", exact: true })).toHaveAttribute("aria-selected", "true");
 
   await page.reload();
   await page.getByRole("button", { name: "Календарь" }).click();
