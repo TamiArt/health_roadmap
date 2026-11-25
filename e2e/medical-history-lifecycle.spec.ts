@@ -66,10 +66,13 @@ test("vaccination history remains isolated to the selected child profile", async
   await page.getByText("Вакцинационный профиль A", { exact: true }).first().click();
   await page.getByRole("tab", { name: "Прививки", exact: true }).click();
   await page.getByRole("button", { name: "Добавить запись" }).click();
-  await page.getByLabel("Вакцина для записи").selectOption({ index: 1 });
+  const vaccineSelect = page.getByLabel("Вакцина для записи");
+  await vaccineSelect.selectOption({ index: 1 });
+  expect(await vaccineSelect.inputValue()).not.toBe("");
   await page.getByLabel("Дата вакцинации").fill("2026-11-15");
   await page.getByLabel("Доза вакцины").fill("Только профиль A");
   await page.getByRole("button", { name: "Сохранить запись" }).click();
+  expect(await page.getByRole("alert").allTextContents()).toEqual([]);
   const vaccinePanel = page.locator('section[aria-label="История вакцинации"]:visible');
   await expect(vaccinePanel.getByText("Только профиль A", { exact: true })).toBeVisible();
 
@@ -114,7 +117,7 @@ test("lab result entries support edit, multiple documents, replacement and delet
   await page.goto("/");
   await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "История", exact: true }).click();
-  const resultsPanel = page.getByRole("region", { name: "Подробные результаты анализов" });
+  const resultsPanel = page.locator('section[aria-label="Подробные результаты анализов"]:visible');
   await page.getByRole("button", { name: "Добавить анализ" }).click();
 
   await page.getByLabel("Название анализа").fill("Панель лабораторных показателей");
@@ -218,11 +221,11 @@ test("monitoring items and their manual readings support create, edit and delete
   await expect(page.getByText("Глюкоза обновлена", { exact: true })).toBeVisible();
 
   await page.getByLabel("Дата значения Глюкоза обновлена").fill("2026-11-20");
-  await page.getByLabel("Значение Глюкоза обновлена").fill("5.6");
+  await page.locator('input[aria-label="Значение Глюкоза обновлена"]:visible').last().fill("5.6");
   await page.getByRole("button", { name: "Добавить значение" }).click();
-  await expect(page.getByText("5.6 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.6 ммоль/л", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Изменить значение Глюкоза обновлена от 2026-11-20" }).click();
-  await page.getByLabel("Значение Глюкоза обновлена").fill("5.8");
+  await page.locator('input[aria-label="Значение Глюкоза обновлена"]:visible').last().fill("5.8");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.getByText("5.8 ммоль/л", { exact: true }).first()).toBeVisible();
 
