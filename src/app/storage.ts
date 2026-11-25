@@ -478,7 +478,7 @@ function validateRecordValue(key: string, value: unknown): void {
             typeof event.details !== "string" || event.details.length > 1500) return true;
         const reminder = event.reminder;
         if (!isPlainRecord(reminder) || typeof reminder.enabled !== "boolean" ||
-            !Number.isInteger(reminder.leadDays) || reminder.leadDays < 0 || reminder.leadDays > 365 ||
+            !Number.isInteger(reminder.leadDays) || Number(reminder.leadDays) < 0 || Number(reminder.leadDays) > 365 ||
             typeof reminder.time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time)) return true;
         if (event.link !== undefined && (!isPlainRecord(event.link) || !linkTypes.has(String(event.link.type)) ||
             typeof event.link.id !== "string" || !event.link.id ||
