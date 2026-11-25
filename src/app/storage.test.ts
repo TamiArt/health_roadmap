@@ -61,6 +61,23 @@ describe("local backup schema", () => {
     } } })).toThrow("Журнал удалений");
   });
 
+  it("validates calendar plans before local restore", () => {
+    const event = {
+      id: "calendar-1", type: "appointment", title: "Doctor visit", date: "2026-12-10",
+      endDate: "", time: "09:30", status: "planned", facility: "Clinic", details: "",
+      reminder: { enabled: true, leadDays: 2, time: "08:30" },
+      link: { type: "health", id: "health-1", label: "Health event" },
+      createdAt: "2026-11-25T12:00:00.000Z", updatedAt: "2026-11-25T12:00:00.000Z",
+    };
+    const payload: BackupPayload = {
+      format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
+      records: { calendarEvents: [event], "childHealth:child-1:calendarEvents": [{ ...event, id: "child-calendar-1", link: undefined }] },
+    };
+    expect(migrateBackup(payload)).toEqual(payload);
+    expect(() => migrateBackup({ ...payload, records: { calendarEvents: [{ ...event, time: "99:99" }] } })).toThrow("календаря");
+    expect(() => migrateBackup({ ...payload, records: { calendarEvents: [{ ...event, endDate: "2026-12-09" }] } })).toThrow("календаря");
+  });
+
   it("allows calendar plans in adult and child backup namespaces", () => {
     expect(isAllowedRecordKey("calendarEvents")).toBe(true);
     expect(isAllowedRecordKey("childHealth:child-1:calendarEvents")).toBe(true);
