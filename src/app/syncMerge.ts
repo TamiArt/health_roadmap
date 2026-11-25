@@ -41,12 +41,44 @@ function mergeValue(base: Value, local: Value, remote: Value, path: string, conf
   conflicts.push(path); return local;
 }
 
+function applyTombstones(records: Record<string, unknown>, tombstones: unknown): void {
+  if (!isObject(tombstones)) return;
+  for (const [path, deleted] of Object.entries(tombstones)) {
+    if (!isObject(deleted)) continue;
+    const parts = path.split(".");
+    const collection = parts.length === 1 ? records[parts[0]] :
+      isObject(records[parts[0]]) ? (records[parts[0]] as Record<string, unknown>)[parts[1]] : undefined;
+    if (Array.isArray(collection)) {
+      const filtered = collection.filter(item => {
+        if (!isObject(item) || typeof item.id !== "string") return true;
+        const tombstone = deleted[item.id];
+        if (!isObject(tombstone)) return true;
+        const recordVersion = typeof item._version === "number" ? item._version : 0;
+        const deletedVersion = typeof tombstone.version === "number" ? tombstone.version : Number.MAX_SAFE_INTEGER;
+        return recordVersion > deletedVersion;
+      });
+      if (parts.length === 1) records[parts[0]] = filtered;
+      else if (isObject(records[parts[0]])) (records[parts[0]] as Record<string, unknown>)[parts[1]] = filtered;
+    }
+    if (parts[0] === "children") {
+      for (const id of Object.keys(deleted)) {
+        if (!isObject(deleted[id])) continue;
+        const childKeyPrefix = "childHealth:" + id + ":";
+        for (const key of Object.keys(records)) if (key.startsWith(childKeyPrefix)) delete records[key];
+      }
+    }
+  }
+}
+
 export function mergeBackups(base: BackupPayload | null, local: BackupPayload, remote: BackupPayload, strategy?: "local" | "remote") {
   const conflicts: string[] = [];
   const records = mergeValue(base?.records ?? missing, local.records, remote.records, "records", conflicts, strategy);
+  const mergedRecords = (isObject(records) ? records : {}) as Record<string, unknown>;
+  const tombstones = isObject(mergedRecords.syncTombstones) ? mergedRecords.syncTombstones : {};
+  applyTombstones(mergedRecords, tombstones);
   return {
     payload: { format: "life-maps-backup" as const, schemaVersion: 1, exportedAt: new Date().toISOString(),
-      records: (isObject(records) ? records : {}) as Record<string, unknown> },
+      records: mergedRecords },
     conflicts,
   };
 }
