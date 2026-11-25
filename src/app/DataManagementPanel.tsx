@@ -205,7 +205,7 @@ export function DataManagementPanel({
   }
 
   return (
-    <section aria-label="Управление данными и аккаунтом" aria-busy={busy} className="backup-panel pointer-events-none fixed z-40 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
+    <section aria-label="Резервное копирование" aria-busy={busy} className="backup-panel pointer-events-none fixed z-40 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
       <div className="pointer-events-auto flex w-full flex-col gap-2 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur sm:w-auto">
         <div className="flex items-center justify-center gap-2">
           <button type="button" onClick={() => void handleExport()} disabled={busy || !storageReady || !!storageError}
@@ -300,7 +300,7 @@ export function DataManagementPanel({
         </p>
       ) : (
         <p role="status" aria-live="polite" className="pointer-events-none hidden max-w-72 rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow sm:block">
-          {storageReady ? "Локальная база и резервные копии доступны." : "Подключение локальной базы…"}
+          {storageReady ? (account ? "Аккаунт подключён. Синхронизация выполняется вручную." : "Данные хранятся только в этом браузере.") : "Подключение локальной базы…"}
         </p>
       )}
     </section>
