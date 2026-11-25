@@ -473,13 +473,13 @@ function validateRecordValue(key: string, value: unknown): void {
             typeof event.title !== "string" || !event.title.trim() || event.title.length > 120 ||
             typeof event.date !== "string" || !isValidBackupDate(event.date) ||
             (event.endDate !== "" && (typeof event.endDate !== "string" || !isValidBackupDate(event.endDate) || event.endDate < event.date)) ||
-            typeof event.time !== "string" || (event.time !== "" && !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(event.time)) ||
+            typeof event.time !== "string" || (event.time !== "" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(event.time)) ||
             typeof event.facility !== "string" || event.facility.length > 160 ||
             typeof event.details !== "string" || event.details.length > 1500) return true;
         const reminder = event.reminder;
         if (!isPlainRecord(reminder) || typeof reminder.enabled !== "boolean" ||
             !Number.isInteger(reminder.leadDays) || reminder.leadDays < 0 || reminder.leadDays > 365 ||
-            typeof reminder.time !== "string" || !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(reminder.time)) return true;
+            typeof reminder.time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time)) return true;
         if (event.link !== undefined && (!isPlainRecord(event.link) || !linkTypes.has(String(event.link.type)) ||
             typeof event.link.id !== "string" || !event.link.id ||
             typeof event.link.label !== "string" || event.link.label.length > 300)) return true;
