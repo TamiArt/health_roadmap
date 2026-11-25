@@ -60,3 +60,44 @@ test("local backup round-trips child records and a binary attachment", async ({ 
     await context.close();
   }
 });
+
+test("migrates unscoped IndexedDB v1 records into the guest workspace without changing revisions", async ({ page }) => {
+  await page.goto("/manifest.webmanifest");
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("life-maps", 1);
+      request.onupgradeneeded = () => request.result.createObjectStore("app-records", { keyPath: "key" });
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("app-records", "readwrite");
+      tx.objectStore("app-records").put({ key: "lifeEvents", value: [{ id: "legacy-event", title: "Запись из старой базы" }], revision: 7 });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Все события/ }).click();
+  await expect(page.getByText("Запись из старой базы", { exact: true })).toBeVisible();
+  const migrated = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("life-maps", 2);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const values = await new Promise<{ migrated?: { revision: number }; old?: unknown }>((resolve, reject) => {
+      const tx = db.transaction("app-records", "readonly");
+      const store = tx.objectStore("app-records");
+      const migrated = store.get("guest::lifeEvents");
+      const old = store.get("lifeEvents");
+      tx.oncomplete = () => resolve({ migrated: migrated.result, old: old.result });
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+    return { revision: values.migrated?.revision, oldKeyExists: values.old !== undefined };
+  });
+  expect(migrated).toEqual({ revision: 7, oldKeyExists: false });
+});
