@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, HeartPulse, FlaskConical, Bell, Users, ClipboardCheck } from "lucide-react";
+import { CalendarDays, CalendarClock, ChevronLeft, ChevronRight, HeartPulse, FlaskConical, Bell, Users, ClipboardCheck } from "lucide-react";
 import { usePersistentState } from "./storage";
 import type { HealthEvent, HealthMonitoringItem, LabResultEntry, FamilyDate } from "./healthRecords";
 import { LIFE_STAGES, type Child, type LabMeasurement } from "./data";
+import { CalendarEventManager } from "./CalendarEventManager";
+import { CALENDAR_EVENT_STATUSES, CALENDAR_EVENT_TYPES, type CalendarPlanEvent } from "./calendarModel";
 
-type CalendarSource = "health" | "monitoring" | "labs" | "family";
+type CalendarSource = "health" | "monitoring" | "labs" | "family" | "planned";
 type CalendarItem = {
   id: string;
   date: string;
@@ -25,6 +27,7 @@ const SOURCE_META: Record<CalendarSource, { label: string; color: string; Icon: 
   monitoring: { label: "На контроле", color: "bg-amber-100 text-amber-800", Icon: ClipboardCheck },
   labs: { label: "Анализы", color: "bg-sky-100 text-sky-700", Icon: FlaskConical },
   family: { label: "Семья", color: "bg-violet-100 text-violet-700", Icon: Users },
+  planned: { label: "Планы", color: "bg-emerald-100 text-emerald-700", Icon: CalendarClock },
 };
 
 function isoDate(date: Date): string {
@@ -57,12 +60,12 @@ export function CalendarSection() {
   const [monitoring] = usePersistentState<HealthMonitoringItem[]>("healthMonitoring", []);
   const [labResults] = usePersistentState<LabResultEntry[]>("labResultEntries", []);
   const [catalogMeasurements] = usePersistentState<Record<string, LabMeasurement[]>>("labMeasurements", {});
-  const [familyDates] = usePersistentState<FamilyDate[]>("familyEvents", []);
+  const [familyDates] = usePersistentState<FamilyDate[]>("familyEvents", []);\n  const [plannedEvents] = usePersistentState<CalendarPlanEvent[]>("calendarEvents", []);
   const [children] = usePersistentState<Child[]>("children", []);
   const [childData, setChildData] = useState<Record<string, ChildCalendarData>>({});
   const [monthOffset, setMonthOffset] = useState(0);
   const [activeSources, setActiveSources] = useState<CalendarSource[]>(["health", "monitoring", "labs", "family"]);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);\n  const [selectedProfile, setSelectedProfile] = useState("adult");
 
   const receiveChildData = useCallback((id: string, data: ChildCalendarData) => {
     setChildData(previous => {
@@ -152,7 +155,7 @@ export function CalendarSection() {
     });
     return result.filter(item => /^\d{4}-\d{2}-\d{2}$/.test(item.date))
       .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
-  }, [healthEvents, monitoring, labResults, catalogMeasurements, familyDates, children, childData, year]);
+  }, [healthEvents, monitoring, labResults, catalogMeasurements, familyDates, children, childData, plannedEvents, year]);
 
   const monthItems = items.filter(item => {
     const [itemYear, itemMonth] = item.date.split("-").map(Number);
@@ -183,6 +186,19 @@ export function CalendarSection() {
           <p className="text-sm text-muted-foreground">Общие даты и события из разных разделов приложения</p>
         </div>
         <button type="button" onClick={() => { setMonthOffset(0); setSelectedDate(today); }} className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted">Сегодня</button>
+      </div>
+
+      <div className="mb-5 grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] sm:items-end">
+        <label className="text-xs text-muted-foreground">Планирование для профиля
+          <select value={selectedProfile} onChange={event => setSelectedProfile(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
+            <option value="adult">Взрослый профиль</option>
+            {children.map(child => <option key={child.id} value={child.id}>{child.name}</option>)}
+          </select>
+        </label>
+        {selectedProfile === "adult" ? <CalendarEventManager key="adult-calendar" /> : (() => {
+          const child = children.find(item => item.id === selectedProfile);
+          return child ? <CalendarEventManager key={child.id} storagePrefix={`childHealth:${child.id}:`} profileLabel={child.name} /> : null;
+        })()}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -217,7 +233,7 @@ export function CalendarSection() {
               className={`min-h-[66px] border-b border-r border-border/60 p-1.5 text-left transition-colors sm:min-h-[88px] sm:p-2 ${active ? "bg-primary/10 ring-1 ring-inset ring-primary" : "hover:bg-muted/50"}`}>
               <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${date === today ? "bg-primary text-primary-foreground font-semibold" : "text-foreground"}`}>{day}</span>
               <div className="mt-1 flex flex-wrap gap-1">
-                {dayItems.slice(0, 4).map(item => <span key={item.id} title={item.title} className={`h-1.5 w-1.5 rounded-full ${item.source === "health" ? "bg-rose-500" : item.source === "monitoring" ? "bg-amber-500" : item.source === "labs" ? "bg-sky-500" : "bg-violet-500"}`}/>)}
+                {dayItems.slice(0, 4).map(item => <span key={item.id} title={item.title} className={`h-1.5 w-1.5 rounded-full ${item.source === "health" ? "bg-rose-500" : item.source === "monitoring" ? "bg-amber-500" : item.source === "labs" ? "bg-sky-500" : item.source === "planned" ? "bg-emerald-500" : "bg-violet-500"}`}/>)}
                 {dayItems.length > 4 && <span className="text-[9px] text-muted-foreground">+{dayItems.length - 4}</span>}
               </div>
             </button>;
