@@ -10,6 +10,11 @@ async function errorFor(response: Response): Promise<Error & { status: number }>
   try { const body = await response.json() as { error?: unknown }; if (typeof body.error === "string") message = body.error; } catch {}
   return Object.assign(new Error(message), { status: response.status });
 }
+async function syncStatus(): Promise<{ revision: number | null; updatedAt: string | null }> {
+  const response = await fetch("/api/sync/status", { credentials: "same-origin", cache: "no-store" });
+  if (!response.ok) throw await errorFor(response);
+  return await response.json() as { revision: number | null; updatedAt: string | null };
+}
 async function pull(): Promise<Remote> {
   const response = await fetch("/api/data", { credentials: "same-origin", cache: "no-store" });
   if (!response.ok) throw await errorFor(response);
@@ -69,6 +74,11 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
       let meta = await readSyncMetadata<Meta>(key(accountId));
       if (meta?.accountId !== accountId) meta = undefined;
       const localData = await local();
+      const remoteStatus = await syncStatus();
+      if (meta?.base && !meta.pending && meta.revision === remoteStatus.revision && backupsEqual(localData, meta.base)) {
+        emit("synced", false, "Все изменения синхронизированы.", remoteStatus.updatedAt ?? meta.updatedAt);
+        return;
+      }
       let remote = await pull(), result: BackupPayload;
       if (!remote.payload) result = localData;
       else if (!meta?.base && isPristineBackup(localData)) {
@@ -120,7 +130,7 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
   const offline = () => { void savePending().catch(() => undefined); emit("offline", true, "Нет соединения. Изменения поставлены в очередь."); };
   channel?.addEventListener("message", changed);
   window.addEventListener("online", online); window.addEventListener("offline", offline);
-  poll = setInterval(() => void run(), 20000);
+  poll = setInterval(() => void run(), 5000);
   void run();
   return {
     retry: () => { if (retry) clearTimeout(retry); void run(); },
