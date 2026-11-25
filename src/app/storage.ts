@@ -379,14 +379,14 @@ export async function exportBackup(): Promise<Blob> {
     exportedAt: new Date().toISOString(),
     records: encodedRecords,
   };
-  const backup = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  migrateBackup(payload);\n  const backup = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   if (backup.size > MAX_BACKUP_BYTES) throw new Error("Резервная копия превышает максимальный размер 100 МБ.");
   return backup;
 }
 
 export async function importBackup(file: File): Promise<void> {
   if (file.size > MAX_BACKUP_BYTES) throw new Error("Размер резервной копии превышает 100 МБ.");
-  const raw: unknown = JSON.parse(await file.text());
+  let raw: unknown;\n  try {\n    raw = JSON.parse(await file.text());\n  } catch {\n    throw new Error("Файл резервной копии содержит некорректный JSON.");\n  }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Некорректный файл резервной копии.");
 
   const migrated = migrateBackup(raw as BackupPayload);
