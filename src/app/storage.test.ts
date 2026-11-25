@@ -39,7 +39,8 @@ describe("local backup schema", () => {
       records: { vaccineRecords: [{ id: "dose-1", vaccineId: "mmr", vaccineName: "MMR", date: "2026-04-12", dose: "1", facility: "", notes: "" }] },
     };
     expect(migrateBackup(payload)).toEqual(payload);
-    expect(() => migrateBackup({ ...payload, records: { vaccineRecords: [{ ...payload.records.vaccineRecords[0], date: "2026-02-30" }] } })).toThrow("история вакцинации");
+    const vaccine = (payload.records.vaccineRecords as Array<Record<string, unknown>>)[0];
+    expect(() => migrateBackup({ ...payload, records: { vaccineRecords: [{ ...vaccine, date: "2026-02-30" }] } })).toThrow("история вакцинации");
   });
 
   it("rejects unknown record types rather than silently importing them", () => {
