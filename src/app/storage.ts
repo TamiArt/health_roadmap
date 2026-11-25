@@ -261,6 +261,13 @@ export async function decodeBackupValue(value: unknown): Promise<unknown> {
   return value;
 }
 
+function isValidBackupDate(value: string): boolean {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const date = new Date(value + "T00:00:00");
+  return !Number.isNaN(date.getTime()) && date.getFullYear() === Number(value.slice(0, 4)) &&
+    date.getMonth() + 1 === Number(value.slice(5, 7)) && date.getDate() === Number(value.slice(8, 10));
+}
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -274,10 +281,15 @@ function validateRecordValue(key: string, value: unknown): void {
       if (entry.indicators.some(indicator => !isPlainRecord(indicator) || typeof indicator.id !== "string" ||
           typeof indicator.name !== "string" || typeof indicator.value !== "number" || !Number.isFinite(indicator.value) ||
           typeof indicator.unit !== "string")) return true;
-      if (entry.document === undefined) return false;
-      if (!isPlainRecord(entry.document) || typeof entry.document.id !== "string" || typeof entry.document.name !== "string" || !isPlainRecord(entry.document.blob)) return true;
-      const blob = entry.document.blob;
-      return !(typeof Blob !== "undefined" && blob instanceof Blob) && !(blob.__lifeMapsBlob === true && typeof blob.base64 === "string" && typeof blob.mimeType === "string");
+      const documents = [...(Array.isArray(entry.documents) ? entry.documents : []), ...(entry.document ? [entry.document] : [])];
+      if (entry.documents !== undefined && !Array.isArray(entry.documents)) return true;
+      return documents.some(document => {
+        if (!isPlainRecord(document) || typeof document.id !== "string" || typeof document.name !== "string" ||
+            typeof document.mimeType !== "string" || !isPlainRecord(document.blob)) return true;
+        const blob = document.blob;
+        return !(typeof Blob !== "undefined" && blob instanceof Blob) &&
+          !(blob.__lifeMapsBlob === true && typeof blob.base64 === "string" && typeof blob.mimeType === "string");
+      });
     })) throw new Error("Повреждена история результатов анализов.");
     return;
   }
