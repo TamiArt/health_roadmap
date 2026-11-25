@@ -6,7 +6,7 @@ const stages = [{ id: "blood", label: "Анализы крови", age: "все"
 describe("unified medical history", () => {
   const entries = buildMedicalHistory({
     stages,
-    measurements: { cbc: [{ id: "m1", date: "2026-02-01", value: "5.4", unit: "ммоль/л" }] },
+    measurements: { cbc: [{ id: "m1", date: "2026-02-01", value: "5.4", unit: "ммоль/л" }] },\n    uploads: { cbc: [{ id: "file-1", name: "analysis.pdf", date: "20.02.2026", blob: new Blob(["file"]), isPdf: true }] },
     labResults: [{
       id: "lab1", testId: "custom:cbc", testName: "ОАК", date: "2026-03-01",
       indicators: [{ id: "hb", name: "Гемоглобин", value: 132, unit: "г/л" }],
@@ -24,8 +24,8 @@ describe("unified medical history", () => {
   });
 
   it("combines every medical source and places undated dental records last", () => {
-    expect(entries.map(entry => entry.kind)).toEqual(["monitoring", "vaccine", "analysis", "manual", "event", "dental"]);
-    expect(entries.at(-1)).toMatchObject({ kind: "dental", title: "Зуб 16" });
+    expect(entries.map(entry => entry.kind)).toEqual(["monitoring", "vaccine", "analysis", "manual", "document", "event", "dental"]);
+    expect(entries[entries.length - 1]).toMatchObject({ kind: "dental", title: "Зуб 16" });
   });
 
   it("filters by category, date range and searchable details", () => {
