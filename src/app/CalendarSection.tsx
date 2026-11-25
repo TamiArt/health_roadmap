@@ -7,7 +7,6 @@ import type { FamilyDate, HealthEvent, HealthMonitoringItem, LabResultEntry } fr
 import { isIsoDate } from "./healthRecords";
 import { CalendarEventManager } from "./CalendarEventManager";
 import { CALENDAR_EVENT_STATUSES, CALENDAR_EVENT_TYPES, type CalendarPlanEvent } from "./calendarModel";
-import { useBrowserReminders } from "./useBrowserReminders";
 
 type CalendarSource = "health" | "monitoring" | "labs" | "family" | "planned";
 type CalendarItem = { id: string; date: string; title: string; details?: string; source: CalendarSource; person?: string };
@@ -74,19 +73,7 @@ export function CalendarSection({ onOpenHistory }: { onOpenHistory?: () => void 
     });
   }, []);
 
-  const allPlanned = useMemo(() => [
-    ...plannedEvents.map(event => ({ ...event, reminderId: `adult:${event.id}` })),
-    ...children.flatMap(child => (childData[child.id]?.planned ?? []).map(event => ({
-      ...event, reminderId: `child:${child.id}:${event.id}`,
-    }))),
-  ], [plannedEvents, children, childData]);
-  const reminders = useMemo(() => allPlanned.map(event => ({
-    id: event.reminderId, title: event.title, date: event.date,
-    enabled: event.reminder.enabled && event.status === "planned",
-    leadDays: event.reminder.leadDays, time: event.reminder.time,
-    notificationTitle: "Напоминание календаря",
-  })), [allPlanned]);
-  useBrowserReminders(reminders, permission === "granted");
+
 
   const now = new Date();
   const visibleMonth = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -160,7 +147,7 @@ export function CalendarSection({ onOpenHistory }: { onOpenHistory?: () => void 
 
   const requestPermission = async () => {
     if (typeof window === "undefined" || !("Notification" in window)) { setPermission("unsupported"); return; }
-    try { setPermission(await Notification.requestPermission()); } catch { setPermission(Notification.permission); }
+    try { setPermission(await Notification.requestPermission()); } catch { setPermission(Notification.permission); }\n    window.dispatchEvent(new Event("life-maps:notification-permission"));
   };
   const toggleSource = (source: CalendarSource) => setActiveSources(current => current.includes(source)
     ? current.filter(item => item !== source) : [...current, source]);
