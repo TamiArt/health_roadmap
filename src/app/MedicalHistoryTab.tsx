@@ -98,13 +98,13 @@ export function MedicalHistoryTab({
           <label className="text-xs text-muted-foreground">Поиск по всей истории
             <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Название, показатель, учреждение, заметка" className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground"/>
           </label>
-          <label className="text-xs text-muted-foreground">Профиль
+          {otherProfiles.length > 0 && <label className="text-xs text-muted-foreground">Профиль
             <select aria-label="Профиль медицинской истории" value={profileFilter} onChange={event => setProfileFilter(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground">
               <option value="all">Все профили</option>
               <option value={profileId}>{profileLabel}</option>
               {otherProfiles.map(child => <option key={child.id} value={child.id}>{child.name}</option>)}
             </select>
-          </label>
+          </label>}
           <label className="text-xs text-muted-foreground">Категория
             <select aria-label="Тип медицинской записи" value={kind} onChange={event => setKind(event.target.value as MedicalHistoryKind | "all")} className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground">
               <option value="all">Все категории</option>
