@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { getLabStages } from "./labCatalog";
 import { usePersistentState } from "./storage";
-import type { DentalRecord, LabMeasurement } from "./models";
+import type { DentalRecord, LabMeasurement, UploadedResult } from "./models";
 import type { HealthEvent, HealthMonitoringItem, LabResultEntry, VaccineAdministration } from "./healthRecords";
 import { buildMedicalHistory, filterMedicalHistory, type MedicalHistoryKind } from "./medicalHistoryModel";
 
@@ -11,7 +11,9 @@ const KIND_LABELS: Record<MedicalHistoryKind, string> = {
   event: "Медицинские события",
   vaccine: "Вакцинация",
   dental: "Стоматология",
-  monitoring: "Контроль показателей",\n  document: "Документы",
+  monitoring: "Контроль показателей",
+  document: "Документы",
+  document: "Документы",
 };
 
 export function MedicalHistoryTab({
@@ -25,7 +27,11 @@ export function MedicalHistoryTab({
 }) {
   const [measurements, , measurementsReady, measurementsError, measurementsConflict] =
     usePersistentState<Record<string, LabMeasurement[]>>(`${storagePrefix}labMeasurements`, {});
-  const [uploads, , uploadsReady, uploadsError, uploadsConflict] =\n    usePersistentState<Record<string, import("./models").UploadedResult[]>>(`${storagePrefix}labUploads`, {});\n  const [labResults, , resultsReady, resultsError, resultsConflict] =
+  const [uploads, , uploadsReady, uploadsError, uploadsConflict] =
+    usePersistentState<Record<string, import("./models").UploadedResult[]>>(`${storagePrefix}labUploads`, {});
+  const [uploads, , uploadsReady, uploadsError, uploadsConflict] =
+    usePersistentState<Record<string, UploadedResult[]>>(`${storagePrefix}labUploads`, {});
+  const [labResults, , resultsReady, resultsError, resultsConflict] =
     usePersistentState<LabResultEntry[]>(`${storagePrefix}labResultEntries`, []);
   const [events, , eventsReady, eventsError, eventsConflict] =
     usePersistentState<HealthEvent[]>(`${storagePrefix}healthEvents`, []);
