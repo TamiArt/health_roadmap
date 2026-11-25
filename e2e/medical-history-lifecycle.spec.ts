@@ -1,5 +1,44 @@
 import { expect, test } from "@playwright/test";
 
+test("catalog lab measurements and uploaded reports support edit, replacement and confirmed delete", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
+  await page.getByRole("tab", { name: "Анализы", exact: true }).click();
+  await page.getByRole("button", { name: "Базовые — при рождении" }).click();
+
+  await page.getByRole("button", { name: "+ Значение" }).first().click();
+  await page.getByLabel("Дата анализа").fill("2026-11-19");
+  await page.getByLabel("Значение результата").fill("5.4");
+  await page.getByLabel("Единицы измерения").fill("ммоль/л");
+  await page.getByRole("button", { name: "Сохранить результат" }).click();
+  await expect(page.getByText("5.4 ммоль/л", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Изменить результат от 2026-11-19" }).click();
+  await page.getByLabel("Значение результата").fill("5.6");
+  await page.getByRole("button", { name: "Сохранить изменения" }).click();
+  await expect(page.getByText("5.6 ммоль/л", { exact: true })).toBeVisible();
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Удалить результат от 2026-11-19" }).click();
+  await expect(page.getByText("5.6 ммоль/л", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Файл" }).first().click();
+  await page.locator('input[aria-label="Загрузить результат анализа"]').setInputFiles({
+    name: "catalog-report.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 original"),
+  });
+  await expect(page.getByRole("link", { name: "catalog-report.pdf" })).toBeVisible();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Заменить файл catalog-report.pdf" }).click();
+  await page.locator('input[aria-label="Загрузить результат анализа"]').setInputFiles({
+    name: "catalog-report-updated.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 replacement"),
+  });
+  await expect(page.getByRole("link", { name: "catalog-report-updated.pdf" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "catalog-report.pdf" })).toHaveCount(0);
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Удалить файл catalog-report-updated.pdf" }).click();
+  await expect(page.getByRole("link", { name: "catalog-report-updated.pdf" })).toHaveCount(0);
+});
+
 test("medical events support create, edit, search and confirmed delete", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Здоровье", exact: true }).click();
