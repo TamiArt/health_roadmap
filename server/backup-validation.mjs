@@ -39,13 +39,17 @@ function validateRecord(key, value) {
   const baseKey = key.startsWith("childHealth:") ? key.slice(key.lastIndexOf(":") + 1) : key;
   if (ARRAY_KEYS.has(baseKey)) {
     if (!Array.isArray(value) || value.some(item => !isRecord(item) || typeof item.id !== "string")) return false;
-    if (baseKey === "vaccineRecords") return value.every(record =>
-      typeof record.vaccineId === "string" && typeof record.vaccineName === "string" &&
-      validDate(record.date) && typeof record.dose === "string" &&
-      typeof record.facility === "string" && typeof record.notes === "string" &&
-      (record.documents === undefined || (Array.isArray(record.documents) && record.documents.every(document =>
-        isRecord(document) && typeof document.id === "string" && typeof document.name === "string" &&
-        typeof document.mimeType === "string" && isEncodedBlob(document.blob))));
+    if (baseKey === "vaccineRecords") {
+      return value.every(record => {
+        if (typeof record.vaccineId !== "string" || typeof record.vaccineName !== "string" ||
+            !validDate(record.date) || typeof record.dose !== "string" ||
+            typeof record.facility !== "string" || typeof record.notes !== "string") return false;
+        if (record.documents === undefined) return true;
+        return Array.isArray(record.documents) && record.documents.every(document =>
+          isRecord(document) && typeof document.id === "string" && typeof document.name === "string" &&
+          typeof document.mimeType === "string" && isEncodedBlob(document.blob));
+      });
+    }
     if (baseKey === "healthMonitoring") return value.every(item => {
       const readings = item.measurements ?? [];
       return Array.isArray(readings) && readings.every(reading => isRecord(reading) &&
