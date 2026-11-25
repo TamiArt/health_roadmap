@@ -16,7 +16,8 @@ test("complete local backup round-trip preserves adult, family, child and file d
         ["familyMembers", [{ id: "family-1", name: "Family member" }]],
         ["children", [{ id: "child-1", name: "Child one" }, { id: "child-2", name: "Child two" }]],
         ["familyEvents", [{ id: "family-event-1", title: "Family event" }]],
-        ["vaccineStatuses", { vaccineA: "done" }],\n        ["vaccineRecords", [{ id: "adult-dose", vaccineId: "mmr", vaccineName: "MMR", date: "2026-11-10", dose: "1", facility: "", notes: "" }]],
+        ["vaccineStatuses", { vaccineA: "done" }],
+        ["vaccineRecords", [{ id: "adult-dose", vaccineId: "mmr", vaccineName: "MMR", date: "2026-11-10", dose: "1", facility: "", notes: "" }]],
         ["adultToothData", { "11": { status: "healthy" } }],
         ["labUploads", { cbc: [{ id: "adult-upload", blob: new Blob(["adult-file"], { type: "application/pdf" }) }] }],
         ["labMeasurements", { ferritin: [{ id: "adult-measurement", date: "2026-11-25", value: "32", unit: "ng/ml" }] }],
@@ -28,7 +29,8 @@ test("complete local backup round-trip preserves adult, family, child and file d
       for (const [key, value] of records) store.put({ key, value, revision: 1 });
       for (const childId of ["child-1", "child-2"]) {
         const childRecords: Array<[string, unknown]> = [
-          ["vaccineStatuses", { vaccineA: "done" }],\n          ["vaccineRecords", [{ id: childId + "-dose", vaccineId: "dtp", vaccineName: "DTP", date: "2026-11-11", dose: "1", facility: "", notes: "" }]],
+          ["vaccineStatuses", { vaccineA: "done" }],
+          ["vaccineRecords", [{ id: childId + "-dose", vaccineId: "dtp", vaccineName: "DTP", date: "2026-11-11", dose: "1", facility: "", notes: "" }]],
           ["toothData", { "21": { status: "healthy" } }],
           ["labUploads", { cbc: [{ id: childId + "-upload", blob: new Blob([childId + "-file"], { type: "application/pdf" }) }] }],
           ["labMeasurements", { ferritin: [{ id: childId + "-measurement", date: "2026-11-25", value: "14", unit: "ng/ml" }] }],
@@ -88,7 +90,8 @@ test("complete local backup round-trip preserves adult, family, child and file d
         family: map.get("familyMembers")[0].id === "family-1" &&
           map.get("children").map((item: any) => item.id).join(",") === "child-1,child-2",
         childRecords: ["child-1", "child-2"].every(id =>
-          map.has("childHealth:" + id + ":vaccineStatuses") &&\n          map.has("childHealth:" + id + ":vaccineRecords") &&
+          map.has("childHealth:" + id + ":vaccineStatuses") &&
+          map.has("childHealth:" + id + ":vaccineRecords") &&
           map.has("childHealth:" + id + ":toothData") &&
           map.has("childHealth:" + id + ":labUploads") &&
           map.has("childHealth:" + id + ":labMeasurements") &&
