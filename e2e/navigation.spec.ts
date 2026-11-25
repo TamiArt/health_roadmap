@@ -1086,7 +1086,6 @@ test("keeps lab measurements isolated between child profiles after switching and
   // The adult health section is also mounted but hidden; assert only visible child-profile measurements.
   const measurementPattern = (value: string) =>
     new RegExp(`${value.replace(".", "[.,]")}\\s*г/л`, "i");
-  const visibleMeasurement = (value: string) => page.locator("span:visible").filter({ hasText: value + " г/л" });").replace(/\\\\\\./g, "[.,]")}\\\\s*г/л`, "i");
   const visibleMeasurement = (value: string) =>
     page.locator("span:visible").filter({ hasText: measurementPattern(value) });
   const expectMeasurementInRenderedText = async (value: string) => {
