@@ -73,7 +73,7 @@ test("vaccination history remains isolated to the selected child profile", async
   await page.getByLabel("Доза вакцины").fill("Только профиль A");
   await page.getByRole("button", { name: "Сохранить запись" }).click();
   expect(await page.getByRole("alert").allTextContents()).toEqual([]);
-  const persistedDose = await page.evaluate(async () => {
+  const readPersistedDose = async () => page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("life-maps", 1);
       request.onsuccess = () => resolve(request.result);
@@ -94,7 +94,7 @@ test("vaccination history remains isolated to the selected child profile", async
     db.close();
     return records[0]?.dose;
   });
-  expect(persistedDose).toBe("Только профиль A");
+  await expect.poll(readPersistedDose).toBe("Только профиль A");
   const vaccinePanel = page.locator('section[aria-label="История вакцинации"]:visible');
   await expect(vaccinePanel.getByText("Только профиль A", { exact: true })).toBeVisible();
 
