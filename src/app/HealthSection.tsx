@@ -363,10 +363,11 @@ export function DentalTab({
 // ─── Health Section ───────────────────────────────────────────────────────────
 
 export function HealthSection({
-  vaccineStatuses, setVaccineStatuses,
+  vaccineStatuses, setVaccineStatuses, onNavigate,
 }: {
   vaccineStatuses: Record<string, VaccineStatus>;
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
+  onNavigate?: (section: Section) => void;
 }) {
   const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental"|"events"|"monitoring"|"history">("roadmap");
   const tabsId = useId();
