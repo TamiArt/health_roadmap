@@ -41,4 +41,17 @@ describe("unified medical history", () => {
     expect(oldest[0].date).toBe("2026-01-01");
     expect(entries[0].date).toBe("2026-05-02");
   });
+  it("filters large histories without changing source order", () => {
+    const large = Array.from({ length: 1000 }, (_, index) => ({
+      id: `event:${index}`, kind: "event" as const, date: `2026-01-${String((index % 28) + 1).padStart(2, "0")}`,
+      title: `Контрольное событие ${index}`, details: "", searchable: `batch-${index % 10}`,
+    }));
+    const filtered = filterMedicalHistory(large, {
+      query: "batch-7", kind: "event", fromDate: "", toDate: "", sort: "newest",
+    });
+    expect(filtered).toHaveLength(100);
+    expect(filtered.every(entry => entry.searchable === "batch-7")).toBe(true);
+    expect(large[0].id).toBe("event:0");
+  });
+
 });
