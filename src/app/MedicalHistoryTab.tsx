@@ -12,7 +12,7 @@ const KIND_LABELS: Record<MedicalHistoryKind, string> = {
   vaccine: "Вакцинация",
   dental: "Стоматология",
   monitoring: "Контроль показателей",
-  document: "Документы",
+  document: "Документы",\n  family: "Семейная история",
 };
 
 export function MedicalHistoryTab({
