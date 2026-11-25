@@ -3,7 +3,6 @@ import { Plus, Trash2, Check, CalendarClock, Activity, HeartPulse, Pencil } from
 import { usePersistentState } from "./storage";
 import {
   buildHealthEvent,
-  isIsoDate,
   validateHealthEvent,
   validateMonitoringItem,
   validateMonitoringReading,
