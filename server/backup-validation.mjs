@@ -65,12 +65,12 @@ function validateRecord(key, value) {
         types.has(event.type) && statuses.has(event.status) &&
         typeof event.title === "string" && event.title.trim().length > 0 && event.title.length <= 120 &&
         validDate(event.date) && (event.endDate === "" || (validDate(event.endDate) && event.endDate >= event.date)) &&
-        typeof event.time === "string" && (event.time === "" || /^([01]\\d|2[0-3]):[0-5]\\d$/.test(event.time)) &&
+        typeof event.time === "string" && (event.time === "" || /^([01]\d|2[0-3]):[0-5]\d$/.test(event.time)) &&
         typeof event.facility === "string" && event.facility.length <= 160 &&
         typeof event.details === "string" && event.details.length <= 1500 &&
         isRecord(reminder) && typeof reminder.enabled === "boolean" &&
         Number.isInteger(reminder.leadDays) && reminder.leadDays >= 0 && reminder.leadDays <= 365 &&
-        typeof reminder.time === "string" && /^([01]\\d|2[0-3]):[0-5]\\d$/.test(reminder.time) &&
+        typeof reminder.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time) &&
         (event.link === undefined || (isRecord(event.link) && linkTypes.has(event.link.type) &&
           typeof event.link.id === "string" && event.link.id.length > 0 &&
           typeof event.link.label === "string" && event.link.label.length <= 300)) &&
