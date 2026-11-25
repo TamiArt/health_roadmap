@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileText, Plus, Trash2, Upload, X } from "lucide-react";
+import { FileText, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { usePersistentState } from "./storage";
 import { validateLabResult, type LabIndicatorValue, type LabResultEntry } from "./healthRecords";
 import { createId, INP, validateLabUpload } from "./shared";
@@ -17,12 +17,13 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
   });
   const [indicators, setIndicators] = useState<IndicatorDraft[]>([emptyIndicator()]);
   const [notes, setNotes] = useState("");
-  const [document, setDocument] = useState<File | null>(null);
+  const [documents, setDocuments] = useState<File[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceFileRef = useRef<HTMLInputElement>(null);
   const pendingReplaceId = useRef<string | null>(null);
-  const objectUrls = useMemo(() => new Map(results.filter(item => item.document).map(item => [item.id, URL.createObjectURL(item.document!.blob)])), [results]);
+  const objectUrls = useMemo(() => new Map(results.flatMap(item => [...(item.documents ?? []), ...(item.document ? [item.document] : [])].map(document => [document.id, URL.createObjectURL(document.blob)] as const))), [results]);
 
   useEffect(() => () => objectUrls.forEach(url => URL.revokeObjectURL(url)), [objectUrls]);
 
@@ -31,15 +32,27 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
     setDate(new Date().toISOString().slice(0, 10));
     setIndicators([emptyIndicator()]);
     setNotes("");
-    setDocument(null);
+    setDocuments([]);
+    setEditingId(null);
     setFormError(null);
   }
 
+  function startEdit(result: LabResultEntry) {
+    setEditingId(result.id);
+    setTestName(result.testName);
+    setDate(result.date);
+    setIndicators(result.indicators.map(item => ({
+      name: item.name, value: String(item.value), unit: item.unit, referenceRange: item.referenceRange ?? "",
+    })));
+    setNotes(result.notes);
+    setDocuments([]);
+    setFormError(null);
+    setEditing(true);
+  }
+
   function save() {
-    if (document) {
-      const fileError = validateLabUpload(document);
-      if (fileError) { setFormError(fileError); return; }
-    }
+    const fileError = documents.map(validateLabUpload).find(Boolean);
+    if (fileError) { setFormError(fileError); return; }
     const values: LabIndicatorValue[] = indicators.map(item => ({
       id: createId(),
       name: item.name.trim(),
@@ -53,11 +66,22 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
       date,
       indicators: values,
       notes: notes.trim(),
-      ...(document ? { document: { id: createId(), name: document.name, mimeType: document.type || "application/octet-stream", blob: document } } : {}),
     };
     const validation = validateLabResult(draft);
     if (validation) { setFormError(validation); return; }
-    setResults(previous => [...previous, { ...draft, id: createId() }].sort((a, b) => b.date.localeCompare(a.date)));
+    const additions = documents.map(file => ({
+      id: createId(), name: file.name, mimeType: file.type || "application/octet-stream", blob: file,
+    }));
+    setResults(previous => {
+      const existing = previous.find(item => item.id === editingId);
+      const retained = existing ? [...(existing.documents ?? []), ...(existing.document ? [existing.document] : [])] : [];
+      const nextRecord: LabResultEntry = {
+        ...draft, id: editingId ?? createId(),
+        ...(retained.length + additions.length ? { documents: [...retained, ...additions] } : {}),
+      };
+      const next = existing ? previous.map(item => item.id === existing.id ? nextRecord : item) : [...previous, nextRecord];
+      return [...next].sort((a, b) => b.date.localeCompare(a.date) || a.testName.localeCompare(b.testName, "ru"));
+    });
     resetForm();
     setEditing(false);
   }
@@ -100,16 +124,16 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
         <div className="grid grid-cols-2 gap-2"><input aria-label={`Единица измерения ${index + 1}`} value={item.unit} maxLength={24} onChange={event => setIndicators(previous => previous.map((value, i) => i === index ? { ...value, unit: event.target.value } : value))} placeholder="Единица измерения" className={INP}/><div className="flex gap-1"><input aria-label={`Референсный диапазон ${index + 1}`} value={item.referenceRange} maxLength={60} onChange={event => setIndicators(previous => previous.map((value, i) => i === index ? { ...value, referenceRange: event.target.value } : value))} placeholder="Референс (необязательно)" className={INP}/>{indicators.length > 1 && <button type="button" aria-label={`Удалить показатель ${index + 1}`} onClick={() => setIndicators(previous => previous.filter((_, i) => i !== index))} className="px-1 text-muted-foreground hover:text-red-600"><X size={13}/></button>}</div></div>
       </div>)}
       <textarea aria-label="Комментарий к анализу" value={notes} maxLength={1000} onChange={event => setNotes(event.target.value)} placeholder="Комментарий (необязательно)" rows={2} className={INP}/>
-      <div className="flex flex-wrap items-center gap-2"><input ref={fileRef} type="file" aria-label="Выбрать документ анализа" accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={event => setDocument(event.target.files?.[0] ?? null)}/><button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs"><Upload size={12}/> Прикрепить документ</button>{document && <span className="flex items-center gap-1 text-xs text-muted-foreground"><FileText size={12}/>{document.name}<button type="button" aria-label="Убрать выбранный документ" onClick={() => setDocument(null)}><X size={12}/></button></span>}</div>
-      <p className="text-[10px] text-muted-foreground">К одной записи анализа можно прикрепить только один документ. Чтобы заменить документ в сохранённой записи, сначала удалите его с подтверждением.</p>
+      <div className="flex flex-wrap items-center gap-2"><input ref={fileRef} type="file" aria-label="Выбрать документ анализа" accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden" multiple onChange={event => setDocuments(previous => [...previous, ...Array.from(event.target.files ?? [])])}/><button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs"><Upload size={12}/> Прикрепить документ</button>{documents.map((file, index) => <span key={`${file.name}-${index}`} className="flex items-center gap-1 text-xs text-muted-foreground"><FileText size={12}/>{file.name}<button type="button" aria-label={`Убрать выбранный документ ${file.name}`} onClick={() => setDocuments(previous => previous.filter((_, i) => i !== index))}><X size={12}/></button></span>)}</div>
+      <p className="text-[10px] text-muted-foreground">К одной записи анализа можно прикрепить несколько документов. При редактировании существующие вложения сохраняются; новые добавляются к ним.</p>
       {formError && <p role="alert" className="text-xs text-red-600">{formError}</p>}
-      <div className="flex justify-end gap-2"><button type="button" onClick={() => { resetForm(); setEditing(false); }} className="rounded-lg border px-3 py-1.5 text-xs">Отмена</button><button type="button" onClick={save} className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground">Сохранить анализ</button></div>
+      <div className="flex justify-end gap-2"><button type="button" onClick={() => { resetForm(); setEditing(false); }} className="rounded-lg border px-3 py-1.5 text-xs">Отмена</button><button type="button" onClick={save} className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground">{editingId ? "Сохранить изменения" : "Сохранить анализ"}</button></div>
     </div>}
     {results.length === 0 ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">История пока пуста. Добавьте анализ и внесите все его показатели.</div> : <div className="space-y-3">{results.map(result => <article key={result.id} className="rounded-xl border bg-card p-4">
-      <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold">{result.testName}</h3><p className="mt-1 text-xs text-muted-foreground">{result.date}</p></div><button type="button" aria-label={`Удалить анализ ${result.testName} от ${result.date}`} onClick={() => { if (window.confirm("Удалить всю запись анализа вместе с показателями и документом?")) setResults(previous => previous.filter(item => item.id !== result.id)); }} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={14}/></button></div>
+      <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold">{result.testName}</h3><p className="mt-1 text-xs text-muted-foreground">{result.date}</p></div><div className="flex gap-1"><button type="button" aria-label={`Изменить анализ ${result.testName} от ${result.date}`} onClick={() => startEdit(result)} className="p-1 text-muted-foreground hover:text-primary"><Pencil size={14}/></button><button type="button" aria-label={`Удалить анализ ${result.testName} от ${result.date}`} onClick={() => { if (window.confirm("Удалить всю запись анализа вместе с показателями и документом?")) setResults(previous => previous.filter(item => item.id !== result.id)); }} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={14}/></button></div></div>
       <div className="mt-3 divide-y divide-border/70">{result.indicators.map(indicator => <div key={indicator.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2"><span className="text-xs text-muted-foreground">{indicator.name}{indicator.referenceRange ? ` · референс: ${indicator.referenceRange}` : ""}</span><strong className="text-sm tabular-nums">{indicator.value} <span className="text-xs font-normal text-muted-foreground">{indicator.unit}</span></strong></div>)}</div>
       {result.notes && <p className="mt-2 text-xs text-muted-foreground">{result.notes}</p>}
-      {result.document && <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted/60 p-2"><FileText size={14}/><a href={objectUrls.get(result.id)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-xs text-primary hover:underline">{result.document.name}</a><button type="button" aria-label="Заменить прикреплённый документ" onClick={() => replaceDocument(result)} className="rounded border px-2 py-1 text-[10px]">Заменить</button><button type="button" aria-label="Удалить прикреплённый документ" onClick={() => removeDocument(result)} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={13}/></button></div>}
+      {[...(result.documents ?? []), ...(result.document ? [result.document] : [])].map(document => <div key={document.id} className="mt-2 flex items-center gap-2 rounded-lg bg-muted/60 p-2"><FileText size={14}/><a href={objectUrls.get(document.id)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-xs text-primary hover:underline">{document.name}</a><button type="button" aria-label={`Заменить документ ${document.name}`} onClick={() => replaceDocument(result)} className="rounded border px-2 py-1 text-[10px]">Заменить</button><button type="button" aria-label={`Удалить документ ${document.name}`} onClick={() => removeDocument(result)} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={13}/></button></div>)}
     </article>)}</div>}
   </section>;
 }
