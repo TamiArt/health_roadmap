@@ -5,7 +5,14 @@ import { activateAccountWorkspace, startAccountSync, type SyncView } from "./acc
 
 type Account = { id: string; email: string; createdAt: string };
 type AuthMode = "login" | "register";
-type SyncChange = { revision: number; operation_id: string; created_at: string; record_count: number };
+type SyncChange = { revision: number; operation_id: string; created_at: string; record_count: number; change_summary: string[] };
+const CHANGE_LABELS: Record<string, string> = {
+  lifeEvents: "Карта жизни", familyMembers: "Члены семьи", children: "Профили детей", familyEvents: "Семейные даты",
+  vaccineStatuses: "Статусы вакцинации", vaccineRecords: "История вакцинации", adultToothData: "Стоматология",
+  labUploads: "Документы анализов", labMeasurements: "Измерения анализов", healthEvents: "Медицинские события",
+  healthMonitoring: "Контрольные показатели", labResultEntries: "Результаты анализов", childHealth: "Данные детей",
+  syncTombstones: "Удаления записей", notificationSettings: "Настройки уведомлений",
+};
 
 async function readApiError(response: Response): Promise<string> {
   try {
@@ -272,7 +279,7 @@ export function DataManagementPanel({
                       <p className="text-xs font-semibold text-foreground">Журнал синхронизации</p>
                       <ul className="max-h-36 space-y-1 overflow-y-auto text-[11px] text-muted-foreground">
                         {changeLog.map(item => <li key={item.operation_id} className="flex items-start justify-between gap-2 border-b border-border/50 pb-1">
-                          <span>Ревизия {item.revision} · {item.record_count} записей</span>
+                          <span className="min-w-0">Ревизия {item.revision} · {item.record_count} записей<br />{item.change_summary.map(key => CHANGE_LABELS[key] ?? "Изменения").join(", ") || "Изменений в разделах не найдено"}</span>
                           <time dateTime={item.created_at} className="shrink-0">{new Date(item.created_at).toLocaleString("ru-RU")}</time>
                         </li>)}
                       </ul>
