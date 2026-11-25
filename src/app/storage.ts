@@ -83,7 +83,8 @@ function openDatabase(): Promise<IDBDatabase> {
       if (!database.objectStoreNames.contains("sync-meta")) database.createObjectStore("sync-meta", { keyPath: "key" });
       if (event.oldVersion < 2 && transaction) {
         // Existing unscoped data is migrated intact into the guest workspace.
-        const cursorRequest = transaction.objectStore(STORE_NAME).openCursor();
+        const store = transaction.objectStore(STORE_NAME);
+        const cursorRequest = store.openCursor();
         cursorRequest.onsuccess = () => {
           const cursor = cursorRequest.result;
           if (!cursor) return;
