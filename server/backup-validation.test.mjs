@@ -32,6 +32,25 @@ describe("server backup validation", () => {
     assert.equal(validateBackupPayload({ ...valid, records }), false);
   });
 
+  it("validates adult and child medical calendar plans", () => {
+    const event = {
+      id: "plan-1", type: "treatment", title: "Treatment course", date: "2026-12-01",
+      endDate: "2026-12-14", time: "09:00", status: "planned", facility: "Clinic",
+      details: "Follow the clinician's instructions",
+      reminder: { enabled: true, leadDays: 2, time: "08:30" },
+      link: { type: "health", id: "event-1", label: "Health event" },
+      createdAt: "2026-11-25T12:00:00.000Z", updatedAt: "2026-11-25T12:00:00.000Z",
+    };
+    const records = {
+      ...valid.records,
+      calendarEvents: [event],
+      "childHealth:child-1:calendarEvents": [{ ...event, id: "child-plan-1", link: undefined }],
+    };
+    assert.equal(validateBackupPayload({ ...valid, records }), true);
+    assert.equal(validateBackupPayload({ ...valid, records: { ...records, calendarEvents: [{ ...event, endDate: "2026-11-30" }] } }), false);
+    assert.equal(validateBackupPayload({ ...valid, records: { ...records, calendarEvents: [{ ...event, reminder: { ...event.reminder, leadDays: 366 } }] } }), false);
+  });
+
   it("rejects unknown keys and orphaned child records", () => {
     assert.equal(validateBackupPayload({ ...valid, records: { ...valid.records, credentials: {} } }), false);
     assert.equal(validateBackupPayload({ ...valid, records: { "childHealth:missing:healthEvents": [] } }), false);
