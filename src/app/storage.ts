@@ -238,6 +238,25 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
   return result;
 }
 
+export async function clearStorageWorkspace(scope: string): Promise<void> {
+  if (!/^(guest|[a-zA-Z0-9_-]{1,128})$/.test(scope)) throw new Error("Некорректное локальное пространство.");
+  const database = await openDatabase();
+  const transaction = database.transaction(STORE_NAME, "readwrite");
+  const store = transaction.objectStore(STORE_NAME);
+  const request = store.getAll();
+  request.onsuccess = () => {
+    const prefix = `${scope}::`;
+    for (const record of request.result as StoredRecord[]) {
+      if (record.key.startsWith(prefix)) store.delete(record.key);
+    }
+  };
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось очистить локальное пространство."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Очистка локального пространства отменена."));
+  });
+}
+
 async function readAllRecords(): Promise<Record<string, unknown>> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readonly");
