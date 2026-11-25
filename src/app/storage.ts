@@ -22,7 +22,7 @@ const ALLOWED_KEYS = new Set([
   "familyMembers",
   "children",
   "familyEvents",
-  "vaccineStatuses",
+  "vaccineStatuses",\n  "vaccineRecords",
   "adultToothData",
   "labUploads",
   "labMeasurements",
@@ -33,7 +33,7 @@ const ALLOWED_KEYS = new Set([
 ]);
 
 export function isAllowedRecordKey(key: string): boolean {
-  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/.test(key);
+  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/.test(key);
 }
 
 let databasePromise: Promise<IDBDatabase> | undefined;
