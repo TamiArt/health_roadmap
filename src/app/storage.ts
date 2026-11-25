@@ -216,6 +216,9 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 function base64ToBytes(base64: string): Uint8Array {
+  if (base64.length % 4 !== 0 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64)) {
+    throw new Error("Некорректное кодирование вложения в резервной копии.");
+  }
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
@@ -386,7 +389,12 @@ export async function exportBackup(): Promise<Blob> {
 
 export async function importBackup(file: File): Promise<void> {
   if (file.size > MAX_BACKUP_BYTES) throw new Error("Размер резервной копии превышает 100 МБ.");
-  let raw: unknown;\n  try {\n    raw = JSON.parse(await file.text());\n  } catch {\n    throw new Error("Файл резервной копии содержит некорректный JSON.");\n  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(await file.text());
+  } catch {
+    throw new Error("Файл резервной копии содержит некорректный JSON.");
+  }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Некорректный файл резервной копии.");
 
   const migrated = migrateBackup(raw as BackupPayload);
