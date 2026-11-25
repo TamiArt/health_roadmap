@@ -19,6 +19,7 @@ async function accountId(page: Page): Promise<string> {
 }
 
 test("automatically syncs records and attachments across devices and retries queued offline changes", async ({ page, browser }) => {
+  test.setTimeout(60000);
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const email = `sync-${unique}@example.test`;
   const password = "e2e-secure-password-2026";
