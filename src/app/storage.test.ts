@@ -172,6 +172,22 @@ describe("local backup schema", () => {
     }] } })).toThrow("история результатов анализов");
   });
 
+  it("preserves legacy monitoring records while validating supplied dates", () => {
+    const monitoring = [{
+      id: "monitor-1", name: "Контроль", kind: "measurement", unit: "ммоль/л",
+      intervalDays: null, notes: "",
+      measurements: [{ id: "reading-1", date: "2026-11-06", value: 5.4, unit: "ммоль/л" }],
+    }];
+    const payload: BackupPayload = {
+      format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
+      records: { healthMonitoring: monitoring },
+    };
+    expect(migrateBackup(payload).records.healthMonitoring).toEqual(monitoring);
+    expect(() => migrateBackup({ ...payload, records: { healthMonitoring: [{
+      ...monitoring[0], nextDueDate: "2026-02-30",
+    }] } })).toThrow("история значений");
+  });
+
   it("rejects backups created by a newer unsupported schema", () => {
     expect(() => migrateBackup({
       format: BACKUP_FORMAT,
