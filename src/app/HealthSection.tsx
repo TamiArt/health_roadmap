@@ -199,7 +199,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                             {(ups.length>0 || values.length>0) && (
                               <div className="mt-2 space-y-1">
                                 {values.map(item => (
-                                  <div key={item.id} className="flex items-center gap-2 bg-emerald-50/70 rounded-lg px-3 py-2">
+                                  <div key={item.id} id={`medical-source-tests-${item.id}`} className="flex items-center gap-2 bg-emerald-50/70 rounded-lg px-3 py-2">
                                     <span className="text-xs font-semibold text-foreground flex-1 min-w-0">{item.value}{item.unit ? ` ${item.unit}` : ""}</span>
                                     <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{new Date(`${item.date}T00:00:00`).toLocaleDateString("ru-RU")}</span>
                                     <button type="button" aria-label={`Изменить результат от ${item.date}`} onClick={() => startMeasurement(test.id, item)} className="text-[10px] text-primary hover:underline">Изменить</button>
@@ -207,7 +207,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                                   </div>
                                 ))}
                                 {ups.map(r => (
-                                  <div key={r.id} className="flex items-center gap-2 bg-primary/5 rounded-lg px-3 py-2">
+                                  <div key={r.id} id={`medical-source-tests-${r.id}`} className="flex items-center gap-2 bg-primary/5 rounded-lg px-3 py-2">
                                     {r.isPdf?<FileText size={12} className="text-primary shrink-0"/>:<ImageIcon size={12} className="text-primary shrink-0"/>}
                                     <a href={objectUrls.get(r.id)} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate flex-1">{r.name}</a>
                                     <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{r.date}</span>
@@ -299,7 +299,7 @@ export function DentalTab({
   function ToothCell({ n, upper }: { n:number; upper:boolean }) {
     const t=data[n]; const cfg=t?TOOTH_STATUS_CFG[t.status]:null; const isSel=selected===n;
     return (
-      <button type="button" onClick={() => pick(n)} title={toothLabel(n)} aria-label={`${toothLabel(n)}${t ? `, статус: ${TOOTH_STATUS_CFG[t.status].label}` : ", статус не указан"}`} aria-pressed={isSel} style={{ flexDirection:upper?"column-reverse":"column" }} className="flex flex-col items-center gap-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <button type="button" id={`medical-source-dental-${n}`} onClick={() => pick(n)} title={toothLabel(n)} aria-label={`${toothLabel(n)}${t ? `, статус: ${TOOTH_STATUS_CFG[t.status].label}` : ", статус не указан"}`} aria-pressed={isSel} style={{ flexDirection:upper?"column-reverse":"column" }} className="flex flex-col items-center gap-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <div className={`h-6 w-4 flex items-center justify-center border-2 transition-all text-[8px] font-bold sm:h-8 sm:w-6 ${upper?"rounded-t-lg rounded-b-sm":"rounded-b-lg rounded-t-sm"} ${isSel?"ring-2 ring-offset-1 ring-primary border-primary":cfg?"border-transparent":"border-border"}`}
           style={{ backgroundColor:cfg?cfg.fill:"#f1f5f9", color:cfg?(t?.status==="extracted"?"#64748b":"#fff"):"#94a3b8" }}>
           {n%10}
