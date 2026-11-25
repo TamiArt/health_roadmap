@@ -52,6 +52,7 @@ export function DataManagementPanel({
           if (!active) return;
           setWorkspaceConflicts(activation.conflicts);
           setAccount(result.user);
+          setAccountExpanded(true);
         } else {
           setStorageScope("guest");
           setAccount(null);
