@@ -10,7 +10,7 @@ import type { HealthMonitoringItem, LabResultEntry, VaccineAdministration } from
 import { childAgeVaccines, CURRENT_YEAR } from "./shared";
 import { usePersistentState } from "./storage";
 
-function ProfileAnalytics({ child, onNavigate, onOpenSource }: { child?: Child; onNavigate: (section: Section) => void; onOpenSource: (source: "lab-result" | "manual" | "monitoring", sourceId: string, pointId: string) => void }) {
+function ProfileAnalytics({ child, onNavigate, onOpenSource }: { child?: Child; onNavigate: (section: Section) => void; onOpenSource: (source: "lab-result" | "manual" | "monitoring", sourceId: string, pointId: string, profileId: string | null) => void }) {
   const age = child ? Math.max(0, CURRENT_YEAR - child.birthYear) : undefined;
   const vaccines = child ? childAgeVaccines(age ?? 0) : VACCINES;
   const prefix = child ? `childHealth:${child.id}:` : "";
@@ -77,7 +77,7 @@ function ProfileAnalytics({ child, onNavigate, onOpenSource }: { child?: Child; 
             <p className="mt-2 text-xs text-foreground">Последнее значение: <strong>{new Intl.NumberFormat("ru-RU",{maximumFractionDigits:3}).format(latest.value)} {item.unit}</strong> · {new Date(`${latest.date}T00:00:00`).toLocaleDateString("ru-RU")}</p>
             {change && <p className="mt-1 text-[11px] text-muted-foreground">Изменение за период: {change.delta > 0 ? "+" : ""}{new Intl.NumberFormat("ru-RU",{maximumFractionDigits:3}).format(change.delta)} {item.unit}{change.percent === null ? "" : ` (${change.percent > 0 ? "+" : ""}${change.percent.toFixed(1)}%)`}</p>}
             <LabIndicatorTrend name={item.name} unit={item.unit} points={item.points} referenceRange={latest.referenceRange}/>
-            <div className="mt-3 space-y-1"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Исходные результаты</p>{item.points.slice().reverse().map(point => <div key={point.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 py-2 text-xs"><span>{new Date(`${point.date}T00:00:00`).toLocaleDateString("ru-RU")} · {point.sourceLabel}</span><span className="font-semibold">{new Intl.NumberFormat("ru-RU",{maximumFractionDigits:3}).format(point.value)} {point.unit}</span><button type="button" onClick={() => onOpenSource(point.source, point.sourceId, point.id)} className="font-medium text-primary hover:underline">Открыть запись</button></div>)}</div>
+            <div className="mt-3 space-y-1"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Исходные результаты</p>{item.points.slice().reverse().map(point => <div key={point.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 py-2 text-xs"><span>{new Date(`${point.date}T00:00:00`).toLocaleDateString("ru-RU")} · {point.sourceLabel}</span><span className="font-semibold">{new Intl.NumberFormat("ru-RU",{maximumFractionDigits:3}).format(point.value)} {point.unit}</span><button type="button" onClick={() => onOpenSource(point.source, point.sourceId, point.id, child?.id ?? null)} className="font-medium text-primary hover:underline">Открыть запись</button></div>)}</div>
             {item.category === "laboratory" && <button type="button" onClick={() => onNavigate("health")} className="mt-2 text-xs font-medium text-primary hover:underline">Открыть историю анализов →</button>}
           </article>;
         })}</div>}

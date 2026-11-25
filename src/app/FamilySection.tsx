@@ -19,7 +19,7 @@ import { handleTabListKeyDown } from "./tabNavigation";
 
 function ChildHealthView({ child, onBack, initialSource }: { child:Child; onBack:()=>void; initialSource?: { childId: string; source: MedicalHistorySource } | null }) {
   const age = CURRENT_YEAR - child.birthYear;
-  const [tab, setTab] = useState<"tests"|"vaccines"|"dental"|"history"|"events"|"monitoring">(() => initialSource && initialSource.source.section !== "family" ? initialSource.source.section : "tests");
+  const [tab, setTab] = useState<"tests"|"vaccines"|"dental"|"history"|"events"|"monitoring">(() => initialSource?.source.key.endsWith("labResultEntries") ? "history" : initialSource && initialSource.source.section !== "family" ? initialSource.source.section : "tests");
   useEffect(() => {
     if (!initialSource) return;
     const target = `medical-source-${initialSource.source.section}-${initialSource.source.recordId}`;
