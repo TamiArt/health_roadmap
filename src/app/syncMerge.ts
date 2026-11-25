@@ -8,13 +8,6 @@ const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b
 function mergeValue(base: Value, local: Value, remote: Value, path: string, conflicts: string[], strategy?: "local" | "remote"): Value {
   if (equal(local, base)) return remote;
   if (equal(remote, base) || equal(local, remote)) return local;
-  if (local === missing || remote === missing || base === missing) {
-    if (local === missing && remote === missing) return missing;
-    if (base === missing && local === missing) return remote;
-    if (base === missing && remote === missing) return local;
-    if (strategy) return strategy === "local" ? local : remote;
-    conflicts.push(path); return local;
-  }
   if (Array.isArray(local) && Array.isArray(remote) && (base === missing || Array.isArray(base))) {
     const all = [...local, ...remote, ...(Array.isArray(base) ? base : [])];
     if (!all.every(v => isObject(v) && typeof v.id === "string")) { if (strategy) return strategy === "local" ? local : remote; conflicts.push(path); return local; }
@@ -36,6 +29,13 @@ function mergeValue(base: Value, local: Value, remote: Value, path: string, conf
       if (v !== missing) out[key] = v;
     }
     return out;
+  }
+  if (local === missing || remote === missing || base === missing) {
+    if (local === missing && remote === missing) return missing;
+    if (base === missing && local === missing) return remote;
+    if (base === missing && remote === missing) return local;
+    if (strategy) return strategy === "local" ? local : remote;
+    conflicts.push(path); return local;
   }
   if (strategy) return strategy === "local" ? local : remote;
   conflicts.push(path); return local;
