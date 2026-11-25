@@ -457,11 +457,36 @@ function validateRecordValue(key: string, value: unknown): void {
     return;
   }
 
-  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords"]);
+  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords", "calendarEvents"]);
   const arrayKey = arrayKeys.has(key) || [...arrayKeys].some(name => key.endsWith(`:${name}`));
   if (arrayKey) {
     if (!Array.isArray(value) || !hasUniqueIds(value)) {
       throw new Error(`В списке ${key} обнаружены некорректные или повторяющиеся идентификаторы.`);
+    }
+    if (key === "calendarEvents" || key.endsWith(":calendarEvents")) {
+      const types = new Set(["appointment", "examination", "lab", "vaccination", "medication", "treatment", "other"]);
+      const statuses = new Set(["planned", "completed", "cancelled"]);
+      const linkTypes = new Set(["health", "lab", "vaccine", "monitoring"]);
+      const invalid = value.some(event => {
+        if (!isPlainRecord(event) || typeof event.id !== "string" || !event.id ||
+            !types.has(String(event.type)) || !statuses.has(String(event.status)) ||
+            typeof event.title !== "string" || !event.title.trim() || event.title.length > 120 ||
+            typeof event.date !== "string" || !isValidBackupDate(event.date) ||
+            (event.endDate !== "" && (typeof event.endDate !== "string" || !isValidBackupDate(event.endDate) || event.endDate < event.date)) ||
+            typeof event.time !== "string" || (event.time !== "" && !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(event.time)) ||
+            typeof event.facility !== "string" || event.facility.length > 160 ||
+            typeof event.details !== "string" || event.details.length > 1500) return true;
+        const reminder = event.reminder;
+        if (!isPlainRecord(reminder) || typeof reminder.enabled !== "boolean" ||
+            !Number.isInteger(reminder.leadDays) || reminder.leadDays < 0 || reminder.leadDays > 365 ||
+            typeof reminder.time !== "string" || !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(reminder.time)) return true;
+        if (event.link !== undefined && (!isPlainRecord(event.link) || !linkTypes.has(String(event.link.type)) ||
+            typeof event.link.id !== "string" || !event.link.id ||
+            typeof event.link.label !== "string" || event.link.label.length > 300)) return true;
+        return typeof event.createdAt !== "string" || Number.isNaN(Date.parse(event.createdAt)) ||
+          typeof event.updatedAt !== "string" || Number.isNaN(Date.parse(event.updatedAt));
+      });
+      if (invalid) throw new Error(`Повреждена запись календаря: ${key}.`);
     }
     if (key === "healthEvents" || key.endsWith(":healthEvents")) {
       if (value.some(item => typeof item.date !== "string" || !isValidBackupDate(item.date))) {
