@@ -58,16 +58,16 @@ const SEASONS: Record<string, { start: string; end: string; label: string }> = {
 };
 
 /** Parse exact and legacy partial dates without pretending a year/season is an exact day. */
-export function parseHistoryDate(value: string | null | undefined): Pick<MedicalHistoryEntry, "date" | "dateLabel" | "datePrecision" | "sortDate"> {
+export function parseHistoryDate(value: string | null | undefined): Pick<MedicalHistoryEntry, "date" | "dateLabel" | "datePrecision" | "sortDate" | "dateEnd"> {
   const raw = (value ?? "").trim();
-  if (!raw) return { date: null, dateLabel: "Дата не указана", datePrecision: "unknown", sortDate: null };
+  if (!raw) return { date: null, dateLabel: "Дата не указана", datePrecision: "unknown", sortDate: null, dateEnd: null };
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   if (iso) {
     const date = new Date(raw + "T00:00:00");
     if (!Number.isNaN(date.getTime()) && date.getFullYear() === +iso[1] && date.getMonth() + 1 === +iso[2] && date.getDate() === +iso[3]) {
-      return { date: raw, dateLabel: new Intl.DateTimeFormat("ru-RU").format(date), datePrecision: "day", sortDate: raw };
+      return { date: raw, dateLabel: new Intl.DateTimeFormat("ru-RU").format(date), datePrecision: "day", sortDate: raw, dateEnd: raw };
     }
-    return { date: null, dateLabel: raw, datePrecision: "unknown", sortDate: null };
+    return { date: null, dateLabel: raw, datePrecision: "unknown", sortDate: null, dateEnd: null };
   }
   const dotted = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(raw);
   if (dotted) {
@@ -78,10 +78,10 @@ export function parseHistoryDate(value: string | null | undefined): Pick<Medical
   const month = /^(\d{1,2})[./-](\d{4})$/.exec(raw);
   if (month && +month[1] >= 1 && +month[1] <= 12) {
     const sortDate = `${month[2]}-${month[1].padStart(2, "0")}-01`;
-    return { date: sortDate, dateLabel: `${month[1].padStart(2, "0")}.${month[2]} (месяц)`, datePrecision: "month", sortDate };
+    return { date: sortDate, dateLabel: `${month[1].padStart(2, "0")}.${month[2]} (месяц)`, datePrecision: "month", sortDate, dateEnd: new Date(Number(month[2]), Number(month[1]), 0).toISOString().slice(0, 10) };
   }
   const year = /^(\d{4})$/.exec(raw);
-  if (year) return { date: `${year[1]}-01-01`, dateLabel: year[1], datePrecision: "year", sortDate: `${year[1]}-01-01` };
+  if (year) return { date: `${year[1]}-01-01`, dateLabel: year[1], datePrecision: "year", sortDate: `${year[1]}-01-01`, dateEnd: `${year[1]}-12-31` };
   const season = /^(зима|весна|лето|осень)\s+(\d{4})$/i.exec(raw);
   if (season) {
     const name = season[1].toLocaleLowerCase("ru");
@@ -89,7 +89,7 @@ export function parseHistoryDate(value: string | null | undefined): Pick<Medical
     const start = SEASONS[name];
     const sortYear = name === "зима" ? yearNumber : yearNumber;
     const sortDate = `${sortYear}${start.start}`;
-    return { date: sortDate, dateLabel: `${start.label.toLocaleLowerCase("ru")} ${yearNumber} (период)`, datePrecision: "season", sortDate };
+    return { date: sortDate, dateLabel: `${start.label.toLocaleLowerCase("ru")} ${yearNumber} (период)`, datePrecision: "season", sortDate, dateEnd: new Date(Date.UTC(yearNumber, name === "зима" ? 2 : name === "весна" ? 5 : name === "лето" ? 8 : 11, 0)).toISOString().slice(0, 10) };
   }
   return { date: null, dateLabel: raw, datePrecision: "unknown", sortDate: null };
 }
