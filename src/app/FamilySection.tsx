@@ -239,7 +239,7 @@ export function FamilySection() {
       <div className="flex items-center justify-between gap-2 mb-3 mt-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Памятные даты</p><ReminderPermission enabled={notificationSettings.enabled} onEnable={enabled => setNotificationSettings({ enabled })}/></div>
       <div className="space-y-2.5">
         {events.map(ev => (
-          <motion.div key={ev.id} initial={{ opacity:0,x:-12 }} animate={{ opacity:1,x:0 }} className="flex items-center gap-4 bg-card border border-border rounded-xl p-4">
+          <motion.div key={ev.id} id={`medical-source-family-${ev.id}`} initial={{ opacity:0,x:-12 }} animate={{ opacity:1,x:0 }} className="flex items-center gap-4 bg-card border border-border rounded-xl p-4">
             <span className="text-2xl shrink-0">{ev.emoji}</span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">{ev.title}</p>
