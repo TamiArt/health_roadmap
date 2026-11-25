@@ -157,6 +157,21 @@ describe("local backup schema", () => {
     })).toThrow("Повреждены вложения");
   });
 
+  it("rejects impossible medical dates and duplicate record identifiers", () => {
+    const base: BackupPayload = {
+      format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
+      records: { children: [{ id: "child-1", name: "Ребёнок" }] },
+    };
+    expect(() => migrateBackup({ ...base, records: { healthEvents: [{ id: "event-1", date: "2026-02-30", title: "Осмотр" }] } }))
+      .toThrow("даты медицинских событий");
+    expect(() => migrateBackup({ ...base, records: { children: [{ id: "child-1" }, { id: "child-1" }] } }))
+      .toThrow("повторяющиеся идентификаторы");
+    expect(() => migrateBackup({ ...base, records: { labResultEntries: [{
+      id: "lab-1", testName: "ОАК", date: "2026-02-30",
+      indicators: [{ id: "hb", name: "Hb", value: 120, unit: "г/л" }],
+    }] } })).toThrow("история результатов анализов");
+  });
+
   it("rejects backups created by a newer unsupported schema", () => {
     expect(() => migrateBackup({
       format: BACKUP_FORMAT,

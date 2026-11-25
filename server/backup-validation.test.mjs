@@ -73,6 +73,18 @@ describe("server backup validation", () => {
     assert.equal(validateBackupPayload(malformed), false);
   });
 
+  it("rejects invalid medical dates and duplicate record identifiers", () => {
+    const badEvent = { ...valid, records: { healthEvents: [{ id: "event-1", date: "2026-02-30", title: "Осмотр" }] } };
+    assert.equal(validateBackupPayload(badEvent), false);
+    const duplicateChildren = { ...valid, records: { children: [{ id: "child-1" }, { id: "child-1" }] } };
+    assert.equal(validateBackupPayload(duplicateChildren), false);
+    const duplicateIndicators = { ...valid, records: { labResultEntries: [{
+      id: "lab-1", testName: "ОАК", date: "2026-11-20",
+      indicators: [{ id: "hb", name: "Hb", value: 120, unit: "г/л" }, { id: "hb", name: "Hb2", value: 121, unit: "г/л" }],
+    }] } };
+    assert.equal(validateBackupPayload(duplicateIndicators), false);
+  });
+
   it("rejects malformed medical measurements and excessive nesting", () => {
     const malformedDate = { ...valid, records: { ...valid.records, labMeasurements: { ferritin: [
       { id: "m1", date: "2026-02-30", value: "10", unit: "ng/ml" },

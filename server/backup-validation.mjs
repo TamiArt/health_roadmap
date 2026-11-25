@@ -11,6 +11,11 @@ function isRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function uniqueIds(items) {
+  const ids = items.map(item => isRecord(item) ? item.id : undefined);
+  return ids.every(id => typeof id === "string" && id.trim().length > 0) && new Set(ids).size === ids.length;
+}
+
 function validDate(value) {
   if (typeof value !== "string" || !DATE.test(value)) return false;
   const date = new Date(value + "T00:00:00");
@@ -38,7 +43,8 @@ function validateEncodedValues(value, depth = 0) {
 function validateRecord(key, value) {
   const baseKey = key.startsWith("childHealth:") ? key.slice(key.lastIndexOf(":") + 1) : key;
   if (ARRAY_KEYS.has(baseKey)) {
-    if (!Array.isArray(value) || value.some(item => !isRecord(item) || typeof item.id !== "string")) return false;
+    if (!Array.isArray(value) || !uniqueIds(value)) return false;
+    if (baseKey === "healthEvents" && value.some(item => !validDate(item.date))) return false;
     if (baseKey === "vaccineRecords") {
       return value.every(record => {
         if (typeof record.vaccineId !== "string" || typeof record.vaccineName !== "string" ||
@@ -51,18 +57,23 @@ function validateRecord(key, value) {
       });
     }
     if (baseKey === "healthMonitoring") return value.every(item => {
+      const reminder = item.reminder;
       const readings = item.measurements ?? [];
-      return Array.isArray(readings) && readings.every(reading => isRecord(reading) &&
-        typeof reading.id === "string" && validDate(reading.date) &&
-        typeof reading.value === "number" && Number.isFinite(reading.value) &&
-        typeof reading.unit === "string");
+      return validDate(item.nextDueDate) &&
+        (item.lastCheckedDate === undefined || item.lastCheckedDate === "" || validDate(item.lastCheckedDate)) &&
+        isRecord(reminder) && typeof reminder.enabled === "boolean" &&
+        Number.isInteger(reminder.leadDays) && reminder.leadDays >= 0 && reminder.leadDays <= 365 &&
+        typeof reminder.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time) &&
+        Array.isArray(readings) && uniqueIds(readings) && readings.every(reading => isRecord(reading) &&
+          validDate(reading.date) && typeof reading.value === "number" && Number.isFinite(reading.value) &&
+          typeof reading.unit === "string");
     });
     return true;
   }
   if (baseKey === "labResultEntries") {
     return Array.isArray(value) && value.every(entry => {
       if (!isRecord(entry) || typeof entry.id !== "string" || typeof entry.testName !== "string" ||
-          !validDate(entry.date) || !Array.isArray(entry.indicators) || entry.indicators.length === 0) return false;
+          !validDate(entry.date) || !Array.isArray(entry.indicators) || entry.indicators.length === 0 || !uniqueIds(entry.indicators)) return false;
       if (!entry.indicators.every(item => isRecord(item) && typeof item.id === "string" &&
           typeof item.name === "string" && typeof item.value === "number" &&
           Number.isFinite(item.value) && typeof item.unit === "string")) return false;
@@ -73,16 +84,17 @@ function validateRecord(key, value) {
       if (entry.document !== undefined && !validDocument(entry.document, false)) return false;
       if (entry.documents !== undefined &&
           (!Array.isArray(entry.documents) || !entry.documents.every(document => validDocument(document)))) return false;
+      const documentIds = [...(entry.documents ?? []), ...(entry.document ? [entry.document] : [])];
+      if (!uniqueIds(documentIds)) return false;
       return true;
     });
   }
   if (!isRecord(value)) return false;
   if (baseKey === "labMeasurements") return Object.values(value).every(items =>
-    Array.isArray(items) && items.every(item => isRecord(item) && typeof item.id === "string" &&
+    Array.isArray(items) && uniqueIds(items) && items.every(item => isRecord(item) &&
       typeof item.value === "string" && typeof item.unit === "string" && validDate(item.date)));
   if (baseKey === "labUploads") return Object.values(value).every(items =>
-    Array.isArray(items) && items.every(item => isRecord(item) && typeof item.id === "string" &&
-      isEncodedBlob(item.blob)));
+    Array.isArray(items) && uniqueIds(items) && items.every(item => isRecord(item) && isEncodedBlob(item.blob)));
   return true;
 }
 
@@ -95,10 +107,10 @@ export function validateBackupPayload(payload) {
     validateEncodedValues(value))) return false;
 
   const children = payload.records.children;
-  const childIds = new Set(Array.isArray(children)
-    ? children.filter(item => isRecord(item) && typeof item.id === "string" &&
-      /^[a-zA-Z0-9_-]+$/.test(item.id)).map(item => item.id)
-    : []);
+  const childList = Array.isArray(children) ? children : [];
+  if (childList.length && (!uniqueIds(childList) || childList.some(item =>
+    !isRecord(item) || typeof item.id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(item.id)))) return false;
+  const childIds = new Set(childList.map(item => item.id));
   return entries.every(([key]) => {
     const match = CHILD_KEY.exec(key);
     return !match || childIds.has(match[1]);

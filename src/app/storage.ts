@@ -272,17 +272,23 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function hasUniqueIds(items: unknown[]): boolean {
+  const ids = items.map(item => isPlainRecord(item) ? item.id : undefined);
+  return ids.every(id => typeof id === "string" && id.trim().length > 0) && new Set(ids).size === ids.length;
+}
+
 function validateRecordValue(key: string, value: unknown): void {
   if (key === "labResultEntries" || key.endsWith(":labResultEntries")) {
     if (!Array.isArray(value) || value.some(entry => {
       if (!isPlainRecord(entry) || typeof entry.id !== "string" || typeof entry.testName !== "string" ||
-          typeof entry.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) ||
-          !Array.isArray(entry.indicators) || entry.indicators.length === 0) return true;
+          typeof entry.date !== "string" || !isValidBackupDate(entry.date) ||
+          !Array.isArray(entry.indicators) || entry.indicators.length === 0 || !hasUniqueIds(entry.indicators)) return true;
       if (entry.indicators.some(indicator => !isPlainRecord(indicator) || typeof indicator.id !== "string" ||
           typeof indicator.name !== "string" || typeof indicator.value !== "number" || !Number.isFinite(indicator.value) ||
           typeof indicator.unit !== "string")) return true;
       const documents = [...(Array.isArray(entry.documents) ? entry.documents : []), ...(entry.document ? [entry.document] : [])];
       if (entry.documents !== undefined && !Array.isArray(entry.documents)) return true;
+      if (!hasUniqueIds(documents)) return true;
       return documents.some(document => {
         if (!isPlainRecord(document) || typeof document.id !== "string" || typeof document.name !== "string" ||
             (document.mimeType !== undefined && typeof document.mimeType !== "string") || !isPlainRecord(document.blob)) return true;
@@ -297,9 +303,13 @@ function validateRecordValue(key: string, value: unknown): void {
   const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords"]);
   const arrayKey = arrayKeys.has(key) || [...arrayKeys].some(name => key.endsWith(`:${name}`));
   if (arrayKey) {
-    if (!Array.isArray(value)) throw new Error(`Повреждён список данных: ${key}`);
-    if (value.some(item => !isPlainRecord(item) || typeof item.id !== "string")) {
-      throw new Error(`В списке ${key} обнаружена некорректная запись.`);
+    if (!Array.isArray(value) || !hasUniqueIds(value)) {
+      throw new Error(`В списке ${key} обнаружены некорректные или повторяющиеся идентификаторы.`);
+    }
+    if (key === "healthEvents" || key.endsWith(":healthEvents")) {
+      if (value.some(item => typeof item.date !== "string" || !isValidBackupDate(item.date))) {
+        throw new Error(`Повреждены даты медицинских событий: ${key}.`);
+      }
     }
     if (key === "vaccineRecords" || key.endsWith(":vaccineRecords")) {
       const invalid = value.some(item => {
@@ -317,11 +327,17 @@ function validateRecordValue(key: string, value: unknown): void {
     }
     if (key === "healthMonitoring" || key.endsWith(":healthMonitoring")) {
       const hasInvalidMeasurements = value.some(item => {
-        if (!isPlainRecord(item)) return true;
+        if (!isPlainRecord(item) || typeof item.nextDueDate !== "string" || !isValidBackupDate(item.nextDueDate) ||
+            (item.lastCheckedDate !== undefined && item.lastCheckedDate !== "" &&
+              (typeof item.lastCheckedDate !== "string" || !isValidBackupDate(item.lastCheckedDate)))) return true;
+        const reminder = item.reminder;
+        if (!isPlainRecord(reminder) || typeof reminder.enabled !== "boolean" ||
+            !Number.isInteger(reminder.leadDays) || Number(reminder.leadDays) < 0 || Number(reminder.leadDays) > 365 ||
+            typeof reminder.time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time)) return true;
         const readings: unknown = item.measurements ?? [];
-        if (!Array.isArray(readings)) return true;
-        return readings.some((reading: unknown) => !isPlainRecord(reading) || typeof reading.id !== "string" ||
-          typeof reading.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(reading.date) ||
+        if (!Array.isArray(readings) || !hasUniqueIds(readings)) return true;
+        return readings.some((reading: unknown) => !isPlainRecord(reading) ||
+          typeof reading.date !== "string" || !isValidBackupDate(reading.date) ||
           typeof reading.value !== "number" || !Number.isFinite(reading.value) || typeof reading.unit !== "string");
       });
       if (hasInvalidMeasurements) throw new Error(`Повреждена история значений в списке ${key}.`);
@@ -332,9 +348,9 @@ function validateRecordValue(key: string, value: unknown): void {
   if (!isPlainRecord(value)) throw new Error(`Повреждена запись данных: ${key}`);
   if (key === "labMeasurements" || key.endsWith(":labMeasurements")) {
     for (const [testId, measurements] of Object.entries(value)) {
-      if (!Array.isArray(measurements) || measurements.some(item => {
+      if (!Array.isArray(measurements) || !hasUniqueIds(measurements) || measurements.some(item => {
         if (!isPlainRecord(item) || typeof item.id !== "string" || typeof item.value !== "string" ||
-            typeof item.unit !== "string" || typeof item.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.date)) return true;
+            typeof item.unit !== "string" || typeof item.date !== "string" || !isValidBackupDate(item.date)) return true;
         const date = new Date(item.date + "T00:00:00");
         return Number.isNaN(date.getTime()) || date.getFullYear() !== Number(item.date.slice(0,4)) ||
           date.getMonth()+1 !== Number(item.date.slice(5,7)) || date.getDate() !== Number(item.date.slice(8,10));
@@ -344,8 +360,8 @@ function validateRecordValue(key: string, value: unknown): void {
 
   if (key === "labUploads" || key.endsWith(":labUploads")) {
     for (const [testId, uploads] of Object.entries(value)) {
-      if (!Array.isArray(uploads) || uploads.some(item => {
-        if (!isPlainRecord(item) || typeof item.id !== "string" || !isPlainRecord(item.blob)) return true;
+      if (!Array.isArray(uploads) || !hasUniqueIds(uploads) || uploads.some(item => {
+        if (!isPlainRecord(item) || !isPlainRecord(item.blob)) return true;
         const blob = item.blob;
         const isStoredBlob = typeof Blob !== "undefined" && blob instanceof Blob;
         const isBackupBlob = blob.__lifeMapsBlob === true && typeof blob.base64 === "string" && typeof blob.mimeType === "string";
@@ -380,11 +396,12 @@ export function migrateBackup(input: BackupPayload): BackupPayload {
     validateRecordValue(key, value);
   }
 
-  const childIds = new Set(
-    (Array.isArray(records.children) ? records.children : [])
-      .map(child => isPlainRecord(child) ? child.id : undefined)
-      .filter((id): id is string => typeof id === "string" && /^[a-zA-Z0-9_-]+$/.test(id)),
-  );
+  const children = Array.isArray(records.children) ? records.children : [];
+  if (children.length && (!hasUniqueIds(children) || children.some(child =>
+    !isPlainRecord(child) || typeof child.id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(child.id)))) {
+    throw new Error("Список профилей содержит некорректные или повторяющиеся идентификаторы.");
+  }
+  const childIds = new Set(children.map(child => (child as Record<string, unknown>).id as string));
   for (const key of Object.keys(records)) {
     const childRecord = /^childHealth:([a-zA-Z0-9_-]+):/.exec(key);
     if (childRecord && !childIds.has(childRecord[1])) {
