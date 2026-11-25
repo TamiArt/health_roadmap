@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { getLabStages } from "./labCatalog";
 import { usePersistentState } from "./storage";
 import type { DentalRecord, LabMeasurement, UploadedResult } from "./models";
-import type { HealthEvent, HealthMonitoringItem, LabResultEntry, VaccineAdministration } from "./healthRecords";
-import { buildMedicalHistory, filterMedicalHistory, type MedicalHistoryKind } from "./medicalHistoryModel";
+import type { FamilyDate, HealthEvent, HealthMonitoringItem, LabResultEntry, VaccineAdministration } from "./healthRecords";
+import { buildMedicalHistory, filterMedicalHistory, type MedicalHistoryKind, type MedicalHistorySource } from "./medicalHistoryModel";
 
 const KIND_LABELS: Record<MedicalHistoryKind, string> = {
   analysis: "Анализы",
@@ -44,14 +44,14 @@ export function MedicalHistoryTab({
   const [toDate, setToDate] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
   const stages = useMemo(() => getLabStages(), []);
-  const ready = measurementsReady && uploadsReady && resultsReady && eventsReady && vaccinesReady && dentalReady && monitoringReady;
-  const error = measurementsError ?? uploadsError ?? resultsError ?? eventsError ?? vaccinesError ?? dentalError ?? monitoringError;
-  const conflict = measurementsConflict || uploadsConflict || resultsConflict || eventsConflict || vaccinesConflict || dentalConflict || monitoringConflict;
+  const ready = measurementsReady && uploadsReady && resultsReady && eventsReady && vaccinesReady && dentalReady && monitoringReady && familyReady;
+  const error = measurementsError ?? uploadsError ?? resultsError ?? eventsError ?? vaccinesError ?? dentalError ?? monitoringError ?? familyError;
+  const conflict = measurementsConflict || uploadsConflict || resultsConflict || eventsConflict || vaccinesConflict || dentalConflict || monitoringConflict || familyConflict;
   const entries = useMemo(() => buildMedicalHistory({
     measurements, uploads, stages, labResults, events, vaccines, dental, monitoring,
   }), [measurements, uploads, stages, labResults, events, vaccines, dental, monitoring]);
   const filtered = useMemo(() => filterMedicalHistory(entries, {
-    query, kind, fromDate, toDate, sort,
+    query, kind, profileId: "all", fromDate, toDate, sort,
   }), [entries, query, kind, fromDate, toDate, sort]);
 
   if (!ready) return <p role="status" aria-busy="true" className="py-6 text-sm text-muted-foreground">Загрузка медицинской истории…</p>;
@@ -90,16 +90,16 @@ export function MedicalHistoryTab({
       {filtered.length ? <ol className="space-y-2">
         {filtered.map(entry => <li key={entry.id} className="rounded-xl border border-border bg-card p-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0"><p className="text-sm font-semibold text-foreground">{entry.title}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{KIND_LABELS[entry.kind]}</p></div>
-            {entry.date ? <time dateTime={entry.date} className="text-xs text-muted-foreground">{new Date(`${entry.date}T00:00:00`).toLocaleDateString("ru-RU")}</time> : <span className="text-[10px] text-muted-foreground">Дата не указана</span>}
+            <div className="min-w-0"><p className="text-sm font-semibold text-foreground">{entry.title}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{KIND_LABELS[entry.kind]} · {entry.profileLabel}</p></div>
+            <span className="text-xs text-muted-foreground">{entry.dateLabel}</span>
           </div>
-          {entry.details && <p className="mt-2 whitespace-pre-wrap break-words text-xs text-muted-foreground">{entry.details}</p>}
+          {entry.details && <p className="mt-2 whitespace-pre-wrap break-words text-xs text-muted-foreground">{entry.details}</p>}\n          {onOpenSource && <button type="button" onClick={() => onOpenSource(entry.source)} className="mt-2 text-xs font-medium text-primary hover:underline">Открыть исходную запись</button>}
         </li>)}
       </ol> : <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center">
         <p className="text-sm text-muted-foreground">{entries.length ? "По выбранным фильтрам записей нет." : "Медицинская история пока пуста."}</p>
         <p className="mt-1 text-xs text-muted-foreground">Записи появятся здесь после добавления в соответствующих разделах здоровья.</p>
       </div>}
-      <p className="mt-2 text-[11px] text-muted-foreground">История объединяет сохранённые записи без клинической интерпретации. Стоматологические записи без даты располагаются после датированных событий.</p>
+      <p className="mt-2 text-[11px] text-muted-foreground">История объединяет записи без клинической интерпретации. Частичные даты (год, месяц, сезон) сохраняют исходную точность; записи без даты располагаются после датированных событий.</p>
     </section>
   );
 }
