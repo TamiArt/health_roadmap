@@ -282,12 +282,26 @@ function validateRecordValue(key: string, value: unknown): void {
     return;
   }
 
-  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring"]);
+  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords"]);
   const arrayKey = arrayKeys.has(key) || [...arrayKeys].some(name => key.endsWith(`:${name}`));
   if (arrayKey) {
     if (!Array.isArray(value)) throw new Error(`Повреждён список данных: ${key}`);
     if (value.some(item => !isPlainRecord(item) || typeof item.id !== "string")) {
       throw new Error(`В списке ${key} обнаружена некорректная запись.`);
+    }
+    if (key === "vaccineRecords" || key.endsWith(":vaccineRecords")) {
+      const invalid = value.some(item => {
+        if (!isPlainRecord(item) || typeof item.vaccineId !== "string" || typeof item.vaccineName !== "string" ||
+            typeof item.date !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(item.date) ||
+            typeof item.dose !== "string" || typeof item.facility !== "string" || typeof item.notes !== "string") return true;
+        if (item.documents === undefined) return false;
+        return !Array.isArray(item.documents) || item.documents.some(document =>
+          !isPlainRecord(document) || typeof document.id !== "string" || typeof document.name !== "string" ||
+          typeof document.mimeType !== "string" || !isPlainRecord(document.blob) ||
+          !((typeof Blob !== "undefined" && document.blob instanceof Blob) ||
+            (document.blob.__lifeMapsBlob === true && typeof document.blob.base64 === "string" && typeof document.blob.mimeType === "string")));
+      });
+      if (invalid) throw new Error(`Повреждена история вакцинации: ${key}.`);
     }
     if (key === "healthMonitoring" || key.endsWith(":healthMonitoring")) {
       const hasInvalidMeasurements = value.some(item => {
