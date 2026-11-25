@@ -49,6 +49,24 @@ describe("server backup validation", () => {
     assert.equal(validateBackupPayload({ ...valid, records }), false);
   });
 
+  it("accepts multiple encoded documents on a single lab result", () => {
+    const records = {
+      ...valid.records,
+      labResultEntries: [{
+        id: "lab-1", testId: "cbc", testName: "CBC", date: "2026-11-20",
+        indicators: [{ id: "hb", name: "Hemoglobin", value: 125, unit: "g/l" }],
+        notes: "",
+        documents: [
+          { id: "doc-1", name: "first.pdf", mimeType: "application/pdf", blob: { __lifeMapsBlob: true, mimeType: "application/pdf", base64: "Zmlyc3Q=" } },
+          { id: "doc-2", name: "second.pdf", mimeType: "application/pdf", blob: { __lifeMapsBlob: true, mimeType: "application/pdf", base64: "c2Vjb25k" } },
+        ],
+      }],
+    };
+    assert.equal(validateBackupPayload({ ...valid, records }), true);
+    records.labResultEntries[0].documents[1].blob.base64 = "broken";
+    assert.equal(validateBackupPayload({ ...valid, records }), false);
+  });
+
   it("rejects malformed attachment encodings before storing the backup", () => {
     const malformed = structuredClone(valid);
     malformed.records["childHealth:child-1:labUploads"].cbc[0].blob.base64 = "not-base64";
