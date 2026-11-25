@@ -15,9 +15,9 @@
 | Параметр | Значение |
 |---|---|
 | IndexedDB database | `life-maps` |
-| Object store | `app-records` |
+| Object stores | `app-records`, `sync-meta` |
 | Key path | `key` |
-| IndexedDB version | `1` |
+| IndexedDB version | `2` |
 | Backup format | `life-maps-backup` |
 | Backup schema | `1` |
 | Максимальный JSON backup | 100 МБ |
