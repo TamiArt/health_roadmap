@@ -32,6 +32,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingId = useRef<string|null>(null);
+  const pendingReplace = useRef<{ testId: string; uploadId: string } | null>(null);
   const objectUrls = useMemo(() => {
     const urls = new Map<string, string>();
     Object.values(uploads).flat().forEach(upload => urls.set(upload.id, URL.createObjectURL(upload.blob)));
@@ -53,8 +54,10 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     const id = pendingId.current;
+    const replacement = pendingReplace.current;
     pendingId.current = null;
-    if (!file || !id) { e.target.value = ""; return; }
+    pendingReplace.current = null;
+    if (!file || (!id && !replacement)) { e.target.value = ""; return; }
     const validationError = validateLabUpload(file);
     if (validationError) {
       setUploadError(validationError);
@@ -69,7 +72,13 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
       blob:file,
       isPdf:file.name.toLowerCase().endsWith(".pdf"),
     };
-    setUploads(prev => ({ ...prev, [id]:[...(prev[id] ?? []), result] }));
+    if (replacement) {
+      const current = (uploads[replacement.testId] ?? []).find(item => item.id === replacement.uploadId);
+      if (!current || !window.confirm("Заменить выбранный документ? Старый файл будет удалён.")) { e.target.value = ""; return; }
+      setUploads(prev => ({ ...prev, [replacement.testId]: (prev[replacement.testId] ?? []).map(item => item.id === replacement.uploadId ? result : item) }));
+    } else if (id) {
+      setUploads(prev => ({ ...prev, [id]:[...(prev[id] ?? []), result] }));
+    }
     e.target.value="";
   }
 
@@ -104,7 +113,14 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   }
 
   function removeMeasurement(testId: string, measurementId: string) {
+    if (!window.confirm("Удалить это значение анализа?")) return;
     setMeasurements(prev => ({ ...prev, [testId]: (prev[testId] ?? []).filter(item => item.id !== measurementId) }));
+  }
+
+  function replaceUpload(testId: string, uploadId: string) {
+    if (!uploadsReady || uploadsError) return;
+    pendingReplace.current = { testId, uploadId };
+    fileRef.current?.click();
   }
 
   function removeUpload(testId: string, uploadId: string) {
@@ -195,6 +211,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                                     {r.isPdf?<FileText size={12} className="text-primary shrink-0"/>:<ImageIcon size={12} className="text-primary shrink-0"/>}
                                     <a href={objectUrls.get(r.id)} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate flex-1">{r.name}</a>
                                     <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{r.date}</span>
+                                    <button type="button" aria-label={`Заменить файл ${r.name}`} onClick={() => replaceUpload(test.id, r.id)}><Upload size={11} className="text-muted-foreground hover:text-primary"/></button>
                                     <button type="button" aria-label={`Удалить файл ${r.name}`} onClick={() => removeUpload(test.id, r.id)}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
                                   </div>
                                 ))}
