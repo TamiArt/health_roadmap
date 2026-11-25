@@ -235,7 +235,7 @@ function versionMedicalValue(key: string, previous: unknown, next: unknown, tomb
   if (VERSIONED_COLLECTION_KEYS.has(shortKey) && Array.isArray(next)) {
     return versionCollection(key, previous, next, tombstones, now);
   }
-  if (shortKey === "labMeasurements" && next && typeof next === "object" && !Array.isArray(next)) {
+  if ((shortKey === "labMeasurements" || shortKey === "labUploads") && next && typeof next === "object" && !Array.isArray(next)) {
     const entries = Object.entries(next as Record<string, unknown>);
     if (!entries.every(([, values]) => Array.isArray(values))) return next;
     const oldMap = previous && typeof previous === "object" && !Array.isArray(previous) ? previous as Record<string, unknown> : {};
