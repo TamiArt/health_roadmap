@@ -18,7 +18,7 @@ function validDate(value) {
     date.getMonth() + 1 === Number(value.slice(5, 7)) && date.getDate() === Number(value.slice(8, 10));
 }
 
-function validateEncodedValues(value, depth = 0) {
+function isEncodedBlob(value) {\n  return isRecord(value) && value.__lifeMapsBlob === true && typeof value.mimeType === "string" &&\n    typeof value.base64 === "string" && value.base64.length % 4 === 0 &&\n    /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value.base64) &&\n    Buffer.from(value.base64, "base64").toString("base64") === value.base64;\n}\n\nfunction validateEncodedValues(value, depth = 0) {
   if (depth > 80) return false;
   if (Array.isArray(value)) return value.every(item => validateEncodedValues(item, depth + 1));
   if (!isRecord(value)) return true;
@@ -50,13 +50,13 @@ function validateRecord(key, value) {
       typeof item.name === "string" && typeof item.value === "number" &&
       Number.isFinite(item.value) && typeof item.unit === "string") &&
     (entry.document === undefined || (isRecord(entry.document) && typeof entry.document.id === "string" &&
-      typeof entry.document.name === "string" && isRecord(entry.document.blob))));
+      typeof entry.document.name === "string" && isEncodedBlob(entry.document.blob))));
   if (!isRecord(value)) return false;
   if (baseKey === "labMeasurements") return Object.values(value).every(items =>
     Array.isArray(items) && items.every(item => isRecord(item) && typeof item.id === "string" &&
       typeof item.value === "string" && typeof item.unit === "string" && validDate(item.date)));
   if (baseKey === "labUploads") return Object.values(value).every(items =>
-    Array.isArray(items) && items.every(item => isRecord(item) && typeof item.id === "string" && isRecord(item.blob)));
+    Array.isArray(items) && items.every(item => isRecord(item) && typeof item.id === "string" && isEncodedBlob(item.blob)));
   return true;
 }
 
