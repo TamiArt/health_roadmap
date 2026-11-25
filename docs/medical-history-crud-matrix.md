@@ -39,3 +39,8 @@
 - API: сервер принимает новые записи вакцинации и отклоняет повреждённые даты/вложения.
 - E2E: CRUD событий, результатов анализов, ручных измерений, загрузок, вакцинаций и контрольных измерений; замена/удаление вложений; поиск и профильная изоляция.
 - Полный критерий завершения — успешные typecheck, unit/API, E2E, production build и актуализация roadmap на том же HEAD.
+
+
+## Приёмка
+
+Этап 2 завершён. Полный CI run [45605390677](https://github.com/TamiArt/health_roadmap/actions/runs/45605390677) на commit `13e24b91f73aa0b0ef71c991e7ff1a53dba6e4e2`: typecheck, проверка структуры, npm audit, unit/API, 49/49 Playwright E2E и production build — success.
