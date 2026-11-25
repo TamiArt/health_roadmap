@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Check, CalendarClock, Activity, HeartPulse } from "lucide-react";
+import { Plus, Trash2, Check, CalendarClock, Activity, HeartPulse, Pencil } from "lucide-react";
 import { usePersistentState } from "./storage";
 import {
   buildHealthEvent,
@@ -33,19 +33,40 @@ function DateInput({ value, onChange, ariaLabel = "Дата" }: { value: string;
 }
 
 export function HealthEventsTab({ storageKey = "healthEvents" }: { storageKey?: string }) {
-  const [events, setEvents, ready, error] = usePersistentState<HealthEvent[]>(storageKey, []);
-  const [editing, setEditing] = useState(false);
+  const [events, setEvents, ready, error, conflict] = usePersistentState<HealthEvent[]>(storageKey, []);
+  const [editing, setEditing] = useState(false);\n  const [editingId, setEditingId] = useState<string | null>(null);\n  const [query, setQuery] = useState("");
   const [form, setForm] = useState({ date: today(), kind: "other" as HealthEventKind, title: "", description: "", facility: "" });
   const [formError, setFormError] = useState<string | null>(null);
 
   function save() {
     const validation = validateHealthEvent(form);
     if (validation) { setFormError(validation); return; }
-    setEvents(previous => [...previous, buildHealthEvent(form)].sort((a, b) => b.date.localeCompare(a.date)));
+    setEvents(previous => {
+      const next = editingId
+        ? previous.map(item => item.id === editingId ? { ...form, id: editingId } : item)
+        : [...previous, buildHealthEvent(form)];
+      return [...next].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
+    });
     setForm({ date: today(), kind: "other", title: "", description: "", facility: "" });
     setEditing(false);
+    setEditingId(null);
     setFormError(null);
   }
+
+  function startEdit(event: HealthEvent) {
+    setEditingId(event.id);
+    setForm({ date: event.date, kind: event.kind, title: event.title, description: event.description, facility: event.facility ?? "" });
+    setEditing(true);
+    setFormError(null);
+  }
+
+  const visibleEvents = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase("ru");
+    return [...events]
+      .filter(event => !normalized || [event.title, event.description, event.facility ?? "", event.kind]
+        .some(value => value.toLocaleLowerCase("ru").includes(normalized)))
+      .sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title, "ru"));
+  }, [events, query]);
 
   if (!ready) return <p className="text-sm text-muted-foreground">Загрузка медицинских событий…</p>;
   if (error) return <p role="alert" className="text-sm text-red-600">{error}</p>;
@@ -54,7 +75,7 @@ export function HealthEventsTab({ storageKey = "healthEvents" }: { storageKey?: 
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div><h2 className="text-base font-semibold">Медицинские события</h2><p className="text-xs text-muted-foreground">Операции, травмы, переломы, госпитализации и другие события</p></div>
-        <button type="button" onClick={() => setEditing(value => !value)} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground"><Plus size={13}/> Добавить</button>
+        <button type="button" onClick={() => { setEditingId(null); setForm({ date: today(), kind: "other", title: "", description: "", facility: "" }); setEditing(value => !value); setFormError(null); }} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground"><Plus size={13}/> Добавить</button>
       </div>
       {editing && <div className="rounded-xl border border-primary/20 bg-card p-4 space-y-2">
         <div className="grid grid-cols-2 gap-2">
@@ -65,13 +86,17 @@ export function HealthEventsTab({ storageKey = "healthEvents" }: { storageKey?: 
         <input aria-label="Медицинское учреждение" value={form.facility} maxLength={160} onChange={event => setForm(value => ({ ...value, facility: event.target.value }))} placeholder="Клиника или учреждение (необязательно)" className={INP}/>
         <textarea aria-label="Описание события" value={form.description} maxLength={1000} onChange={event => setForm(value => ({ ...value, description: event.target.value }))} placeholder="Подробности, лечение, последствия, заметки" rows={3} className={INP}/>
         {formError && <p role="alert" className="text-xs text-red-600">{formError}</p>}
-        <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditing(false)} className="rounded-lg border px-3 py-1.5 text-xs">Отмена</button><button type="button" onClick={save} className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground">Сохранить</button></div>
+        <div className="flex justify-end gap-2"><button type="button" onClick={() => { setEditing(false); setEditingId(null); setFormError(null); }} className="rounded-lg border px-3 py-1.5 text-xs">Отмена</button><button type="button" onClick={save} className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground">{editingId ? "Сохранить изменения" : "Сохранить"}</button></div>
       </div>}
-      {events.length === 0 ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Медицинские события пока не добавлены.</div> :
-        <div className="space-y-2">{events.map(event => <article key={event.id} className="flex items-start gap-3 rounded-xl border bg-card p-4">
+      <label className="block text-xs text-muted-foreground">Поиск по событиям
+        <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Название, тип, клиника, описание" className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground"/>
+      </label>
+      {conflict && <p role="status" className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">Записи изменены в другой вкладке. Загружена последняя сохранённая версия.</p>}
+      {visibleEvents.length === 0 ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">{events.length ? "По запросу событий нет." : "Медицинские события пока не добавлены."}</div> :
+        <div className="space-y-2">{visibleEvents.map(event => <article key={event.id} className="flex items-start gap-3 rounded-xl border bg-card p-4">
           <div className="rounded-lg bg-primary/10 p-2 text-primary"><HeartPulse size={17}/></div>
           <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-medium">{event.title}</h3><span className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{EVENT_TYPES.find(([id]) => id === event.kind)?.[1] ?? "Другое"}</span></div><p className="mt-1 text-xs text-muted-foreground">{event.date}{event.facility ? ` · ${event.facility}` : ""}</p>{event.description && <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">{event.description}</p>}</div>
-          <button type="button" aria-label={`Удалить событие ${event.title}`} onClick={() => { if (window.confirm("Удалить это медицинское событие?")) setEvents(previous => previous.filter(item => item.id !== event.id)); }} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={14}/></button>
+          <div className="flex gap-1"><button type="button" aria-label={`Изменить событие ${event.title}`} onClick={() => startEdit(event)} className="p-1 text-muted-foreground hover:text-primary"><Pencil size={14}/></button><button type="button" aria-label={`Удалить событие ${event.title}`} onClick={() => { if (window.confirm("Удалить это медицинское событие?")) setEvents(previous => previous.filter(item => item.id !== event.id)); }} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={14}/></button></div>
         </article>)}</div>}
     </section>
   );
