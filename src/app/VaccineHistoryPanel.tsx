@@ -128,7 +128,7 @@ export function VaccineHistoryPanel({
       <input aria-label="Медицинское учреждение вакцинации" value={facility} maxLength={160} onChange={event => setFacility(event.target.value)} placeholder="Клиника или учреждение (необязательно)" className={INP}/>
       <textarea aria-label="Примечания к вакцинации" value={notes} maxLength={1000} onChange={event => setNotes(event.target.value)} placeholder="Серия вакцины, реакция, примечания" rows={2} className={INP}/>
       <div className="flex flex-wrap items-center gap-2">
-        <input ref={fileRef} type="file" multiple aria-label="Документы о вакцинации" accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={event => { setFiles(previous => [...previous, ...Array.from(event.target.files ?? [])]); event.target.value = ""; }}/>
+        <input ref={fileRef} type="file" multiple aria-label="Документы о вакцинации" accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={event => { const selected = Array.from(event.target.files ?? []); setFiles(previous => [...previous, ...selected]); event.target.value = ""; }}/>
         <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs"><Upload size={12}/> Прикрепить документы</button>
         {files.map((file, index) => <span key={`${file.name}-${index}`} className="flex items-center gap-1 text-xs text-muted-foreground">{file.name}<button type="button" aria-label={`Убрать файл ${file.name}`} onClick={() => setFiles(previous => previous.filter((_, i) => i !== index))}><X size={12}/></button></span>)}
       </div>
