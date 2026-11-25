@@ -72,7 +72,7 @@ test("migrates unscoped IndexedDB v1 records into the guest workspace without ch
     });
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction("app-records", "readwrite");
-      tx.objectStore("app-records").put({ key: "lifeEvents", value: [{ id: "legacy-event", title: "Запись из старой базы" }], revision: 7 });
+      tx.objectStore("app-records").put({ key: "lifeEvents", value: [{ id: "legacy-event", year: 2026, title: "Запись из старой базы", description: "Миграция v1", category: "personal", emoji: "📌" }], revision: 7 });
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
