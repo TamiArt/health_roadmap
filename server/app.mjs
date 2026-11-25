@@ -4,6 +4,7 @@ import { extname, resolve, sep } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { AppDatabase } from "./db.mjs";
+import { validateBackupPayload } from "./backup-validation.mjs";
 import {
   createSessionToken, decryptPayload, encryptPayload, hashPassword, hashSessionToken,
   isValidEmail, normalizeEmail, parseEncryptionKey, verifyPassword,
@@ -53,12 +54,6 @@ async function readJson(request) {
   }
 }
 
-function isBackupPayload(value) {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value) &&
-    value.format === "life-maps-backup" && Number.isInteger(value.schemaVersion) &&
-    value.schemaVersion === 1 && value.records && typeof value.records === "object" &&
-    !Array.isArray(value.records));
-}
 
 function createRateLimiter() {
   const attempts = new Map();
@@ -232,7 +227,7 @@ export function createAppServer({
           return;
         }
         const body = await readJson(request);
-        if (!isBackupPayload(body?.payload)) {
+        if (!validateBackupPayload(body?.payload)) {
           sendJson(response, 400, { error: "Формат резервной копии не поддерживается." });
           return;
         }
