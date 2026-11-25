@@ -11,7 +11,8 @@
     "test:e2e": "playwright test",
     "check:structure": "node scripts/check-project-structure.mjs",
     "start": "node server/index.mjs",
-    "test:server": "node --test server/*.test.mjs"
+    "test:server": "node --test server/*.test.mjs",
+    "dev:server": "node --env-file=.env server/index.mjs"
   },
   "dependencies": {
     "lucide-react": "0.487.0",
