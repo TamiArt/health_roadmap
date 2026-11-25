@@ -5,7 +5,7 @@ import type { Child, DentalRecord, FamilyEvent, LabMeasurement, UploadedResult }
 import type { FamilyDate, HealthEvent, HealthMonitoringItem, LabResultEntry, VaccineAdministration } from "./healthRecords";
 import { buildMedicalHistory, filterMedicalHistory, type MedicalHistoryEntry, type MedicalHistoryKind, type MedicalHistorySource } from "./medicalHistoryModel";
 
-const KIND_LABELS: Record<MedicalHistoryKind, string> = {
+const EMPTY_PROFILES: Child[] = [];\n\nconst KIND_LABELS: Record<MedicalHistoryKind, string> = {
   analysis: "Анализы", manual: "Ручные измерения", event: "Медицинские события",
   vaccine: "Вакцинация", dental: "Стоматология", monitoring: "Контроль показателей",
   document: "Документы", family: "Семейная история",
@@ -37,7 +37,7 @@ export function MedicalHistoryTab({
   vaccineRecordsStorageKey,
   profileId = storagePrefix.match(/^childHealth:([^:]+):/)?.[1] ?? "adult",
   profileLabel = profileId === "adult" ? "Взрослый профиль" : "Профиль ребёнка",
-  otherProfiles = [],
+  otherProfiles = EMPTY_PROFILES,
   onOpenSource,
 }: {
   storagePrefix?: string;
