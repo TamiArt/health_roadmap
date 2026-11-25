@@ -4,7 +4,7 @@ import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X, Tra
 import { HEALTH_ROADMAP } from "./healthData";
 import { getLabStages } from "./labCatalog";
 import type { LifeStage } from "./labCatalog";
-import type { DentalRecord, ToothStatus, UploadedResult, LabMeasurement, Section, VaccineStatus } from "./models";
+import type { Child, DentalRecord, ToothStatus, UploadedResult, LabMeasurement, Section, VaccineStatus } from "./models";
 import { createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
@@ -363,11 +363,12 @@ export function DentalTab({
 // ─── Health Section ───────────────────────────────────────────────────────────
 
 export function HealthSection({
-  vaccineStatuses, setVaccineStatuses, onNavigate,
+  vaccineStatuses, setVaccineStatuses, onNavigate, children = [],
 }: {
   vaccineStatuses: Record<string, VaccineStatus>;
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
   onNavigate?: (section: Section) => void;
+  children?: Child[];
 }) {
   const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental"|"events"|"monitoring"|"history">("roadmap");
   const tabsId = useId();
@@ -438,7 +439,7 @@ export function HealthSection({
       <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}>{toothDataConflict && <p role="status" className="mb-3 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">Стоматологические записи изменены в другой вкладке. Загружена последняя сохранённая версия.</p>}<DentalTab data={toothData} onChange={setToothData}/></div>
       <div id={`${tabsId}-panel-events`} role="tabpanel" aria-labelledby={`${tabsId}-tab-events`} hidden={tab !== "events"}><HealthEventsTab/></div>
       <div id={`${tabsId}-panel-monitoring`} role="tabpanel" aria-labelledby={`${tabsId}-tab-monitoring`} hidden={tab !== "monitoring"}><MonitoringTab/></div>
-      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab onOpenSource={source => { const target = `medical-source-${source.section}-${source.recordId}`; if (source.section === "family") onNavigate?.("family"); else setTab(source.section); window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" }), 0); }}/><div className="mt-6"><LabResultsTab/></div></div>
+      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab otherProfiles={children} onOpenSource={(source, sourceProfileId) => { const target = `medical-source-${source.section}-${source.recordId}`; if (sourceProfileId !== "adult") { onNavigate?.("family"); window.setTimeout(() => window.dispatchEvent(new CustomEvent("life-maps:open-child-history-source", { detail: { childId: sourceProfileId, source } })), 500); return; } if (source.section === "family") onNavigate?.("family"); else setTab(source.section); window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" }), 0); }}/><div className="mt-6"><LabResultsTab/></div></div>
     </div>
   );
 }
