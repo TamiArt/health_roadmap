@@ -80,7 +80,7 @@ export function MedicalHistoryTab({
   if (error) return <p role="alert" className="py-6 text-sm text-red-600">{error}</p>;
 
   return (
-    <section aria-label={`Единая медицинская история: ${profileLabel}`} className="space-y-3">
+    <section aria-label="Единая медицинская история" className="space-y-3">
       <p className="text-xs text-muted-foreground">Профиль: <strong className="font-medium text-foreground">{profileLabel}</strong></p>
       {conflict && <p role="status" aria-live="polite" className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">Данные изменены в другой вкладке. Показана последняя сохранённая версия; повторите последнее действие, если оно не сохранилось.</p>}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -88,7 +88,7 @@ export function MedicalHistoryTab({
           <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Название, показатель, учреждение, заметка" className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground"/>
         </label>
         <label className="text-xs text-muted-foreground">Категория
-          <select aria-label="Категория медицинской истории" value={kind} onChange={event => setKind(event.target.value as MedicalHistoryKind | "all")} className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground">
+          <select aria-label="Тип медицинской записи" value={kind} onChange={event => setKind(event.target.value as MedicalHistoryKind | "all")} className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground">
             <option value="all">Все категории</option>
             {Object.entries(KIND_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
