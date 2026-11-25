@@ -78,7 +78,7 @@ export function parseHistoryDate(value: string | null | undefined): Pick<Medical
   const month = /^(\d{1,2})[./-](\d{4})$/.exec(raw);
   if (month && +month[1] >= 1 && +month[1] <= 12) {
     const sortDate = `${month[2]}-${month[1].padStart(2, "0")}-01`;
-    return { date: sortDate, dateLabel: `${month[1].padStart(2, "0")}.${month[2]} (месяц)`, datePrecision: "month", sortDate, dateEnd: new Date(Number(month[2]), Number(month[1]), 0).toISOString().slice(0, 10) };
+    return { date: sortDate, dateLabel: `${month[1].padStart(2, "0")}.${month[2]} (месяц)`, datePrecision: "month", sortDate, dateEnd: new Date(Date.UTC(Number(month[2]), Number(month[1]), 0)).toISOString().slice(0, 10) };
   }
   const year = /^(\d{4})$/.exec(raw);
   if (year) return { date: `${year[1]}-01-01`, dateLabel: year[1], datePrecision: "year", sortDate: `${year[1]}-01-01`, dateEnd: `${year[1]}-12-31` };
@@ -89,7 +89,7 @@ export function parseHistoryDate(value: string | null | undefined): Pick<Medical
     const start = SEASONS[name];
     const sortYear = name === "зима" ? yearNumber : yearNumber;
     const sortDate = `${sortYear}${start.start}`;
-    return { date: sortDate, dateLabel: `${start.label.toLocaleLowerCase("ru")} ${yearNumber} (период)`, datePrecision: "season", sortDate, dateEnd: new Date(Date.UTC(yearNumber, name === "зима" ? 2 : name === "весна" ? 5 : name === "лето" ? 8 : 11, 0)).toISOString().slice(0, 10) };
+    return { date: sortDate, dateLabel: `${start.label.toLocaleLowerCase("ru")} ${yearNumber} (период)`, datePrecision: "season", sortDate, dateEnd: new Date(Date.UTC(yearNumber + (name === "зима" ? 1 : 0), name === "зима" ? 2 : name === "весна" ? 5 : name === "лето" ? 8 : 11, 0)).toISOString().slice(0, 10) };
   }
   return { date: null, dateLabel: raw, datePrecision: "unknown", sortDate: null };
 }
