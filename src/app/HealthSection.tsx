@@ -9,6 +9,7 @@ import { createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
+import { LabIndicatorTrend } from "./LabIndicatorTrend";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { VaccinesTab } from "./VaccinesTab";
 import { handleTabListKeyDown } from "./tabNavigation";
@@ -30,6 +31,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   const [measurementUnit, setMeasurementUnit] = useState("");
   const [measurementError, setMeasurementError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingId = useRef<string|null>(null);
   const pendingReplace = useRef<{ testId: string; uploadId: string } | null>(null);
@@ -129,8 +131,21 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
     setUploads(prev => ({ ...prev, [testId]:(prev[testId]??[]).filter(item => item.id!==uploadId) }));
   }
 
-  const visibleStages = allStages.filter(s => s.tests.some(t => t.gender==="all" || t.gender===gender));
-  const total = visibleStages.reduce((n,s) => n + s.tests.filter(t => t.gender==="all"||t.gender===gender).length, 0);
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase("ru");
+  const visibleStages = allStages.map(stage => ({
+    ...stage,
+    tests: stage.tests.filter(test => {
+      if (test.gender !== "all" && test.gender !== gender) return false;
+      if (!normalizedSearch) return true;
+      const measurementMatch = (measurements[test.id] ?? []).some(item =>
+        [item.value, item.unit, item.date].some(value => value.toLocaleLowerCase("ru").includes(normalizedSearch)));
+      const uploadMatch = (uploads[test.id] ?? []).some(item =>
+        [item.name, item.date].some(value => value.toLocaleLowerCase("ru").includes(normalizedSearch)));
+      return [test.name, test.what, test.frequency].some(value => value.toLocaleLowerCase("ru").includes(normalizedSearch)) ||
+        measurementMatch || uploadMatch;
+    }),
+  })).filter(stage => stage.tests.length > 0);
+  const total = visibleStages.reduce((n,s) => n + s.tests.length, 0);
 
   return (
     <div>
@@ -150,6 +165,11 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
           </div>
         </div>
       )}
+      <label className="mb-3 block text-xs text-muted-foreground">Поиск по анализам, показателям и файлам
+        <input type="search" value={searchQuery} onChange={event => setSearchQuery(event.target.value)}
+          placeholder="Название, результат, единица, дата или документ"
+          className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground" />
+      </label>
       <div className="space-y-2">
         {visibleStages.map(stage => {
           const filtered = stage.tests.filter(t => t.gender==="all"||t.gender===gender);
@@ -206,6 +226,12 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                                     <button type="button" aria-label={`Удалить результат от ${item.date}`} onClick={() => removeMeasurement(test.id, item.id)}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
                                   </div>
                                 ))}
+                                {values.length > 1 && (() => {
+                                  const unit = values[0].unit;
+                                  const points = values.filter(item => item.unit === unit && Number.isFinite(Number(item.value.replace(",", "."))))
+                                    .map(item => ({ date: item.date, value: Number(item.value.replace(",", ".")) }));
+                                  return <LabIndicatorTrend name={test.name} unit={unit} points={points} />;
+                                })()}
                                 {ups.map(r => (
                                   <div key={r.id} id={`medical-source-tests-${r.id}`} className="flex items-center gap-2 bg-primary/5 rounded-lg px-3 py-2">
                                     {r.isPdf?<FileText size={12} className="text-primary shrink-0"/>:<ImageIcon size={12} className="text-primary shrink-0"/>}
