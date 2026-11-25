@@ -119,7 +119,7 @@
 **Техническое описание:** [docs/sync-conflict-protection.md](./docs/sync-conflict-protection.md).
 ### P0. Этап 5 — Завершение календаря и напоминаний
 
-<badge>Статус: завершён</badge>
+**Статус: завершён.**
 
 Полный CI run [45680745756](https://github.com/TamiArt/health_roadmap/actions/runs/45680745756) на commit `847966f903ad82e6f1512f2031a2d472fcaff5c8`: 87 unit-тестов, 56/56 Playwright E2E, TypeScript, проверка структуры, npm audit и production build — success.
 
