@@ -106,6 +106,7 @@ test("automatically syncs records and attachments across devices and retries que
     await expect(secondPage.getByText("Нет подключения", { exact: true })).toBeVisible({ timeout: 10000 });
     await secondContext.setOffline(false);
     await expect(secondPage.getByText("Синхронизировано", { exact: true })).toBeVisible({ timeout: 20000 });
+    await page.getByRole("button", { name: "Карта жизни" }).click();
     await page.getByRole("button", { name: /^Все события/ }).click();
     await expect(page.getByText(secondEvent, { exact: true })).toBeVisible({ timeout: 20000 });
   } finally {
