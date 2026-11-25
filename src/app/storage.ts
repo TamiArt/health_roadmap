@@ -61,6 +61,7 @@ const ALLOWED_KEYS = new Set([
   "labResultEntries",
   "syncTombstones",
   "notificationSettings",
+  "calendarEvents",
 ]);
 
 export function isAllowedRecordKey(key: string): boolean {
