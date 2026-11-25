@@ -1,5 +1,5 @@
-import { lazy, Suspense, useState } from "react";
-import { usePersistentState } from "./storage";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { getStorageScope, setStorageScope, usePersistentState } from "./storage";
 import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
 import { VACCINES } from "./healthData";
@@ -17,6 +17,30 @@ function SectionFallback() {
 }
 
 export default function App() {
+  const [workspaceReady, setWorkspaceReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/me", { credentials: "same-origin" })
+      .then(async response => {
+        if (!response.ok) throw new Error("Account service unavailable");
+        return response.json() as Promise<{ user: { id: string } | null }>;
+      })
+      .then(result => { if (active) setStorageScope(result.user?.id ?? "guest"); })
+      .catch(() => {
+        // Retain the last authenticated workspace while offline.
+        if (active) setStorageScope(getStorageScope());
+      })
+      .finally(() => { if (active) setWorkspaceReady(true); });
+    return () => { active = false; };
+  }, []);
+  if (!workspaceReady) return <div role="status" aria-live="polite" aria-busy="true"
+    className="flex min-h-screen items-center justify-center bg-background p-8 text-sm text-muted-foreground">
+    Проверка локального пространства аккаунта…
+  </div>;
+  return <AppContent />;
+}
+
+function AppContent() {
   const [section, setSection] = useState<Section>("map");
   const [visitedSections, setVisitedSections] = useState<Set<Section>>(() => new Set(["map"]));
   const [children, , childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
