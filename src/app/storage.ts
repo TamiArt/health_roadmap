@@ -201,9 +201,9 @@ function stripRecordVersion(value: Record<string, unknown>): Record<string, unkn
 function versionCollection(path: string, previous: unknown, next: unknown, tombstones: RecordTombstones, now: string): unknown[] {
   const oldItems = Array.isArray(previous) ? previous : [];
   const nextItems = Array.isArray(next) ? next : [];
-  const oldById = new Map(oldItems.filter((item): item is Record<string, unknown> =>
+  const oldById = new Map<string, Record<string, unknown>>(oldItems.filter((item): item is Record<string, unknown> =>
     Boolean(item) && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).id === "string")
-    .map(item => [String(item.id), item]));
+    .map(item => [String(item.id), item] as const));
   const nextIds = new Set<string>();
   const versions = tombstones[path] ?? {};
   const output = nextItems.map(item => {
