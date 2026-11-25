@@ -724,7 +724,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   await page.getByLabel("Тип события").selectOption("fracture");
   await page.getByLabel("Название события").fill("E2E перелом");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await expect(page.getByText("E2E перелом", { exact: true })).toBeVisible();
+  await expect(page.getByText("E2E перелом", { exact: true }).first()).toBeVisible();
 
   await page.getByRole("tab", { name: "На контроле", exact: true }).click();
   await page.getByRole("button", { name: "Добавить", exact: true }).click();
