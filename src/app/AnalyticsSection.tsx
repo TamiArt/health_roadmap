@@ -87,7 +87,7 @@ function ProfileAnalytics({ child, onNavigate, onOpenSource }: { child?: Child; 
   </div>;
 }
 
-export function AnalyticsSection({ children, onNavigate, onOpenSource }: { children: Child[]; onNavigate: (section: Section) => void; onOpenSource: (source: "lab-result" | "manual" | "monitoring", sourceId: string, pointId: string) => void }) {
+export function AnalyticsSection({ children, onNavigate, onOpenSource }: { children: Child[]; onNavigate: (section: Section) => void; onOpenSource: (source: "lab-result" | "manual" | "monitoring", sourceId: string, pointId: string, profileId: string | null) => void }) {
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const selectedChild = children.find(child => child.id === selectedChildId);
   const activeChildId = selectedChild?.id ?? null;
