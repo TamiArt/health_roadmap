@@ -1080,6 +1080,7 @@ test("keeps lab measurements isolated between child profiles after switching and
   await saveChildMeasurement("Второй профиль — изоляция", "9.2");
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
   // The adult health section is also mounted but hidden; assert only visible child-profile measurements.
   const visibleMeasurement = (value: string) => page.locator("span:visible").filter({ hasText: value + " г/л" });
   await expect(visibleMeasurement("12.1")).toHaveCount(1);
@@ -1087,6 +1088,7 @@ test("keeps lab measurements isolated between child profiles after switching and
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
+  await page.getByRole("button", { name: /Дошкольник/ }).click();
   // The first profile panel remains mounted but must be hidden while the second profile is active.
   await expect(visibleMeasurement("9.2")).toHaveCount(1);
   await expect(visibleMeasurement("12.1")).toHaveCount(0);
