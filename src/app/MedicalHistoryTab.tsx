@@ -93,6 +93,7 @@ export function MedicalHistoryTab({
     <>
       {otherProfiles.map(child => <ChildHistoryCollector key={child.id} child={child} onEntries={updateProfileEntries}/>)}
       <section aria-label="Единая медицинская история" className="space-y-3">
+        {conflict && <p role="status" aria-live="polite" className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">Данные изменены в другой вкладке. Показана последняя сохранённая версия; повторите последнее действие, если оно не сохранилось.</p>}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="text-xs text-muted-foreground">Поиск по всей истории
             <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Название, показатель, учреждение, заметка" className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground"/>
