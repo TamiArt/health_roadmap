@@ -129,6 +129,8 @@ test("lab result entries support edit, multiple documents, replacement and delet
     { name: "first-report.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 first") },
     { name: "second-report.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 second") },
   ]);
+  await expect(resultsPanel.getByText("first-report.pdf", { exact: true })).toBeVisible();
+  await expect(resultsPanel.getByText("second-report.pdf", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Сохранить анализ" }).click();
 
   await expect(resultsPanel.getByRole("link", { name: "first-report.pdf" })).toBeVisible();
@@ -186,7 +188,7 @@ test("vaccination history supports create, edit, document management and delete"
   await page.getByRole("button", { name: "Сохранить запись" }).click();
 
   await expect(page.getByText("Первая доза", { exact: false })).toBeVisible();
-  await expect(page.getByRole("link", { name: "vaccination-certificate.pdf" })).toBeVisible();
+  await expect(vaccineCard.getByRole("link", { name: "vaccination-certificate.pdf" })).toBeVisible();
   const vaccineCard = page.getByRole("region", { name: "История вакцинации" });
   const editButton = vaccineCard.getByRole("button", { name: /Изменить вакцинацию/ });
   await editButton.click();
