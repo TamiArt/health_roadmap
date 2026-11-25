@@ -9,16 +9,16 @@ import { DentalTab, LabTestsTab } from "./HealthSection";
 import { VaccinesTab } from "./VaccinesTab";
 import { HealthEventsTab, MonitoringTab, ReminderPermission } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
-import { MedicalHistoryTab } from "./MedicalHistoryTab";
+import { MedicalHistoryTab } from "./MedicalHistoryTab";\nimport type { MedicalHistorySource } from "./medicalHistoryModel";
 import { useBrowserReminders } from "./useBrowserReminders";
 import { isIsoDate, type FamilyDate } from "./healthRecords";
 import { handleTabListKeyDown } from "./tabNavigation";
 
 // ─── Child Health View ────────────────────────────────────────────────────────
 
-function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
+function ChildHealthView({ child, onBack, initialSource }: { child:Child; onBack:()=>void; initialSource?: { childId: string; source: MedicalHistorySource } | null }) {
   const age = CURRENT_YEAR - child.birthYear;
-  const [tab, setTab] = useState<"tests"|"vaccines"|"dental"|"history"|"events"|"monitoring">("tests");
+  const [tab, setTab] = useState<"tests"|"vaccines"|"dental"|"history"|"events"|"monitoring">(() => initialSource && initialSource.source.section !== "family" ? initialSource.source.section : "tests");\n  useEffect(() => {\n    if (!initialSource) return;\n    const target = `medical-source-${initialSource.source.section}-${initialSource.source.recordId}`;\n    window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);\n  }, [initialSource]);
   const tabsId = useId();
   const [vaccineStatuses, setVaccineStatuses, vaccineReady, vaccineError] = usePersistentState<Record<string,VaccineStatus>>(
     `childHealth:${child.id}:vaccineStatuses`,
@@ -72,7 +72,7 @@ export function FamilySection() {
   const [children, setChildren, childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
   const [events, setEvents, eventsReady, eventsError] = usePersistentState<FamilyDate[]>("familyEvents", FAMILY_EVENTS_INIT.map(event => ({ ...event, recurringYearly: false, reminder: { enabled: false, leadDays: 1, time: "09:00" } })));
   const [editMode, setEditMode] = useState(false);
-  const [viewingChild, setViewingChild] = useState<Child|null>(null);
+  const [viewingChild, setViewingChild] = useState<Child|null>(null);\n  const [pendingChildSource, setPendingChildSource] = useState<{ childId: string; source: MedicalHistorySource } | null>(null);\n  useEffect(() => {\n    const handleSourceRequest = (event: Event) => {\n      const request = (event as CustomEvent<{ childId: string; source: MedicalHistorySource }>).detail;\n      const child = children.find(item => item.id === request.childId);\n      if (child) { setPendingChildSource(request); setViewingChild(child); }\n    };\n    window.addEventListener("life-maps:open-child-history-source", handleSourceRequest);\n    return () => window.removeEventListener("life-maps:open-child-history-source", handleSourceRequest);\n  }, [children]);
   const childProfileTriggerRef = useRef<HTMLButtonElement>(null);
   const wasViewingChildRef = useRef(false);
   useEffect(() => {
@@ -272,7 +272,7 @@ export function FamilySection() {
       ))}
     </div>
     {viewingChild && children.some(child => child.id === viewingChild.id) && (
-      <ChildHealthView child={viewingChild} onBack={() => setViewingChild(null)}/>
+      <ChildHealthView child={viewingChild} initialSource={pendingChildSource?.childId === viewingChild.id ? pendingChildSource : null} onBack={() => { setViewingChild(null); setPendingChildSource(null); }}/>
     )}
     </>
   );
