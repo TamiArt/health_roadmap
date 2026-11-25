@@ -25,6 +25,15 @@ describe("server backup validation", () => {
     assert.equal(validateBackupPayload({ ...valid, records: { "childHealth:missing:healthEvents": [] } }), false);
   });
 
+  it("accepts dated vaccination history in adult and child profiles", () => {
+    const records = {
+      ...valid.records,
+      vaccineRecords: [{ id: "dose-1", vaccineId: "mmr", vaccineName: "MMR", date: "2026-04-12", dose: "1", facility: "Clinic", notes: "" }],
+      "childHealth:child-1:vaccineRecords": [{ id: "child-dose-1", vaccineId: "dtp", vaccineName: "DTP", date: "2026-04-13", dose: "2", facility: "", notes: "" }],
+    };
+    assert.equal(validateBackupPayload({ ...valid, records }), true);
+  });
+
   it("rejects malformed attachment encodings before storing the backup", () => {
     const malformed = structuredClone(valid);
     malformed.records["childHealth:child-1:labUploads"].cbc[0].blob.base64 = "not-base64";
