@@ -8,7 +8,7 @@ type IndicatorDraft = { name: string; value: string; unit: string; referenceRang
 const emptyIndicator = (): IndicatorDraft => ({ name: "", value: "", unit: "", referenceRange: "" });
 
 export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?: string }) {
-  const [results, setResults, ready, error] = usePersistentState<LabResultEntry[]>(storageKey, []);
+  const [results, setResults, ready, error, conflict] = usePersistentState<LabResultEntry[]>(storageKey, []);
   const [editing, setEditing] = useState(false);
   const [testName, setTestName] = useState("");
   const [date, setDate] = useState(() => {
