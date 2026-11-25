@@ -2,7 +2,7 @@ import { clearStorageWorkspace, exportBackup, getStorageScope, importBackup, rea
 import { backupsEqual, isPristineBackup, mergeBackups } from "./syncMerge";
 export type SyncStatus = "syncing" | "synced" | "offline" | "conflict" | "error";
 export type SyncView = { status: SyncStatus; updatedAt: string | null; pending: boolean; detail: string };
-type Meta = { accountId: string; revision: number | null; updatedAt: string | null; base: BackupPayload | null; pending: boolean; conflicts?: string[]; conflictLocal?: BackupPayload; conflictRemote?: BackupPayload };
+type Meta = { accountId: string; revision: number | null; updatedAt: string | null; base: BackupPayload | null; pending: boolean; conflicts?: string[]; conflictLocal?: BackupPayload; conflictRemote?: BackupPayload; operationId?: string };
 type Remote = { payload: BackupPayload | null; revision: number | null; updatedAt: string | null };
 const key = (id: string) => `sync:${id}`;
 async function errorFor(response: Response): Promise<Error & { status: number }> {
@@ -20,9 +20,9 @@ async function pull(): Promise<Remote> {
   if (!response.ok) throw await errorFor(response);
   return await response.json() as Remote;
 }
-async function push(payload: BackupPayload, revision: number | null): Promise<number> {
+async function push(payload: BackupPayload, revision: number | null, operationId: string): Promise<number> {
   const response = await fetch("/api/data", { method: "PUT", credentials: "same-origin",
-    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ payload, expectedRevision: revision }) });
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ payload, expectedRevision: revision, operationId }) });
   if (!response.ok) throw await errorFor(response);
   return (await response.json() as { revision: number }).revision;
 }
@@ -64,7 +64,7 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
   const savePending = async () => {
     const old = await readSyncMetadata<Meta>(key(accountId));
     await writeSyncMetadata(key(accountId), { accountId, revision: old?.revision ?? null,
-      updatedAt: old?.updatedAt ?? null, base: old?.base ?? null, pending: true, conflicts: old?.conflicts, conflictLocal: old?.conflictLocal, conflictRemote: old?.conflictRemote } satisfies Meta);
+      updatedAt: old?.updatedAt ?? null, base: old?.base ?? null, pending: true, conflicts: old?.conflicts, conflictLocal: old?.conflictLocal, conflictRemote: old?.conflictRemote, operationId: old?.operationId } satisfies Meta);
   };
   const schedule = () => {
     if (debounce) clearTimeout(debounce);
@@ -111,7 +111,10 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
       let revision = remote.revision;
       if (!remote.payload || !backupsEqual(result, remote.payload)) {
         ensureActive();
-        try { revision = await push(result, remote.revision); }
+        const operationId = meta?.operationId ?? crypto.randomUUID();
+        await writeSyncMetadata(key(accountId), { accountId, revision: remote.revision, updatedAt: remote.updatedAt,
+          base: meta?.base ?? null, pending: true, operationId } satisfies Meta);
+        try { revision = await push(result, remote.revision, operationId); }
         catch (cause) {
           if (!(cause instanceof Error) || (cause as Error & {status?:number}).status !== 409) throw cause;
           remote = await pull();
@@ -129,7 +132,12 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
           result = retryMerge.payload;
           if (!backupsEqual(result, retryLocal)) { ensureActive(); await restore(result); }
           if (!backupsEqual(result, remote.payload)) ensureActive();
-          revision = backupsEqual(result, remote.payload) ? remote.revision : await push(result, remote.revision);
+          if (!backupsEqual(result, remote.payload)) {
+            const retryOperationId = crypto.randomUUID();
+            await writeSyncMetadata(key(accountId), { accountId, revision: remote.revision, updatedAt: remote.updatedAt,
+              base: meta?.base ?? null, pending: true, operationId: retryOperationId } satisfies Meta);
+            revision = await push(result, remote.revision, retryOperationId);
+          } else revision = remote.revision;
         }
       }
       const updatedAt = new Date().toISOString();
@@ -166,7 +174,7 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
         const resolved = mergeBackups(meta.base, meta.conflictLocal, meta.conflictRemote, strategy);
         if (resolved.conflicts.length) throw new Error("Не удалось разрешить все конфликтующие поля.");
         ensureActive();
-        const revision = await push(resolved.payload, meta.revision);
+        const revision = await push(resolved.payload, meta.revision, crypto.randomUUID());
         ensureActive();
         await restore(resolved.payload);
         const updatedAt = new Date().toISOString();
