@@ -382,7 +382,8 @@ export async function exportBackup(): Promise<Blob> {
     exportedAt: new Date().toISOString(),
     records: encodedRecords,
   };
-  migrateBackup(payload);\n  const backup = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  migrateBackup(payload);
+  const backup = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   if (backup.size > MAX_BACKUP_BYTES) throw new Error("Резервная копия превышает максимальный размер 100 МБ.");
   return backup;
 }
