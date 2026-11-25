@@ -75,7 +75,7 @@ test("vaccination history remains isolated to the selected child profile", async
   expect(await page.getByRole("alert").allTextContents()).toEqual([]);
   const readPersistedDose = async () => page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("life-maps", 1);
+      const request = indexedDB.open("life-maps", 2);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });

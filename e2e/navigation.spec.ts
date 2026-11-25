@@ -607,7 +607,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(staleTab.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
   const staleRevision = await staleTab.evaluate(() => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
@@ -619,7 +619,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   // Merely opening a tab must not create a new revision by re-saving the
   // snapshot it just loaded.
   await expect.poll(async () => staleTab.evaluate(() => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
@@ -634,7 +634,7 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
   await expect(page.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect.poll(async () => page.evaluate(() => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
@@ -701,7 +701,7 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await expect(page.getByText("07.11.2026", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toHaveCount(0);
   const storedRevision = await page.evaluate(() => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
@@ -832,7 +832,7 @@ test("deleting a child profile removes its health records and keeps tombstone re
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
 
   const childId = await page.evaluate(() => new Promise<string>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
@@ -843,7 +843,7 @@ test("deleting a child profile removes its health records and keeps tombstone re
   }));
   const key = `childHealth:${childId}:labMeasurements`;
   const previousRevision = await page.evaluate(key => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
@@ -858,7 +858,7 @@ test("deleting a child profile removes its health records and keeps tombstone re
   await page.getByRole("button", { name: "Удалить профиль ребёнка Профиль для удаления" }).click();
   await expect(page.getByText("Профиль для удаления", { exact: true })).toHaveCount(0);
   await expect.poll(() => page.evaluate(key => new Promise<{ value: unknown; revision: number }>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");

@@ -264,7 +264,7 @@ export function DataManagementPanel({
         </p>
       ) : (
         <p role="status" aria-live="polite" className="pointer-events-none hidden max-w-72 rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow sm:block">
-          {storageReady ? (account ? syncState.detail : "Данные хранятся в локальном пространстве браузера.") : "Подключение локальной базы…"}
+          {storageReady ? (account ? syncState.detail : "Данные хранятся только в этом браузере.") : "Подключение локальной базы…"}
         </p>
       )}
     </section>

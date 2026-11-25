@@ -4,7 +4,7 @@ test("local backup round-trips child records and a binary attachment", async ({ 
   await page.goto("/");
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("life-maps", 1);
+      const request = indexedDB.open("life-maps", 2);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -38,7 +38,7 @@ test("local backup round-trips child records and a binary attachment", async ({ 
     await expect(restoredPage.locator("#backup-status")).toContainText("Данные восстановлены");
     const restored = await restoredPage.evaluate(async () => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("life-maps", 1);
+        const request = indexedDB.open("life-maps", 2);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });

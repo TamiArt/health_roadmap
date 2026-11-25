@@ -4,7 +4,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
   await page.goto("/");
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("life-maps", 1);
+      const request = indexedDB.open("life-maps", 2);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -64,7 +64,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
 
     const snapshot = await restoredPage.evaluate(async () => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("life-maps", 1);
+        const request = indexedDB.open("life-maps", 2);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
@@ -123,7 +123,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
     await expect(restoredPage.locator("#backup-status")).toContainText("Неизвестный тип данных");
     const preserved = await restoredPage.evaluate(async () => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("life-maps", 1);
+        const request = indexedDB.open("life-maps", 2);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
