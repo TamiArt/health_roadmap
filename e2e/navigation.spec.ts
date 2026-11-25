@@ -1140,7 +1140,7 @@ test("isolates every child-owned health record from other children and adult rec
   const values = await page.evaluate(async ids => {
     const { writeRecord, readRecord } = await import("/src/app/storage.ts");
     const childKeys = ["vaccineStatuses", "vaccineRecords", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
-    const adultKeys = ["vaccineStatuses", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
+    const adultKeys = ["vaccineStatuses", "vaccineRecords", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"];
     const marker = (name: string, key: string) => ({ owner: name, kind: key });
     for (const [name, id] of Object.entries(ids)) {
       for (const key of childKeys) {
