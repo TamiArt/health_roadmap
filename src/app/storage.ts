@@ -317,7 +317,7 @@ function validateRecordValue(key: string, value: unknown): void {
             typeof item.date !== "string" || !isValidBackupDate(item.date) ||
             typeof item.dose !== "string" || typeof item.facility !== "string" || typeof item.notes !== "string") return true;
         if (item.documents === undefined) return false;
-        return !Array.isArray(item.documents) || item.documents.some(document =>
+        return !Array.isArray(item.documents) || !hasUniqueIds(item.documents) || item.documents.some(document =>
           !isPlainRecord(document) || typeof document.id !== "string" || typeof document.name !== "string" ||
           typeof document.mimeType !== "string" || !isPlainRecord(document.blob) ||
           !((typeof Blob !== "undefined" && document.blob instanceof Blob) ||
