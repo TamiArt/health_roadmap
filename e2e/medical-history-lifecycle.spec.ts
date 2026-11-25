@@ -130,6 +130,8 @@ test("lab result entries support edit, multiple documents, replacement and delet
 
   await expect(resultsPanel.getByRole("link", { name: "first-report.pdf" })).toBeVisible();
   await expect(resultsPanel.getByRole("link", { name: "second-report.pdf" })).toBeVisible();
+  await expect(resultsPanel.locator("a").allTextContents()).resolves.toEqual(["first-report.pdf", "second-report.pdf"]);
+  await expect(resultsPanel.getByRole("link", { name: "first-report.pdf" })).toHaveAttribute("href", /^blob:/);
   await resultsPanel.getByRole("button", { name: "Изменить анализ Панель лабораторных показателей от 2026-11-21" }).click();
   await page.getByLabel("Название анализа").fill("Панель обновлена");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
