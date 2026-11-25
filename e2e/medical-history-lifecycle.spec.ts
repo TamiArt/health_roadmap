@@ -73,6 +73,28 @@ test("vaccination history remains isolated to the selected child profile", async
   await page.getByLabel("Доза вакцины").fill("Только профиль A");
   await page.getByRole("button", { name: "Сохранить запись" }).click();
   expect(await page.getByRole("alert").allTextContents()).toEqual([]);
+  const persistedDose = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("life-maps", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const store = db.transaction("app-records", "readonly").objectStore("app-records");
+    const children = await new Promise<any>((resolve, reject) => {
+      const request = store.get("children");
+      request.onsuccess = () => resolve(request.result?.value ?? []);
+      request.onerror = () => reject(request.error);
+    });
+    const child = children.find((item: any) => item.name === "Вакцинационный профиль A");
+    const records = await new Promise<any>((resolve, reject) => {
+      const request = store.get("childHealth:" + child.id + ":vaccineRecords");
+      request.onsuccess = () => resolve(request.result?.value ?? []);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return records[0]?.dose;
+  });
+  expect(persistedDose).toBe("Только профиль A");
   const vaccinePanel = page.locator('section[aria-label="История вакцинации"]:visible');
   await expect(vaccinePanel.getByText("Только профиль A", { exact: true })).toBeVisible();
 
