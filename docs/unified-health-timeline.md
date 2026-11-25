@@ -59,3 +59,7 @@
 ## Совместимость и сохранность
 
 Новые записи и миграции не создаются. Хронология строится из существующих ключей IndexedDB, поэтому backup schema не меняется, а исходные записи и вложения не копируются и не перезаписываются.
+
+## Приёмка
+
+Этап 3 завершён. Полный CI run [45625806624](https://github.com/TamiArt/health_roadmap/actions/runs/45625806624) на commit `c8304cb8d5f7aad2c2e892c8136701ca09d5ab3d`: 69 app unit-тестов, 14 server tests, 50/50 Playwright E2E, TypeScript, structure check, dependency audit и production build — success.
