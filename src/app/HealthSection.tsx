@@ -10,6 +10,7 @@ import { usePersistentState } from "./storage";
 import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
+import { VaccineHistoryPanel } from "./VaccineHistoryPanel";
 import { handleTabListKeyDown } from "./tabNavigation";
 
 // ─── Lab Tests Tab ────────────────────────────────────────────────────────────
@@ -251,11 +252,12 @@ const VACCINE_STATUS_CFG: Record<VaccineStatus, { label:string; bg:string; text:
 };
 
 export function VaccinesTab({
-  statuses, setStatuses, filterAge,
+  statuses, setStatuses, filterAge, recordsStorageKey,
 }: {
   statuses: Record<string, VaccineStatus>;
   setStatuses: (v: Record<string, VaccineStatus>) => void;
   filterAge?: number;
+  recordsStorageKey?: string;
 }) {
   const vaccines = filterAge !== undefined ? childAgeVaccines(filterAge) : VACCINES;
   const mandatory = vaccines.filter(v => v.mandatory);
@@ -308,6 +310,7 @@ export function VaccinesTab({
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Рекомендованные</p>
         <div className="space-y-2">{recommended.map(v=><VCard key={v.id} v={v}/>)}</div>
       </>}
+      <VaccineHistoryPanel vaccines={vaccines} storageKey={recordsStorageKey}/>
     </div>
   );
 }
