@@ -22,6 +22,8 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const replaceFileRef = useRef<HTMLInputElement>(null);
   const pendingReplaceId = useRef<{ resultId: string; documentId: string } | null>(null);
@@ -133,7 +135,7 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
       ...(result.document ? [result.document.name] : []),
     ].some(value => value.toLocaleLowerCase("ru").includes(normalized)))
       .sort((a, b) => b.date.localeCompare(a.date) || a.testName.localeCompare(b.testName, "ru"));
-  }, [results, query]);
+  }, [results, query, fromDate, toDate]);
 
   if (!ready) return <p className="text-sm text-muted-foreground">Загрузка истории анализов…</p>;
   if (error) return <p role="alert" className="text-sm text-red-600">{error}</p>;
@@ -155,7 +157,7 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
       {formError && <p role="alert" className="text-xs text-red-600">{formError}</p>}
       <div className="flex justify-end gap-2"><button type="button" onClick={() => { resetForm(); setEditing(false); }} className="rounded-lg border px-3 py-1.5 text-xs">Отмена</button><button type="button" onClick={save} className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground">{editingId ? "Сохранить изменения" : "Сохранить анализ"}</button></div>
     </div>}
-    <label className="block text-xs text-muted-foreground">Поиск по анализам, показателям и документам<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Название, показатель, значение, файл" className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground"/></label>
+    <div className="space-y-2"><label className="block text-xs text-muted-foreground">Поиск по анализам, показателям и документам<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Название, показатель, значение, единица, референс, файл" className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground"/></label><div className="grid grid-cols-2 gap-2"><label className="text-xs text-muted-foreground">С даты<input aria-label="Искать анализы с даты" type="date" value={fromDate} max={toDate || undefined} onChange={event => setFromDate(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-card px-2 py-2 text-xs text-foreground"/></label><label className="text-xs text-muted-foreground">По дату<input aria-label="Искать анализы по дату" type="date" value={toDate} min={fromDate || undefined} onChange={event => setToDate(event.target.value)} className="mt-1 w-full rounded-lg border border-border bg-card px-2 py-2 text-xs text-foreground"/></label></div></div>
     {visibleResults.length === 0 ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">{results.length ? "По запросу анализов нет." : "История пока пуста. Добавьте анализ и внесите все его показатели."}</div> : <div className="space-y-3">{visibleResults.map(result => <article key={result.id} id={`medical-source-tests-${result.id}`} className="rounded-xl border bg-card p-4">
       <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold">{result.testName}</h3><p className="mt-1 text-xs text-muted-foreground">{result.date}</p></div><div className="flex gap-1"><button type="button" aria-label={`Изменить анализ ${result.testName} от ${result.date}`} onClick={() => startEdit(result)} className="p-1 text-muted-foreground hover:text-primary"><Pencil size={14}/></button><button type="button" aria-label={`Удалить анализ ${result.testName} от ${result.date}`} onClick={() => { if (window.confirm("Удалить всю запись анализа вместе с показателями и документом?")) setResults(previous => previous.filter(item => item.id !== result.id)); }} className="p-1 text-muted-foreground hover:text-red-600"><Trash2 size={14}/></button></div></div>
       <div className="mt-3 divide-y divide-border/70">{result.indicators.map(indicator => <div key={indicator.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2"><span className="text-xs text-muted-foreground">{indicator.name}{indicator.referenceRange ? ` · референс: ${indicator.referenceRange}` : ""}</span><strong className="text-sm tabular-nums">{indicator.value} <span className="text-xs font-normal text-muted-foreground">{indicator.unit}</span></strong></div>)}</div>
