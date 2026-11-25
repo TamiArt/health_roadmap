@@ -39,6 +39,13 @@ function validateRecord(key, value) {
   const baseKey = key.startsWith("childHealth:") ? key.slice(key.lastIndexOf(":") + 1) : key;
   if (ARRAY_KEYS.has(baseKey)) {
     if (!Array.isArray(value) || value.some(item => !isRecord(item) || typeof item.id !== "string")) return false;
+    if (baseKey === "vaccineRecords") return value.every(record =>
+      typeof record.vaccineId === "string" && typeof record.vaccineName === "string" &&
+      validDate(record.date) && typeof record.dose === "string" &&
+      typeof record.facility === "string" && typeof record.notes === "string" &&
+      (record.documents === undefined || (Array.isArray(record.documents) && record.documents.every(document =>
+        isRecord(document) && typeof document.id === "string" && typeof document.name === "string" &&
+        typeof document.mimeType === "string" && isEncodedBlob(document.blob))));
     if (baseKey === "healthMonitoring") return value.every(item => {
       const readings = item.measurements ?? [];
       return Array.isArray(readings) && readings.every(reading => isRecord(reading) &&
@@ -48,13 +55,6 @@ function validateRecord(key, value) {
     });
     return true;
   }
-  if (baseKey === "vaccineRecords") return Array.isArray(value) && value.every(record =>
-    isRecord(record) && typeof record.id === "string" && typeof record.vaccineId === "string" &&
-    typeof record.vaccineName === "string" && validDate(record.date) && typeof record.dose === "string" &&
-    typeof record.facility === "string" && typeof record.notes === "string" &&
-    (record.documents === undefined || (Array.isArray(record.documents) && record.documents.every(document =>
-      isRecord(document) && typeof document.id === "string" && typeof document.name === "string" &&
-      typeof document.mimeType === "string" && isEncodedBlob(document.blob)))));
   if (baseKey === "labResultEntries") return Array.isArray(value) && value.every(entry =>
     isRecord(entry) && typeof entry.id === "string" && typeof entry.testName === "string" &&
     validDate(entry.date) && Array.isArray(entry.indicators) && entry.indicators.length > 0 &&
@@ -62,7 +62,10 @@ function validateRecord(key, value) {
       typeof item.name === "string" && typeof item.value === "number" &&
       Number.isFinite(item.value) && typeof item.unit === "string") &&
     (entry.document === undefined || (isRecord(entry.document) && typeof entry.document.id === "string" &&
-      typeof entry.document.name === "string" && isEncodedBlob(entry.document.blob))));
+      typeof entry.document.name === "string" && typeof entry.document.mimeType === "string" && isEncodedBlob(entry.document.blob))) &&
+    (entry.documents === undefined || (Array.isArray(entry.documents) && entry.documents.every(document =>
+      isRecord(document) && typeof document.id === "string" && typeof document.name === "string" &&
+      typeof document.mimeType === "string" && isEncodedBlob(document.blob))));
   if (!isRecord(value)) return false;
   if (baseKey === "labMeasurements") return Object.values(value).every(items =>
     Array.isArray(items) && items.every(item => isRecord(item) && typeof item.id === "string" &&
