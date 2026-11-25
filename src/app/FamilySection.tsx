@@ -288,7 +288,7 @@ export function FamilySection() {
       ))}
     </div>
     {viewingChild && children.some(child => child.id === viewingChild.id) && (
-      <ChildHealthView child={viewingChild} initialSource={pendingChildSource?.childId === viewingChild.id ? pendingChildSource : null} onBack={() => { setViewingChild(null); setPendingChildSource(null); }}/>
+      <ChildHealthView key={viewingChild.id} child={viewingChild} initialSource={pendingChildSource?.childId === viewingChild.id ? pendingChildSource : null} onBack={() => { setViewingChild(null); setPendingChildSource(null); }}/>
     )}
     </>
   );
