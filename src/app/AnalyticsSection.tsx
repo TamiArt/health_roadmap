@@ -91,7 +91,7 @@ export function AnalyticsSection({ children, onNavigate, onOpenSource }: { child
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const selectedChild = children.find(child => child.id === selectedChildId);
   const activeChildId = selectedChild?.id ?? null;
-  return <div className="mx-auto w-full max-w-5xl p-5 sm:p-8">
+  return <div className="mx-auto min-w-0 w-full max-w-5xl overflow-x-hidden p-4 sm:p-8">
     <h1 className="mb-1 text-2xl font-bold text-foreground" style={{fontFamily:"'Playfair Display', serif"}}>Аналитика здоровья</h1>
     <p className="mb-5 text-sm text-muted-foreground">Графики и сравнение сохранённых медицинских показателей во времени</p>
     <div className="mb-5 flex flex-wrap gap-2" aria-label="Выбор профиля для аналитики">
