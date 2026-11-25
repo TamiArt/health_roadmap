@@ -2,7 +2,7 @@ import { clearStorageWorkspace, exportBackup, getStorageScope, importBackup, rea
 import { backupsEqual, isPristineBackup, mergeBackups } from "./syncMerge";
 export type SyncStatus = "syncing" | "synced" | "offline" | "conflict" | "error";
 export type SyncView = { status: SyncStatus; updatedAt: string | null; pending: boolean; detail: string };
-type Meta = { accountId: string; revision: number | null; updatedAt: string | null; base: BackupPayload | null; pending: boolean; conflicts?: string[] };
+type Meta = { accountId: string; revision: number | null; updatedAt: string | null; base: BackupPayload | null; pending: boolean; conflicts?: string[]; conflictLocal?: BackupPayload; conflictRemote?: BackupPayload };
 type Remote = { payload: BackupPayload | null; revision: number | null; updatedAt: string | null };
 const key = (id: string) => `sync:${id}`;
 async function errorFor(response: Response): Promise<Error & { status: number }> {
@@ -64,7 +64,7 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
   const savePending = async () => {
     const old = await readSyncMetadata<Meta>(key(accountId));
     await writeSyncMetadata(key(accountId), { accountId, revision: old?.revision ?? null,
-      updatedAt: old?.updatedAt ?? null, base: old?.base ?? null, pending: true } satisfies Meta);
+      updatedAt: old?.updatedAt ?? null, base: old?.base ?? null, pending: true, conflicts: old?.conflicts, conflictLocal: old?.conflictLocal, conflictRemote: old?.conflictRemote } satisfies Meta);
   };
   const schedule = () => {
     if (debounce) clearTimeout(debounce);
@@ -97,7 +97,7 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
         if (combined.conflicts.length) {
           await writeSyncMetadata(key(accountId), { accountId, revision: remote.revision,
             updatedAt: remote.updatedAt, base: meta?.base ?? null, pending: true,
-            conflicts: combined.conflicts.slice(0, 30) } satisfies Meta);
+            conflicts: combined.conflicts.slice(0, 30), conflictLocal: localData, conflictRemote: remote.payload } satisfies Meta);
           emit("conflict", true, `Конфликт одновременных изменений: ${combined.conflicts.slice(0, 3).join(", ")}. Данные не перезаписаны.`, remote.updatedAt);
           return;
         }
@@ -122,7 +122,7 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
           if (retryMerge.conflicts.length) {
             await writeSyncMetadata(key(accountId), { accountId, revision: remote.revision,
               updatedAt: remote.updatedAt, base: meta?.base ?? null, pending: true,
-              conflicts: retryMerge.conflicts.slice(0, 30) } satisfies Meta);
+              conflicts: retryMerge.conflicts.slice(0, 30), conflictLocal: retryLocal, conflictRemote: remote.payload } satisfies Meta);
             emit("conflict", true, "Другое устройство изменило те же записи. Автоматическая перезапись остановлена.", remote.updatedAt);
             return;
           }
@@ -154,6 +154,29 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
   void run();
   return {
     retry: () => { if (retry) clearTimeout(retry); void run(); },
+    resolveConflict: async (strategy: "local" | "remote") => {
+      ensureActive();
+      if (!navigator.onLine) { emit("offline", true, "Для разрешения конфликта необходимо подключение к интернету."); return; }
+      const meta = await readSyncMetadata<Meta>(key(accountId));
+      if (!meta?.conflictLocal || !meta.conflictRemote || meta.revision === null) {
+        emit("error", true, "Сохранённые данные конфликта не найдены. Повторите синхронизацию.");
+        return;
+      }
+      try {
+        const resolved = mergeBackups(meta.base, meta.conflictLocal, meta.conflictRemote, strategy);
+        if (resolved.conflicts.length) throw new Error("Не удалось разрешить все конфликтующие поля.");
+        ensureActive();
+        const revision = await push(resolved.payload, meta.revision);
+        ensureActive();
+        await restore(resolved.payload);
+        const updatedAt = new Date().toISOString();
+        await writeSyncMetadata(key(accountId), { accountId, revision, updatedAt, base: resolved.payload, pending: false } satisfies Meta);
+        emit("synced", false, strategy === "local" ? "Конфликт разрешён: выбраны изменения этого устройства; остальные независимые изменения сохранены." :
+          "Конфликт разрешён: выбраны серверные значения; остальные независимые изменения сохранены.", updatedAt);
+      } catch (cause) {
+        emit("error", true, cause instanceof Error ? cause.message : "Не удалось разрешить конфликт.");
+      }
+    },
     stop: () => { stopped = true; if (debounce) clearTimeout(debounce); if (retry) clearTimeout(retry);
       if (poll) clearInterval(poll); channel?.removeEventListener("message", changed); channel?.close();
       window.removeEventListener("online", online); window.removeEventListener("offline", offline); },
