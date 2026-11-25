@@ -32,7 +32,7 @@ describe("unified medical history", () => {
   it("filters by category, date range and searchable details", () => {
     expect(filterMedicalHistory(entries, { query: "гемоглобин", kind: "analysis", fromDate: "", toDate: "", sort: "newest" })).toHaveLength(1);
     expect(filterMedicalHistory(entries, { query: "", kind: "event", fromDate: "2026-02-01", toDate: "", sort: "newest" })).toHaveLength(0);
-    expect(filterMedicalHistory(entries, { query: "пломба", kind: "all", fromDate: "", toDate: "", sort: "newest" })).toHaveLength(1);
+    expect(filterMedicalHistory(entries, { query: "пломба", kind: "all", fromDate: "", toDate: "", sort: "newest" })).toHaveLength(1);\n    expect(filterMedicalHistory(entries, { query: "analysis.pdf", kind: "document", fromDate: "", toDate: "", sort: "newest" })).toHaveLength(1);
   });
 
   it("supports oldest-first sorting without mutating source entries", () => {
