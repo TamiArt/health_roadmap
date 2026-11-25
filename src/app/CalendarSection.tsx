@@ -49,7 +49,7 @@ function ChildCalendarSource({ child, onData }: { child: Child; onData: (id: str
   return null;
 }
 
-export function CalendarSection() {
+export function CalendarSection({ onOpenHistory }: { onOpenHistory?: () => void }) {
   const [healthEvents] = usePersistentState<HealthEvent[]>("healthEvents", []);
   const [monitoring] = usePersistentState<HealthMonitoringItem[]>("healthMonitoring", []);
   const [labResults] = usePersistentState<LabResultEntry[]>("labResultEntries", []);
@@ -201,8 +201,8 @@ export function CalendarSection() {
             {children.map(child => <option key={child.id} value={child.id}>{child.name}</option>)}
           </select>
         </label>
-        {selectedProfile === "adult" ? <CalendarEventManager key="adult-calendar" /> :
-          activeChild ? <CalendarEventManager key={activeChild.id} storagePrefix={`childHealth:${activeChild.id}:`} profileLabel={activeChild.name} /> : null}
+        {selectedProfile === "adult" ? <CalendarEventManager key="adult-calendar" onOpenHistory={onOpenHistory} /> :
+          activeChild ? <CalendarEventManager key={activeChild.id} storagePrefix={`childHealth:${activeChild.id}:`} profileLabel={activeChild.name} onOpenHistory={onOpenHistory} /> : null}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
