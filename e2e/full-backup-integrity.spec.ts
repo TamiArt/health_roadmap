@@ -81,7 +81,8 @@ test("complete local backup round-trip preserves adult, family, child and file d
       const childFiles = ["child-1", "child-2"].map(id => {
         const upload = map.get("childHealth:" + id + ":labUploads").cbc[0].blob as Blob;
         const document = map.get("childHealth:" + id + ":labResultEntries")[0].document.blob as Blob;
-        return { upload: upload.text(), document: document.text() };
+        const extraDocument = map.get("childHealth:" + id + ":labResultEntries")[0].documents[0].blob as Blob;
+        return { upload: upload.text(), document: document.text(), extraDocument: extraDocument.text() };
       });
       return {
         keys: values.length,
