@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X } from "lucide-react";
+import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X, Trash2 } from "lucide-react";
 import { HEALTH_ROADMAP, VACCINES } from "./healthData";
 import { getLabStages } from "./labCatalog";
 import type { LifeStage } from "./labCatalog";
@@ -348,6 +348,7 @@ export function DentalTab({
   const pick = (n: number) => { setSelected(n); setNote(data[n]?.note??""); };
   const setStatus = (n: number, s: ToothStatus) => onChange({ ...data, [n]:{ status:s, note:data[n]?.note??"" } });
   const saveNote = () => { if (!selected) return; onChange({ ...data, [selected]:{ status:data[selected]?.status??"healthy", note } }); };
+  const removeToothRecord = () => { if (!selected || !data[selected]) return; if (!window.confirm(`Удалить всю запись о зубе ${selected}?`)) return; const next = { ...data }; delete next[selected]; onChange(next); setNote(""); };
 
   function ToothCell({ n, upper }: { n:number; upper:boolean }) {
     const t=data[n]; const cfg=t?TOOTH_STATUS_CFG[t.status]:null; const isSel=selected===n;
@@ -399,9 +400,10 @@ export function DentalTab({
               return <button key={s} type="button" aria-pressed={selData?.status===s} onClick={() => setStatus(selected,s)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${selData?.status===s?`${c.bg} ${c.text}`:"bg-muted text-muted-foreground hover:bg-muted/80"}`}>{c.label}</button>;
             })}
           </div>
-          <textarea value={note} onChange={e=>setNote(e.target.value)} onBlur={saveNote} placeholder="Заметки: дата, врач, жалобы..." rows={2}
+          <textarea aria-label="Заметки о зубе" maxLength={1000} value={note} onChange={e=>setNote(e.target.value)} onBlur={saveNote} placeholder="Заметки: дата, врач, жалобы..." rows={2}
             className="w-full text-xs p-3 rounded-lg border border-border bg-muted/30 text-foreground resize-none focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/60"
           />
+          {data[selected] && <button type="button" onClick={removeToothRecord} className="mt-2 inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50"><Trash2 size={12}/> Удалить запись о зубе</button>}
         </div>
       ) : (
         <div className="text-center text-xs text-muted-foreground py-5 bg-card border border-dashed border-border rounded-xl">
