@@ -3,7 +3,7 @@ import {
   isIsoDate,
   nextOccurrence,
   validateHealthEvent,
-  validateLabResult,
+  validateLabResult,\n  validateVaccineAdministration,\n  validateMonitoringReading,
   validateMonitoringItem,
 } from "./healthRecords";
 
@@ -74,3 +74,16 @@ describe("yearly reminder occurrence", () => {
     expect(nextOccurrence("2020-05-10", false, new Date(2025, 5, 1))).toBeNull();
   });
 });
+  it("validates dated vaccine administrations and required dose details", () => {
+    const valid = { vaccineId: "mmr", vaccineName: "MMR", date: "2026-04-12", dose: "1", facility: "", notes: "" };
+    expect(validateVaccineAdministration(valid)).toBeNull();
+    expect(validateVaccineAdministration({ ...valid, date: "2026-02-30" })).toContain("дату");
+    expect(validateVaccineAdministration({ ...valid, dose: " " })).toContain("дозу");
+  });
+
+  it("validates manual monitoring readings without accepting invalid dates or non-finite values", () => {
+    expect(validateMonitoringReading({ date: "2026-04-12", value: "5.2" })).toBeNull();
+    expect(validateMonitoringReading({ date: "2026-02-30", value: "5.2" })).toContain("дату");
+    expect(validateMonitoringReading({ date: "2026-04-12", value: "Infinity" })).toContain("числовое");
+  });
+
