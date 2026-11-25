@@ -862,7 +862,7 @@ test("deleting a child profile removes its health records and keeps tombstone re
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get(key);
+      const read = transaction.objectStore("app-records").get("guest::" + key);
       read.onsuccess = () => resolve({ value: read.result.value, revision: read.result.revision });
       read.onerror = () => reject(read.error);
     };
