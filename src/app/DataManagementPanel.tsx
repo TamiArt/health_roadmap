@@ -34,6 +34,7 @@ export function DataManagementPanel({
   const [syncState, setSyncState] = useState<SyncView>({ status: "syncing", updatedAt: null, pending: false, detail: "Ожидание подключения аккаунта…" });
   const [workspaceConflicts, setWorkspaceConflicts] = useState<string[]>([]);
   const retrySync = useRef<(() => void) | null>(null);
+  const resolveSync = useRef<((strategy: "local" | "remote") => Promise<void>) | null>(null);
   const [accountExpanded, setAccountExpanded] = useState(false);
   const [serverAvailable, setServerAvailable] = useState(true);
 
@@ -68,9 +69,11 @@ export function DataManagementPanel({
     if (!account || !storageReady || storageError || workspaceConflicts.length) return;
     const controller = startAccountSync(account.id, setSyncState);
     retrySync.current = controller.retry;
+    resolveSync.current = controller.resolveConflict;
     return () => {
       controller.stop();
       retrySync.current = null;
+      resolveSync.current = null;
     };
   }, [account?.id, storageReady, storageError, workspaceConflicts.length]);
 
@@ -217,6 +220,29 @@ export function DataManagementPanel({
                     {syncState.pending && <p className="mt-1">Есть изменения, ожидающие отправки.</p>}
                     {workspaceConflicts.length > 0 && <p className="mt-1">Не объединены записи: {workspaceConflicts.slice(0, 3).join(", ")}</p>}
                   </div>
+                  {syncState.status === "conflict" && (
+                    <div className="space-y-2">
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        Выберите, какие значения оставить в конфликтующих полях. Независимые изменения обоих устройств сохраняются.
+                      </p>
+                      <button type="button" onClick={() => {
+                        if (window.confirm("Для конфликтующих полей будут выбраны значения этого устройства. Продолжить?")) {
+                          void resolveSync.current?.("local");
+                        }
+                      }} disabled={busy || !navigator.onLine}
+                        className="flex min-h-10 w-full items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50">
+                        Оставить изменения этого устройства
+                      </button>
+                      <button type="button" onClick={() => {
+                        if (window.confirm("Для конфликтующих полей будут выбраны серверные значения. Продолжить?")) {
+                          void resolveSync.current?.("remote");
+                        }
+                      }} disabled={busy || !navigator.onLine}
+                        className="flex min-h-10 w-full items-center justify-center rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50">
+                        Использовать серверные значения
+                      </button>
+                    </div>
+                  )}
                   <button type="button" onClick={() => retrySync.current?.()} disabled={busy || !storageReady || !!storageError || workspaceConflicts.length > 0}
                     className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50">
                     <RefreshCw size={13} /> Синхронизировать сейчас
