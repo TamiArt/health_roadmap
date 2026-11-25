@@ -34,7 +34,9 @@ function DateInput({ value, onChange, ariaLabel = "Дата" }: { value: string;
 
 export function HealthEventsTab({ storageKey = "healthEvents" }: { storageKey?: string }) {
   const [events, setEvents, ready, error, conflict] = usePersistentState<HealthEvent[]>(storageKey, []);
-  const [editing, setEditing] = useState(false);\n  const [editingId, setEditingId] = useState<string | null>(null);\n  const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [form, setForm] = useState({ date: today(), kind: "other" as HealthEventKind, title: "", description: "", facility: "" });
   const [formError, setFormError] = useState<string | null>(null);
 
