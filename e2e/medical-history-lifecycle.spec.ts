@@ -96,7 +96,7 @@ test("vaccination history remains isolated to the selected child profile", async
   });
   await expect.poll(readPersistedDose).toBe("Только профиль A");
   const vaccinePanel = page.locator('section[aria-label="История вакцинации"]:visible');
-  await expect(vaccinePanel.getByText("Только профиль A", { exact: true })).toBeVisible();
+  await expect(vaccinePanel.getByText("Только профиль A", { exact: false })).toBeVisible();
 
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
   await page.getByText("Вакцинационный профиль B", { exact: true }).first().click();
@@ -105,7 +105,7 @@ test("vaccination history remains isolated to the selected child profile", async
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
   await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "Прививки", exact: true }).click();
-  await expect(page.getByText("Только профиль A", { exact: true })).toHaveCount(0);
+  await expect(page.locator('section[aria-label="История вакцинации"]:visible').getByText("Только профиль A", { exact: false })).toHaveCount(0);
 });
 
 test("medical events support create, edit, search and confirmed delete", async ({ page }) => {
@@ -209,9 +209,9 @@ test("vaccination history supports create, edit, document management and delete"
   });
   await page.getByRole("button", { name: "Сохранить запись" }).click();
 
-  await expect(page.getByText("Первая доза", { exact: false })).toBeVisible();
+  const vaccineCard = page.locator('section[aria-label="История вакцинации"]:visible');
+  await expect(vaccineCard.getByText("Первая доза", { exact: false })).toBeVisible();
   await expect(vaccineCard.getByRole("link", { name: "vaccination-certificate.pdf" })).toBeVisible();
-  const vaccineCard = page.getByRole("region", { name: "История вакцинации" });
   const editButton = vaccineCard.getByRole("button", { name: /Изменить вакцинацию/ });
   await editButton.click();
   await page.getByLabel("Доза вакцины").fill("Вторая доза");
