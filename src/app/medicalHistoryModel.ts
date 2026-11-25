@@ -113,45 +113,45 @@ export function buildMedicalHistory(input: MedicalHistoryInput): MedicalHistoryE
   };
   for (const [testId, records] of Object.entries(input.measurements)) for (const record of records) {
     const title = tests.get(testId) ?? testId;
-    add({ id: `manual:${testId}:${record.id}`, source: { key: `${input.profileId}labMeasurements`, recordId: record.id, section: "tests" },
+    add({ id: `manual:${testId}:${record.id}`, source: { key: `${input.storagePrefix ?? ""}labMeasurements`, recordId: record.id, section: "tests" },
       kind: "manual", ...parseHistoryDate(record.date), title, details: [record.value, record.unit].filter(Boolean).join(" "),
       searchable: [testId, title, record.value, record.unit].filter(Boolean).join(" ") });
   }
   for (const [testId, files] of Object.entries(input.uploads)) for (const file of files) {
     const parsed = parseHistoryDate(file.date);
     const title = tests.get(testId) ?? testId;
-    add({ id: `document:${testId}:${file.id}`, source: { key: `${input.profileId}labUploads`, recordId: file.id, section: "tests" },
+    add({ id: `document:${testId}:${file.id}`, source: { key: `${input.storagePrefix ?? ""}labUploads`, recordId: file.id, section: "tests" },
       kind: "document", ...parsed, title, details: file.name, searchable: [testId, title, file.name].join(" ") });
   }
   for (const result of input.labResults) {
     const indicatorDetails = result.indicators.map(indicator =>
       `${indicator.name}: ${indicator.value} ${indicator.unit}${indicator.referenceRange ? ` · референс: ${indicator.referenceRange}` : ""}`);
     const documents = [...(result.documents ?? []), ...(result.document ? [result.document] : [])];
-    add({ id: `analysis:${result.id}`, source: { key: `${input.profileId}labResultEntries`, recordId: result.id, section: "tests" },
+    add({ id: `analysis:${result.id}`, source: { key: `${input.storagePrefix ?? ""}labResultEntries`, recordId: result.id, section: "tests" },
       kind: "analysis", ...parseHistoryDate(result.date), title: result.testName,
       details: [...indicatorDetails, result.notes, documents.length ? `Вложений: ${documents.length}` : ""].filter(Boolean).join(" · "),
       searchable: [result.testName, result.notes, ...indicatorDetails, ...documents.map(document => document.name)].filter(Boolean).join(" ") });
   }
   for (const event of input.events) add({
-    id: `event:${event.id}`, source: { key: `${input.profileId}healthEvents`, recordId: event.id, section: "events" },
+    id: `event:${event.id}`, source: { key: `${input.storagePrefix ?? ""}healthEvents`, recordId: event.id, section: "events" },
     kind: "event", ...parseHistoryDate(event.date), title: event.title,
     details: [event.kind, event.facility, event.description].filter(Boolean).join(" · "),
     searchable: [event.title, event.kind, event.facility, event.description].filter(Boolean).join(" "),
   });
   for (const vaccine of input.vaccines) add({
-    id: `vaccine:${vaccine.id}`, source: { key: `${input.profileId}vaccineRecords`, recordId: vaccine.id, section: "vaccines" },
+    id: `vaccine:${vaccine.id}`, source: { key: input.vaccineRecordsStorageKey ?? `${input.storagePrefix ?? ""}vaccineRecords`, recordId: vaccine.id, section: "vaccines" },
     kind: "vaccine", ...parseHistoryDate(vaccine.date), title: vaccine.vaccineName,
     details: [vaccine.dose, vaccine.facility, vaccine.notes, vaccine.documents?.length ? `Документов: ${vaccine.documents.length}` : ""].filter(Boolean).join(" · "),
     searchable: [vaccine.vaccineName, vaccine.vaccineId, vaccine.dose, vaccine.facility, vaccine.notes, ...(vaccine.documents ?? []).map(document => document.name)].filter(Boolean).join(" "),
   });
   for (const [tooth, record] of Object.entries(input.dental)) add({
-    id: `dental:${tooth}`, source: { key: `${input.profileId}toothData`, recordId: tooth, section: "dental" },
+    id: `dental:${tooth}`, source: { key: input.dentalStorageKey ?? (input.storagePrefix ? `${input.storagePrefix}toothData` : "adultToothData"), recordId: tooth, section: "dental" },
     kind: "dental", ...parseHistoryDate(null), title: `Зуб ${tooth}`,
     details: [DENTAL_STATUS[record.status], record.note].filter(Boolean).join(" · "),
     searchable: [tooth, DENTAL_STATUS[record.status], record.note].filter(Boolean).join(" "),
   });
   for (const item of input.monitoring) for (const reading of item.measurements ?? []) add({
-    id: `monitoring:${item.id}:${reading.id}`, source: { key: `${input.profileId}healthMonitoring`, recordId: item.id, section: "monitoring" },
+    id: `monitoring:${item.id}:${reading.id}`, source: { key: `${input.storagePrefix ?? ""}healthMonitoring`, recordId: item.id, section: "monitoring" },
     kind: "monitoring", ...parseHistoryDate(reading.date), title: item.name,
     details: `${reading.value} ${reading.unit || item.unit}`.trim(),
     searchable: [item.name, item.notes, reading.value, reading.unit, item.unit].filter(Boolean).join(" "),
