@@ -102,7 +102,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
         attachments: await adultFile.text() === "adult-file" &&
           await adultDocument.text() === "adult-document" &&
           await adultExtraDocument.text() === "adult-extra-document" &&
-          await Promise.all(childFiles.map(async item => [await item.upload, await item.document])).then(items =>
+          await Promise.all(childFiles.map(async item => [await item.upload, await item.document, await item.extraDocument])).then(items =>
             items.flat().join("|") === "child-1-file|child-1-document|child-1-extra-document|child-2-file|child-2-document|child-2-extra-document"),
       };
     });
