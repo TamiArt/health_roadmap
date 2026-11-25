@@ -114,7 +114,7 @@ test("lab result entries support edit, multiple documents, replacement and delet
   await page.goto("/");
   await page.getByRole("button", { name: "Здоровье", exact: true }).click();
   await page.getByRole("tab", { name: "История", exact: true }).click();
-  await page.getByRole("button", { name: "Добавить анализ" }).click();
+  const resultsPanel = page.getByRole("region", { name: "Подробные результаты анализов" });\n  await page.getByRole("button", { name: "Добавить анализ" }).click();
 
   await page.getByLabel("Название анализа").fill("Панель лабораторных показателей");
   await page.getByLabel("Дата анализа").fill("2026-11-21");
@@ -127,29 +127,29 @@ test("lab result entries support edit, multiple documents, replacement and delet
   ]);
   await page.getByRole("button", { name: "Сохранить анализ" }).click();
 
-  await expect(page.getByRole("link", { name: "first-report.pdf" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "second-report.pdf" })).toBeVisible();
-  await page.getByRole("button", { name: "Изменить анализ Панель лабораторных показателей от 2026-11-21" }).click();
+  await expect(resultsPanel.getByRole("link", { name: "first-report.pdf" })).toBeVisible();
+  await expect(resultsPanel.getByRole("link", { name: "second-report.pdf" })).toBeVisible();
+  await resultsPanel.getByRole("button", { name: "Изменить анализ Панель лабораторных показателей от 2026-11-21" }).click();
   await page.getByLabel("Название анализа").fill("Панель обновлена");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
-  await expect(page.getByText("Панель обновлена", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "first-report.pdf" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "second-report.pdf" })).toBeVisible();
+  await expect(resultsPanel.getByText("Панель обновлена", { exact: true })).toBeVisible();
+  await expect(resultsPanel.getByRole("link", { name: "first-report.pdf" })).toBeVisible();
+  await expect(resultsPanel.getByRole("link", { name: "second-report.pdf" })).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Заменить документ first-report.pdf" }).click();
-  await page.locator('input[aria-label="Выбрать документ для замены"]').setInputFiles({
+  await resultsPanel.getByRole("button", { name: "Заменить документ first-report.pdf" }).click();
+  await resultsPanel.locator('input[aria-label="Выбрать документ для замены"]').setInputFiles({
     name: "replacement-report.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 replacement"),
   });
-  await expect(page.getByRole("link", { name: "replacement-report.pdf" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "first-report.pdf" })).toHaveCount(0);
+  await expect(resultsPanel.getByRole("link", { name: "replacement-report.pdf" })).toBeVisible();
+  await expect(resultsPanel.getByRole("link", { name: "first-report.pdf" })).toHaveCount(0);
 
   page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Удалить документ second-report.pdf" }).click();
-  await expect(page.getByRole("link", { name: "second-report.pdf" })).toHaveCount(0);
+  await resultsPanel.getByRole("button", { name: "Удалить документ second-report.pdf" }).click();
+  await expect(resultsPanel.getByRole("link", { name: "second-report.pdf" })).toHaveCount(0);
   page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Удалить анализ Панель обновлена от 2026-11-21" }).click();
-  await expect(page.getByText("Панель обновлена", { exact: true })).toHaveCount(0);
+  await resultsPanel.getByRole("button", { name: "Удалить анализ Панель обновлена от 2026-11-21" }).click();
+  await expect(resultsPanel.getByText("Панель обновлена", { exact: true })).toHaveCount(0);
 });
 
 test("vaccination history supports create, edit, document management and delete", async ({ page }) => {
