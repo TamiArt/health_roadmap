@@ -104,7 +104,7 @@ test("medical events support create, edit, search and confirmed delete", async (
 
   await expect(page.getByText("Операция обновлена", { exact: true }).first()).toBeVisible();
   await page.getByPlaceholder("Название, тип, клиника, описание").fill("тестовая клиника");
-  await expect(page.getByText("Операция обновлена", { exact: true })).toBeVisible();
+  await expect(page.getByText("Операция обновлена", { exact: true }).first()).toBeVisible();
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Удалить событие Операция обновлена" }).click();
   await expect(page.getByText("Операция обновлена", { exact: true })).toHaveCount(0);
