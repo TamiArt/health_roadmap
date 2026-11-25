@@ -892,6 +892,7 @@ test("keeps primary sections within extra-narrow mobile viewports", async ({ pag
 test("provides a keyboard skip link to the main content", async ({ page }) => {
   await page.goto("/");
   const skipLink = page.getByRole("link", { name: "Перейти к основному содержимому" });
+  await expect(skipLink).toBeVisible();
 
   await page.keyboard.press("Tab");
   await expect(skipLink).toBeFocused();
