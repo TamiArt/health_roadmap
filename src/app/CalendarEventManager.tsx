@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Bell, BellRing, CalendarPlus, Link2, Pencil, Trash2 } from "lucide-react";
+import { Bell, CalendarPlus, Link2, Pencil, Trash2 } from "lucide-react";
 import { usePersistentState } from "./storage";
 import { CALENDAR_EVENT_STATUSES, CALENDAR_EVENT_TYPES, createCalendarEvent, sortCalendarEvents, validateCalendarEvent, type CalendarEventStatus, type CalendarEventType, type CalendarLinkType, type CalendarPlanEvent } from "./calendarModel";
 import type { HealthEvent, HealthMonitoringItem, LabResultEntry, VaccineAdministration } from "./healthRecords";
