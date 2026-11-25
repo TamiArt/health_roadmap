@@ -56,6 +56,9 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
   let debounce: ReturnType<typeof setTimeout> | undefined, retry: ReturnType<typeof setTimeout> | undefined;
   let poll: ReturnType<typeof setInterval> | undefined;
   const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("life-maps:records") : undefined;
+  const ensureActive = () => {
+    if (stopped || getStorageScope() !== accountId) throw new Error("Локальное пространство аккаунта изменилось; синхронизация остановлена.");
+  };
   const emit = (status: SyncStatus, pending: boolean, detail: string, updatedAt: string | null = null) =>
     notify({ status, pending, detail, updatedAt });
   const savePending = async () => {
@@ -68,22 +71,26 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
     debounce = setTimeout(() => void run(), 600);
   };
   const run = async () => {
-    if (stopped) return;
+    if (stopped || getStorageScope() !== accountId) return;
     if (running) { queued = true; return; }
     if (!navigator.onLine) { await savePending(); emit("offline", true, "Нет интернета. Изменения сохранены в очереди."); return; }
     running = true; emit("syncing", true, "Синхронизация с аккаунтом…");
     try {
       let meta = await readSyncMetadata<Meta>(key(accountId));
+      ensureActive();
       if (meta?.accountId !== accountId) meta = undefined;
       let localData = await local();
       const remoteStatus = await syncStatus();
+      ensureActive();
       if (meta?.base && !meta.pending && meta.revision === remoteStatus.revision && backupsEqual(localData, meta.base)) {
         emit("synced", false, "Все изменения синхронизированы.", remoteStatus.updatedAt ?? meta.updatedAt);
         return;
       }
       let remote = await pull(), result: BackupPayload;
+      ensureActive();
       if (!remote.payload) result = localData;
       else if (!meta?.base && isPristineBackup(localData)) {
+        ensureActive();
         await restore(remote.payload); result = remote.payload;
       } else {
         const combined = mergeBackups(meta?.base ?? null, localData, remote.payload);
@@ -97,15 +104,18 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
         result = combined.payload;
       }
       if (remote.payload && !backupsEqual(result, localData)) {
+        ensureActive();
         await restore(result);
         localData = result;
       }
       let revision = remote.revision;
       if (!remote.payload || !backupsEqual(result, remote.payload)) {
+        ensureActive();
         try { revision = await push(result, remote.revision); }
         catch (cause) {
           if (!(cause instanceof Error) || (cause as Error & {status?:number}).status !== 409) throw cause;
           remote = await pull();
+          ensureActive();
           if (!remote.payload) throw cause;
           const retryLocal = await local();
           const retryMerge = mergeBackups(meta?.base ?? null, retryLocal, remote.payload);
@@ -117,7 +127,8 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
             return;
           }
           result = retryMerge.payload;
-          if (!backupsEqual(result, retryLocal)) await restore(result);
+          if (!backupsEqual(result, retryLocal)) { ensureActive(); await restore(result); }
+          if (!backupsEqual(result, remote.payload)) ensureActive();
           revision = backupsEqual(result, remote.payload) ? remote.revision : await push(result, remote.revision);
         }
       }
@@ -125,6 +136,7 @@ export function startAccountSync(accountId: string, notify: (state: SyncView) =>
       await writeSyncMetadata(key(accountId), { accountId, revision, updatedAt, base: result, pending: false } satisfies Meta);
       retryDelay = 2000; emit("synced", false, "Все изменения синхронизированы.", updatedAt);
     } catch (cause) {
+      if (stopped || getStorageScope() !== accountId) return;
       await savePending().catch(() => undefined);
       emit("error", true, cause instanceof Error ? cause.message : "Не удалось выполнить синхронизацию.");
       if (!stopped) { retry = setTimeout(() => void run(), retryDelay); retryDelay = Math.min(retryDelay * 2, 60000); }
