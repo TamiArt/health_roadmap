@@ -37,6 +37,7 @@ const DENTAL_STATUS: Record<DentalRecord["status"], string> = {
 
 export function buildMedicalHistory(input: {
   measurements: Record<string, LabMeasurement[]>;
+  uploads: Record<string, UploadedResult[]>;
   stages: LifeStage[];
   labResults: LabResultEntry[];
   events: HealthEvent[];
@@ -58,7 +59,18 @@ export function buildMedicalHistory(input: {
     });
   }
 
-  for (const [testId, files] of Object.entries(input.uploads)) {\n    for (const file of files) {\n      const [day, month, year] = file.date.split(".");\n      const parsedDate = day && month && year ? `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}` : null;\n      entries.push({\n        id: `document:${testId}:${file.id}`, kind: "document", date: parsedDate,\n        title: tests.get(testId) ?? testId, details: file.name, searchable: [testId, tests.get(testId), file.name].filter(Boolean).join(" "),\n      });\n    }\n  }\n\n  for (const result of input.labResults) {
+  for (const [testId, files] of Object.entries(input.uploads)) {
+    for (const file of files) {
+      const [day, month, year] = file.date.split(".");
+      const parsedDate = day && month && year ? `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}` : null;
+      entries.push({
+        id: `document:${testId}:${file.id}`, kind: "document", date: parsedDate,
+        title: tests.get(testId) ?? testId, details: file.name, searchable: [testId, tests.get(testId), file.name].filter(Boolean).join(" "),
+      });
+    }
+  }
+
+  for (const result of input.labResults) {
     for (const indicator of result.indicators) entries.push({
       id: `analysis:${result.id}:${indicator.id}`, kind: "analysis", date: result.date,
       title: result.testName,
