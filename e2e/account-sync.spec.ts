@@ -104,3 +104,39 @@ test("automatically syncs records and attachments across devices and retries que
     await secondContext.close();
   }
 });
+
+test("keeps two accounts in separate local workspaces in the same browser profile", async ({ page }) => {
+  const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const firstEmail = `first-${unique}@example.test`;
+  const secondEmail = `second-${unique}@example.test`;
+  const password = "e2e-secure-password-2026";
+  const privateEvent = `Только первый аккаунт ${unique}`;
+
+  await page.goto("/");
+  await addLifeEvent(page, privateEvent);
+  await page.getByRole("button", { name: "Аккаунт и синхронизация" }).click();
+  await page.getByRole("button", { name: "Регистрация", exact: true }).click();
+  await page.getByLabel("Электронная почта").fill(firstEmail);
+  await page.getByLabel(/Пароль/).fill(password);
+  await page.getByRole("button", { name: "Создать аккаунт" }).click();
+  await expect(page.getByText("Синхронизировано", { exact: true })).toBeVisible({ timeout: 20000 });
+
+  await page.getByRole("button", { name: "Выйти" }).click();
+  await page.getByRole("button", { name: "Аккаунт и синхронизация" }).click();
+  await page.getByRole("button", { name: "Регистрация", exact: true }).click();
+  await page.getByLabel("Электронная почта").fill(secondEmail);
+  await page.getByLabel(/Пароль/).fill(password);
+  await page.getByRole("button", { name: "Создать аккаунт" }).click();
+  await expect(page.getByText("Синхронизировано", { exact: true })).toBeVisible({ timeout: 20000 });
+  await page.getByRole("button", { name: /^Все события/ }).click();
+  await expect(page.getByText(privateEvent, { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Выйти" }).click();
+  await page.getByRole("button", { name: "Аккаунт и синхронизация" }).click();
+  await page.getByLabel("Электронная почта").fill(firstEmail);
+  await page.getByLabel(/Пароль/).fill(password);
+  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await expect(page.getByText("Синхронизировано", { exact: true })).toBeVisible({ timeout: 20000 });
+  await page.getByRole("button", { name: /^Все события/ }).click();
+  await expect(page.getByText(privateEvent, { exact: true })).toBeVisible();
+});
