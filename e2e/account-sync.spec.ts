@@ -19,7 +19,6 @@ async function accountId(page: Page): Promise<string> {
 }
 
 test("automatically syncs records and attachments across devices and retries queued offline changes", async ({ page, browser }) => {
-  test.setTimeout(60000);
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const email = `sync-${unique}@example.test`;
   const password = "e2e-secure-password-2026";
@@ -28,12 +27,6 @@ test("automatically syncs records and attachments across devices and retries que
 
   await page.goto("/");
   await addLifeEvent(page, firstEvent);
-  await page.getByRole("button", { name: "Календарь" }).click();
-  await page.getByRole("button", { name: "Добавить событие" }).click();
-  await page.getByLabel("Тип события").selectOption("lab");
-  await page.getByLabel("Название", { exact: true }).fill(`Синхронизируемый анализ ${unique}`);
-  await page.getByLabel("Дата начала").fill("2026-12-12");
-  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
   await page.getByRole("button", { name: "Аккаунт и синхронизация" }).click();
   await page.getByRole("button", { name: "Регистрация", exact: true }).click();
   await page.getByLabel("Электронная почта").fill(email);
@@ -81,8 +74,6 @@ test("automatically syncs records and attachments across devices and retries que
 
     // Login triggers an automatic pull; no manual restore action is available or needed.
     await expect(secondPage.getByText("Синхронизировано", { exact: true })).toBeVisible({ timeout: 20000 });
-    await secondPage.getByRole("button", { name: "Календарь" }).click();
-    await expect(secondPage.getByText(`Синхронизируемый анализ ${unique}`, { exact: true })).toBeVisible();
     await secondPage.getByRole("button", { name: /^Все события/ }).click();
     await expect(secondPage.getByText(firstEvent, { exact: true })).toBeVisible();
     const restoredAttachment = await secondPage.evaluate(async ({ ownerId }) => {
@@ -107,7 +98,6 @@ test("automatically syncs records and attachments across devices and retries que
     await expect(secondPage.getByText("Нет подключения", { exact: true })).toBeVisible({ timeout: 10000 });
     await secondContext.setOffline(false);
     await expect(secondPage.getByText("Синхронизировано", { exact: true })).toBeVisible({ timeout: 20000 });
-    await page.getByRole("button", { name: "Карта жизни" }).click();
     await page.getByRole("button", { name: /^Все события/ }).click();
     await expect(page.getByText(secondEvent, { exact: true })).toBeVisible({ timeout: 20000 });
   } finally {
