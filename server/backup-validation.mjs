@@ -1,10 +1,10 @@
 const ALLOWED_KEYS = new Set([
-  "lifeEvents", "familyMembers", "children", "familyEvents", "vaccineStatuses",
+  "lifeEvents", "familyMembers", "children", "familyEvents", "vaccineStatuses", "vaccineRecords",
   "adultToothData", "labUploads", "labMeasurements", "healthEvents",
   "healthMonitoring", "labResultEntries", "notificationSettings",
 ]);
-const CHILD_KEY = /^childHealth:([a-zA-Z0-9_-]+):(vaccineStatuses|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/;
-const ARRAY_KEYS = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring"]);
+const CHILD_KEY = /^childHealth:([a-zA-Z0-9_-]+):(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/;
+const ARRAY_KEYS = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords"]);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function isRecord(value) {
