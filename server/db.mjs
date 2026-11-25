@@ -153,7 +153,7 @@ export class AppDatabase {
 
   listChanges(userId, afterRevision = 0, limit = 100) {
     return this.database.prepare(
-      "SELECT revision, operation_id, created_at, record_count, request_hash FROM change_log WHERE user_id = ? AND revision > ? ORDER BY revision ASC LIMIT ?",
+      "SELECT revision, operation_id, created_at, record_count FROM change_log WHERE user_id = ? AND revision > ? ORDER BY revision DESC LIMIT ?",
     ).all(userId, afterRevision, limit);
   }
 
