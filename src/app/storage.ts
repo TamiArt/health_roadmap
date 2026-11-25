@@ -285,7 +285,7 @@ function validateRecordValue(key: string, value: unknown): void {
       if (entry.documents !== undefined && !Array.isArray(entry.documents)) return true;
       return documents.some(document => {
         if (!isPlainRecord(document) || typeof document.id !== "string" || typeof document.name !== "string" ||
-            typeof document.mimeType !== "string" || !isPlainRecord(document.blob)) return true;
+            (document.mimeType !== undefined && typeof document.mimeType !== "string") || !isPlainRecord(document.blob)) return true;
         const blob = document.blob;
         return !(typeof Blob !== "undefined" && blob instanceof Blob) &&
           !(blob.__lifeMapsBlob === true && typeof blob.base64 === "string" && typeof blob.mimeType === "string");
