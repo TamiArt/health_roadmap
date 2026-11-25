@@ -389,7 +389,7 @@ export function DentalTab({
 // ─── Health Section ───────────────────────────────────────────────────────────
 
 export function HealthSection({
-  vaccineStatuses, setVaccineStatuses, onNavigate, children = [],
+  vaccineStatuses, setVaccineStatuses, onNavigate, children = [], initialTab = "roadmap",
 }: {
   vaccineStatuses: Record<string, VaccineStatus>;
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
