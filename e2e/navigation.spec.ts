@@ -1168,12 +1168,12 @@ test("isolates every child-owned health record from other children and adult rec
   for (const name of ["Профиль матрицы A", "Профиль матрицы B"]) {
     for (const key of ["vaccineStatuses", "vaccineRecords", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
       const value = values[name + ":" + key] as { owner?: string } | Array<{ owner?: string }>;
-      expect(Array.isArray(value) ? value[0].owner : value.owner).toBe(name);
+      expect(Array.isArray(value) ? value[0].owner : value.owner, key).toBe(name);
     }
   }
   for (const key of ["vaccineStatuses", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
     const value = values["adult:" + key] as { owner?: string } | Array<{ owner?: string }>;
-    expect(Array.isArray(value) ? value[0].owner : value.owner).toBe("adult");
+    expect(Array.isArray(value) ? value[0].owner : value.owner, key).toBe("adult");
   }
 });
 
@@ -1228,7 +1228,7 @@ test("an open stale tab cannot recreate child records after the profile is delet
     const { readRecord } = await import("/src/app/storage.ts");
     return readRecord(key);
   }, recordKey);
-  expect(staleSnapshot).toEqual([{ id: "before-delete", date: "2026-11-06", kind: "other", title: "До удаления", description: "" }]);
+  expect(staleSnapshot?.map(({ _version, _updatedAt, ...record }) => record)).toEqual([{ id: "before-delete", date: "2026-11-06", kind: "other", title: "До удаления", description: "" }]);
 
   await page.evaluate(async id => {
     const { deleteChildHealthRecords } = await import("/src/app/storage.ts");
