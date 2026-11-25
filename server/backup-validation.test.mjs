@@ -20,6 +20,18 @@ describe("server backup validation", () => {
     assert.equal(validateBackupPayload(valid), true);
   });
 
+  it("validates versioned deletion tombstones without medical payload data", () => {
+    const records = {
+      ...valid.records,
+      syncTombstones: { lifeEvents: {
+        "event-1": { version: 2, deletedAt: "2026-11-25T12:00:00.000Z" },
+      } },
+    };
+    assert.equal(validateBackupPayload({ ...valid, records }), true);
+    records.syncTombstones.lifeEvents["event-1"].version = 0;
+    assert.equal(validateBackupPayload({ ...valid, records }), false);
+  });
+
   it("rejects unknown keys and orphaned child records", () => {
     assert.equal(validateBackupPayload({ ...valid, records: { ...valid.records, credentials: {} } }), false);
     assert.equal(validateBackupPayload({ ...valid, records: { "childHealth:missing:healthEvents": [] } }), false);
