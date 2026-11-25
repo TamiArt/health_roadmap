@@ -47,11 +47,16 @@ export class AppDatabase {
         created_at TEXT NOT NULL,
         record_count INTEGER NOT NULL,
         request_hash TEXT NOT NULL,
+        change_summary TEXT NOT NULL DEFAULT '[]',
         PRIMARY KEY (user_id, revision),
         UNIQUE (user_id, operation_id)
       );
       CREATE INDEX IF NOT EXISTS change_log_user_revision_idx ON change_log(user_id, revision);
     `);
+    const changeLogColumns = this.database.prepare("PRAGMA table_info(change_log)").all();
+    if (!changeLogColumns.some(column => column.name === "change_summary")) {
+      this.database.exec("ALTER TABLE change_log ADD COLUMN change_summary TEXT NOT NULL DEFAULT '[]'");
+    }
     this.statements = {
       createUser: this.database.prepare("INSERT INTO users (id, email, password_salt, password_hash, created_at) VALUES (?, ?, ?, ?, ?)"),
       userByEmail: this.database.prepare("SELECT id, email, password_salt, password_hash, created_at FROM users WHERE email = ?"),
@@ -103,7 +108,7 @@ export class AppDatabase {
     return this.statements.backupMetadataByUser.get(userId) ?? null;
   }
 
-  saveBackup(userId, encrypted, expectedRevision, updatedAt, operationId, requestHash, recordCount) {
+  saveBackup(userId, encrypted, expectedRevision, updatedAt, operationId, requestHash, recordCount, changeSummary = []) {
     this.database.exec("BEGIN IMMEDIATE");
     try {
       const previousOperation = this.database.prepare(
@@ -141,8 +146,8 @@ export class AppDatabase {
         "INSERT INTO sync_operations (user_id, operation_id, request_hash, revision, created_at) VALUES (?, ?, ?, ?, ?)",
       ).run(userId, operationId, requestHash, nextRevision, updatedAt);
       this.database.prepare(
-        "INSERT INTO change_log (user_id, revision, operation_id, created_at, record_count, request_hash) VALUES (?, ?, ?, ?, ?, ?)",
-      ).run(userId, nextRevision, operationId, updatedAt, recordCount, requestHash);
+        "INSERT INTO change_log (user_id, revision, operation_id, created_at, record_count, request_hash, change_summary) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).run(userId, nextRevision, operationId, updatedAt, recordCount, requestHash, JSON.stringify(changeSummary));
       this.database.exec("COMMIT");
       return { conflict: false, duplicate: false, revision: nextRevision };
     } catch (error) {
@@ -153,8 +158,8 @@ export class AppDatabase {
 
   listChanges(userId, afterRevision = 0, limit = 100) {
     return this.database.prepare(
-      "SELECT revision, operation_id, created_at, record_count FROM change_log WHERE user_id = ? AND revision > ? ORDER BY revision DESC LIMIT ?",
-    ).all(userId, afterRevision, limit);
+      "SELECT revision, operation_id, created_at, record_count, change_summary FROM change_log WHERE user_id = ? AND revision > ? ORDER BY revision DESC LIMIT ?",
+    ).all(userId, afterRevision, limit).map(row => ({ ...row, change_summary: JSON.parse(row.change_summary || "[]") }));
   }
 
   close() {
