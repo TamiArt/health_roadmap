@@ -66,6 +66,7 @@ export interface LabResultEntry {
     mimeType: string;
     blob: Blob;
   };
+  documents?: MedicalDocument[];
   notes: string;
 }
 
