@@ -64,7 +64,7 @@ const ALLOWED_KEYS = new Set([
 ]);
 
 export function isAllowedRecordKey(key: string): boolean {
-  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/.test(key);
+  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries|calendarEvents)$/.test(key);
 }
 
 let databasePromise: Promise<IDBDatabase> | undefined;
@@ -189,7 +189,7 @@ export async function deleteChildHealthRecords(childId: string): Promise<void> {
 }
 
 const VERSIONED_COLLECTION_KEYS = new Set([
-  "lifeEvents", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords", "labResultEntries",
+  "lifeEvents", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords", "labResultEntries", "calendarEvents",
 ]);
 type RecordTombstones = Record<string, Record<string, { version: number; deletedAt: string }>>;
 
