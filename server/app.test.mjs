@@ -80,7 +80,7 @@ describe("self-hosted account API", () => {
     const create = await request("/api/data", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Cookie: ownerCookie },
-      body: JSON.stringify({ payload: backup, expectedRevision: null }),
+      body: JSON.stringify({ payload: backup, expectedRevision: null, operationId: "00000000-0000-4000-8000-000000000001" }),
     });
     assert.equal(create.status, 200);
     assert.equal((await create.json()).revision, 1);
@@ -113,7 +113,7 @@ describe("self-hosted account API", () => {
     const update = await request("/api/data", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({ payload: { ...backup, exportedAt: "2026-11-26T00:00:00.000Z" }, expectedRevision: 1 }),
+      body: JSON.stringify({ payload: { ...backup, exportedAt: "2026-11-26T00:00:00.000Z" }, expectedRevision: 1, operationId: "00000000-0000-4000-8000-000000000002" }),
     });
     assert.equal(update.status, 200);
     assert.equal((await update.json()).revision, 2);
@@ -121,7 +121,7 @@ describe("self-hosted account API", () => {
     const stale = await request("/api/data", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({ payload: backup, expectedRevision: 1 }),
+      body: JSON.stringify({ payload: backup, expectedRevision: 1, operationId: "00000000-0000-4000-8000-000000000003" }),
     });
     assert.equal(stale.status, 409);
   });
@@ -135,7 +135,7 @@ describe("self-hosted account API", () => {
     const invalid = await request("/api/data", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({ payload: { ...backup, records: { ...backup.records, credentials: { token: "invalid" } } }, expectedRevision: 2 }),
+      body: JSON.stringify({ payload: { ...backup, records: { ...backup.records, credentials: { token: "invalid" } } }, expectedRevision: 2, operationId: "00000000-0000-4000-8000-000000000004" }),
     });
     assert.equal(invalid.status, 400);
     const current = await request("/api/data", { headers: { Cookie: cookie } });
