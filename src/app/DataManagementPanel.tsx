@@ -107,7 +107,7 @@ export function DataManagementPanel({
         if (!response.ok) throw new Error(await readApiError(response));
         return response.json() as Promise<{ changes: SyncChange[] }>;
       })
-      .then(result => { if (active) setChangeLog(result.changes.slice(-20).reverse()); })
+      .then(result => { if (active) setChangeLog(result.changes.slice(0, 20)); })
       .catch(() => { if (active) setChangeLog([]); });
     return () => { active = false; };
   }, [account?.id, syncState.status, syncState.updatedAt]);
