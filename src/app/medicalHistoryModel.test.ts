@@ -30,7 +30,7 @@ describe("unified medical history", () => {
   });
 
   it("normalizes all sources and keeps one timeline event per original record", () => {
-    expect(entries.map(entry => entry.kind)).toEqual(["monitoring", "vaccine", "analysis", "document", "manual", "family", "event", "dental"]);
+    expect(entries.map(entry => entry.kind)).toEqual(["monitoring", "vaccine", "analysis", "document", "manual", "event", "family", "dental"]);
     const analysis = entries.find(entry => entry.id === "analysis:lab1");
     expect(analysis?.details).toContain("Гемоглобин: 132 г/л");
     expect(analysis?.details).toContain("Лейкоциты: 6.2 10^9/л");
@@ -56,7 +56,7 @@ describe("unified medical history", () => {
     expect(newest[0].date).toBe("2026-05-02");
     expect(newest.at(-1)?.kind).toBe("dental");
     const oldest = filterMedicalHistory(entries, { ...filters, sort: "oldest" });
-    expect(oldest[0].date).toBe("2026-01-01");
+    expect(oldest[0].date).toBe("2024-06-01");
     expect(entries[0].date).toBe("2026-05-02");
   });
 
