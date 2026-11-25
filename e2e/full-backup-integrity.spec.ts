@@ -9,6 +9,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
       request.onerror = () => reject(request.error);
     });
     await new Promise<void>((resolve, reject) => {
+      const scope = localStorage.getItem("life-maps:active-storage-scope") || "guest";
       const tx = db.transaction("app-records", "readwrite");
       const store = tx.objectStore("app-records");
       const records: Array<[string, unknown]> = [
@@ -26,7 +27,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
         ["labResultEntries", [{ id: "adult-result", testName: "CBC", date: "2026-11-25", indicators: [{ id: "hb", name: "Hemoglobin", value: 125, unit: "g/l" }], document: { id: "adult-doc", name: "adult.pdf", blob: new Blob(["adult-document"], { type: "application/pdf" }) }, documents: [{ id: "adult-doc-2", name: "adult-extra.pdf", mimeType: "application/pdf", blob: new Blob(["adult-extra-document"], { type: "application/pdf" }) }] }]],
         ["notificationSettings", { enabled: false }],
       ];
-      for (const [key, value] of records) store.put({ key: "guest::" + key, value, revision: 1 });
+      for (const [key, value] of records) store.put({ key: scope + "::" + key, value, revision: 1 });
       for (const childId of ["child-1", "child-2"]) {
         const childRecords: Array<[string, unknown]> = [
           ["vaccineStatuses", { vaccineA: "done" }],
@@ -38,7 +39,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
           ["healthMonitoring", [{ id: childId + "-monitor", measurements: [{ id: childId + "-reading", date: "2026-11-25", value: 4.8, unit: "mmol/l" }] }]],
           ["labResultEntries", [{ id: childId + "-result", testName: "CBC", date: "2026-11-25", indicators: [{ id: "hb", name: "Hemoglobin", value: 120, unit: "g/l" }], document: { id: childId + "-doc", name: "child.pdf", blob: new Blob([childId + "-document"], { type: "application/pdf" }) }, documents: [{ id: childId + "-doc-2", name: "child-extra.pdf", mimeType: "application/pdf", blob: new Blob([childId + "-extra-document"], { type: "application/pdf" }) }] }]],
         ];
-        for (const [type, value] of childRecords) store.put({ key: "guest::childHealth:" + childId + ":" + type, value, revision: 1 });
+        for (const [type, value] of childRecords) store.put({ key: scope + "::childHealth:" + childId + ":" + type, value, revision: 1 });
       }
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -74,25 +75,27 @@ test("complete local backup round-trip preserves adult, family, child and file d
         request.onerror = () => reject(request.error);
       });
       db.close();
+      const scope = localStorage.getItem("life-maps:active-storage-scope") || "guest";
       const map = new Map(values.map(item => [item.key, item.value]));
-      const adultFile = map.get("guest::labUploads").cbc[0].blob as Blob;
-      const adultDocument = map.get("guest::labResultEntries")[0].document.blob as Blob;
-      const adultExtraDocument = map.get("guest::labResultEntries")[0].documents[0].blob as Blob;
+      const get = (key: string) => map.get(scope + "::" + key);
+      const adultFile = get("labUploads").cbc[0].blob as Blob;
+      const adultDocument = get("labResultEntries")[0].document.blob as Blob;
+      const adultExtraDocument = get("labResultEntries")[0].documents[0].blob as Blob;
       const childFiles = ["child-1", "child-2"].map(id => {
-        const upload = map.get("guest::childHealth:" + id + ":labUploads").cbc[0].blob as Blob;
-        const document = map.get("guest::childHealth:" + id + ":labResultEntries")[0].document.blob as Blob;
+        const upload = get("childHealth:" + id + ":labUploads").cbc[0].blob as Blob;
+        const document = get("childHealth:" + id + ":labResultEntries")[0].document.blob as Blob;
         const extraDocument = map.get("guest::childHealth:" + id + ":labResultEntries")[0].documents[0].blob as Blob;
         return { upload: upload.text(), document: document.text(), extraDocument: extraDocument.text() };
       });
       return {
         keys: values.length,
-        adults: map.get("guest::lifeEvents")[0].id === "life-1" &&
-          map.get("guest::healthEvents")[0].id === "adult-health-event" &&
-          map.get("guest::labMeasurements").ferritin[0].id === "adult-measurement",
-        family: map.get("guest::familyMembers")[0].id === "family-1" &&
-          map.get("guest::children").map((item: any) => item.id).join(",") === "child-1,child-2",
+        adults: get("lifeEvents")[0].id === "life-1" &&
+          get("healthEvents")[0].id === "adult-health-event" &&
+          get("labMeasurements").ferritin[0].id === "adult-measurement",
+        family: get("familyMembers")[0].id === "family-1" &&
+          get("children").map((item: any) => item.id).join(",") === "child-1,child-2",
         childRecords: ["child-1", "child-2"].every(id =>
-          map.has("guest::childHealth:" + id + ":vaccineStatuses") &&
+          map.has(scope + "::childHealth:" + id + ":vaccineStatuses") &&
           map.has("guest::childHealth:" + id + ":vaccineRecords") &&
           map.has("guest::childHealth:" + id + ":toothData") &&
           map.has("guest::childHealth:" + id + ":labUploads") &&
@@ -128,7 +131,7 @@ test("complete local backup round-trip preserves adult, family, child and file d
         request.onerror = () => reject(request.error);
       });
       const value = await new Promise<any>((resolve, reject) => {
-        const request = db.transaction("app-records", "readonly").objectStore("app-records").get("guest::lifeEvents");
+        const request = db.transaction("app-records", "readonly").objectStore("app-records").get((localStorage.getItem("life-maps:active-storage-scope") || "guest") + "::lifeEvents");
         request.onsuccess = () => resolve(request.result?.value);
         request.onerror = () => reject(request.error);
       });
