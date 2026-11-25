@@ -79,6 +79,12 @@ describe("local backup schema", () => {
     expect(await decoded.labUploads.report.text()).toBe("test result file");
   });
 
+  it("rejects malformed Base64 attachment data before import", async () => {
+    await expect(decodeBackupValue({
+      report: { __lifeMapsBlob: true, mimeType: "application/pdf", base64: "not-base64" },
+    })).rejects.toThrow("Некорректное кодирование вложения");
+  });
+
   it("migrates legacy child-profile records and preserves every attachment", async () => {
     const encodedBlob = { __lifeMapsBlob: true, mimeType: "application/pdf", base64: btoa("child report") };
     const measurement = { id: "child-measurement", date: "2026-11-06", value: "5.4", unit: "ммоль/л" };
