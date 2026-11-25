@@ -27,7 +27,7 @@ test("medical calendar creates, links, completes and persists planned events", a
   await page.getByLabel("Тип события").selectOption("appointment");
   await page.getByLabel("Название", { exact: true }).fill("Контрольный приём терапевта");
   await page.getByLabel("Дата начала").fill("2026-12-10");
-  await page.getByLabel("Время").fill("10:30");
+  await page.getByLabel("Время", { exact: true }).fill("10:30");
   await page.getByLabel("Врач / учреждение / место").fill("Городская клиника");
   await page.getByLabel("Связать с медицинской историей").selectOption("health:calendar-history-source");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
