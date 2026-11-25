@@ -139,6 +139,14 @@ test("lab result entries support edit, multiple documents, replacement and delet
   await expect(resultsPanel.getByRole("link", { name: "first-report.pdf" })).toBeVisible();
   await expect(resultsPanel.getByRole("link", { name: "second-report.pdf" })).toBeVisible();
 
+  page.once("dialog", dialog => dialog.dismiss());
+  await resultsPanel.getByRole("button", { name: "Заменить документ first-report.pdf" }).click();
+  await resultsPanel.locator('input[aria-label="Выбрать документ для замены"]').setInputFiles({
+    name: "cancelled-replacement.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 cancelled"),
+  });
+  await expect(resultsPanel.getByRole("link", { name: "first-report.pdf" })).toBeVisible();
+  await expect(resultsPanel.getByRole("link", { name: "cancelled-replacement.pdf" })).toHaveCount(0);
+
   page.once("dialog", dialog => dialog.accept());
   await resultsPanel.getByRole("button", { name: "Заменить документ first-report.pdf" }).click();
   await resultsPanel.locator('input[aria-label="Выбрать документ для замены"]').setInputFiles({
@@ -147,6 +155,9 @@ test("lab result entries support edit, multiple documents, replacement and delet
   await expect(resultsPanel.getByRole("link", { name: "replacement-report.pdf" })).toBeVisible();
   await expect(resultsPanel.getByRole("link", { name: "first-report.pdf" })).toHaveCount(0);
 
+  page.once("dialog", dialog => dialog.dismiss());
+  await resultsPanel.getByRole("button", { name: "Удалить документ second-report.pdf" }).click();
+  await expect(resultsPanel.getByRole("link", { name: "second-report.pdf" })).toBeVisible();
   page.once("dialog", dialog => dialog.accept());
   await resultsPanel.getByRole("button", { name: "Удалить документ second-report.pdf" }).click();
   await expect(resultsPanel.getByRole("link", { name: "second-report.pdf" })).toHaveCount(0);
