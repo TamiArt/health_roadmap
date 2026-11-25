@@ -395,8 +395,10 @@ export function HealthSection({
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
   onNavigate?: (section: Section) => void;
   children?: Child[];
+  initialTab?: "roadmap" | "history";
 }) {
-  const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental"|"events"|"monitoring"|"history">("roadmap");
+  const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental"|"events"|"monitoring"|"history">(initialTab);
+  useEffect(() => setTab(initialTab), [initialTab]);
   const tabsId = useId();
   const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"],["events","События"],["monitoring","На контроле"],["history","История"]] as const;
   const [openIdx, setOpenIdx] = useState<number|null>(3);
