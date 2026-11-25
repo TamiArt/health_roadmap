@@ -327,13 +327,15 @@ function validateRecordValue(key: string, value: unknown): void {
     }
     if (key === "healthMonitoring" || key.endsWith(":healthMonitoring")) {
       const hasInvalidMeasurements = value.some(item => {
-        if (!isPlainRecord(item) || typeof item.nextDueDate !== "string" || !isValidBackupDate(item.nextDueDate) ||
-            (item.lastCheckedDate !== undefined && item.lastCheckedDate !== "" &&
-              (typeof item.lastCheckedDate !== "string" || !isValidBackupDate(item.lastCheckedDate)))) return true;
+        if (!isPlainRecord(item)) return true;
+        if (item.nextDueDate !== undefined && item.nextDueDate !== "" &&
+            (typeof item.nextDueDate !== "string" || !isValidBackupDate(item.nextDueDate))) return true;
+        if (item.lastCheckedDate !== undefined && item.lastCheckedDate !== "" &&
+            (typeof item.lastCheckedDate !== "string" || !isValidBackupDate(item.lastCheckedDate))) return true;
         const reminder = item.reminder;
-        if (!isPlainRecord(reminder) || typeof reminder.enabled !== "boolean" ||
+        if (reminder !== undefined && (!isPlainRecord(reminder) || typeof reminder.enabled !== "boolean" ||
             !Number.isInteger(reminder.leadDays) || Number(reminder.leadDays) < 0 || Number(reminder.leadDays) > 365 ||
-            typeof reminder.time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time)) return true;
+            typeof reminder.time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time))) return true;
         const readings: unknown = item.measurements ?? [];
         if (!Array.isArray(readings) || !hasUniqueIds(readings)) return true;
         return readings.some((reading: unknown) => !isPlainRecord(reading) ||
