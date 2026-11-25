@@ -11,7 +11,7 @@ const KIND_LABELS: Record<MedicalHistoryKind, string> = {
   event: "Медицинские события",
   vaccine: "Вакцинация",
   dental: "Стоматология",
-  monitoring: "Контроль показателей",
+  monitoring: "Контроль показателей",\n  document: "Документы",
 };
 
 export function MedicalHistoryTab({
@@ -25,7 +25,7 @@ export function MedicalHistoryTab({
 }) {
   const [measurements, , measurementsReady, measurementsError, measurementsConflict] =
     usePersistentState<Record<string, LabMeasurement[]>>(`${storagePrefix}labMeasurements`, {});
-  const [labResults, , resultsReady, resultsError, resultsConflict] =
+  const [uploads, , uploadsReady, uploadsError, uploadsConflict] =\n    usePersistentState<Record<string, import("./models").UploadedResult[]>>(`${storagePrefix}labUploads`, {});\n  const [labResults, , resultsReady, resultsError, resultsConflict] =
     usePersistentState<LabResultEntry[]>(`${storagePrefix}labResultEntries`, []);
   const [events, , eventsReady, eventsError, eventsConflict] =
     usePersistentState<HealthEvent[]>(`${storagePrefix}healthEvents`, []);
@@ -41,12 +41,12 @@ export function MedicalHistoryTab({
   const [toDate, setToDate] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
   const stages = useMemo(() => getLabStages(), []);
-  const ready = measurementsReady && resultsReady && eventsReady && vaccinesReady && dentalReady && monitoringReady;
-  const error = measurementsError ?? resultsError ?? eventsError ?? vaccinesError ?? dentalError ?? monitoringError;
-  const conflict = measurementsConflict || resultsConflict || eventsConflict || vaccinesConflict || dentalConflict || monitoringConflict;
+  const ready = measurementsReady && uploadsReady && resultsReady && eventsReady && vaccinesReady && dentalReady && monitoringReady;
+  const error = measurementsError ?? uploadsError ?? resultsError ?? eventsError ?? vaccinesError ?? dentalError ?? monitoringError;
+  const conflict = measurementsConflict || uploadsConflict || resultsConflict || eventsConflict || vaccinesConflict || dentalConflict || monitoringConflict;
   const entries = useMemo(() => buildMedicalHistory({
-    measurements, stages, labResults, events, vaccines, dental, monitoring,
-  }), [measurements, stages, labResults, events, vaccines, dental, monitoring]);
+    measurements, uploads, stages, labResults, events, vaccines, dental, monitoring,
+  }), [measurements, uploads, stages, labResults, events, vaccines, dental, monitoring]);
   const filtered = useMemo(() => filterMedicalHistory(entries, {
     query, kind, fromDate, toDate, sort,
   }), [entries, query, kind, fromDate, toDate, sort]);
