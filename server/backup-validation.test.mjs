@@ -34,6 +34,21 @@ describe("server backup validation", () => {
     assert.equal(validateBackupPayload({ ...valid, records }), true);
   });
 
+  it("validates vaccination records and their attached certificates", () => {
+    const records = {
+      ...valid.records,
+      vaccineRecords: [{
+        id: "dose-1", vaccineId: "mmr", vaccineName: "MMR", date: "2026-04-12",
+        dose: "1", facility: "", notes: "",
+        documents: [{ id: "cert-1", name: "certificate.pdf", mimeType: "application/pdf",
+          blob: { __lifeMapsBlob: true, mimeType: "application/pdf", base64: "dGVzdA==" } }],
+      }],
+    };
+    assert.equal(validateBackupPayload({ ...valid, records }), true);
+    records.vaccineRecords[0].date = "2026-02-30";
+    assert.equal(validateBackupPayload({ ...valid, records }), false);
+  });
+
   it("rejects malformed attachment encodings before storing the backup", () => {
     const malformed = structuredClone(valid);
     malformed.records["childHealth:child-1:labUploads"].cbc[0].blob.base64 = "not-base64";
