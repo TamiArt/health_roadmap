@@ -16,7 +16,7 @@ test("synchronizes planned medical calendar events to a second device", async ({
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
 
   await page.getByRole("button", { name: "Аккаунт и синхронизация" }).click();
-  await page.getByRole("tab", { name: "Регистрация", exact: true }).click();
+  await page.getByRole("button", { name: "Регистрация", exact: true }).click();
   await page.getByLabel("Электронная почта").fill(email);
   await page.getByLabel(/Пароль/).fill(password);
   await page.getByRole("button", { name: "Создать аккаунт" }).click();
