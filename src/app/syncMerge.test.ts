@@ -37,6 +37,18 @@ describe("multi-device backup merge", () => {
     expect(result.conflicts).toContain("records.lifeEvents[event-1].title");
   });
 
+  it("resolves same-field conflicts only after an explicit local or server choice", () => {
+    const base = payload({ lifeEvents: [{ id: "event-1", title: "Исходное" }] });
+    const local = payload({ lifeEvents: [{ id: "event-1", title: "Локальное" }] });
+    const remote = payload({ lifeEvents: [{ id: "event-1", title: "Серверное" }] });
+    const keepLocal = mergeBackups(base, local, remote, "local");
+    const keepRemote = mergeBackups(base, local, remote, "remote");
+    expect(keepLocal.conflicts).toEqual([]);
+    expect(keepLocal.payload.records.lifeEvents).toEqual([{ id: "event-1", title: "Локальное" }]);
+    expect(keepRemote.conflicts).toEqual([]);
+    expect(keepRemote.payload.records.lifeEvents).toEqual([{ id: "event-1", title: "Серверное" }]);
+  });
+
   it("propagates a deletion if the other device has not changed that record", () => {
     const base = payload({ lifeEvents: [{ id: "event-1", title: "Событие" }] });
     const local = payload({ lifeEvents: [] });
