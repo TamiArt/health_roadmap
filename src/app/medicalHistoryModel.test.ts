@@ -25,7 +25,7 @@ describe("unified medical history", () => {
   });
 
   it("combines every medical source and places undated dental records last", () => {
-    expect(entries.map(entry => entry.kind)).toEqual(["monitoring", "vaccine", "analysis", "manual", "document", "event", "dental"]);
+    expect(entries.map(entry => entry.kind)).toEqual(["monitoring", "vaccine", "analysis", "document", "manual", "event", "dental"]);
     expect(entries[entries.length - 1]).toMatchObject({ kind: "dental", title: "Зуб 16" });
   });
 
