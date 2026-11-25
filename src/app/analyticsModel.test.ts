@@ -1,42 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { buildDentalSummary, buildRecentMeasurements, buildVaccineSummary } from "./analyticsModel";
-import type { DentalRecord, LabMeasurement, VaccineRecord } from "./models";
+import { buildAnalyticsSeries, filterAnalyticsSeries, getReferenceStatus, getSeriesChange, parseReferenceRange } from "./analyticsModel";
+import type { HealthMonitoringItem, LabResultEntry } from "./healthRecords";
+import type { LabMeasurement } from "./models";
 
-const vaccines: VaccineRecord[] = [
-  { id: "a", name: "A", protects: "", schedule: "", mandatory: true, status: "due", note: "" },
-  { id: "b", name: "B", protects: "", schedule: "", mandatory: false, status: "done", note: "" },
-  { id: "c", name: "C", protects: "", schedule: "", mandatory: false, status: "not_applicable", note: "" },
-];
-
-describe("analytics derived from persisted profile records", () => {
-  it("uses saved vaccine statuses and falls back to catalogue defaults", () => {
-    expect(buildVaccineSummary(vaccines, { a: "overdue", b: "done" })).toEqual({
-      total: 3, done: 1, due: 0, overdue: 1, notApplicable: 1,
-    });
+describe("medical analytics model", () => {
+  it("parses bounded, one-sided and invalid reference ranges", () => {
+    expect(parseReferenceRange("3,5–5,5")).toEqual({ lower: 3.5, upper: 5.5 });
+    expect(parseReferenceRange("< 5.2")).toEqual({ upper: 5.2 });
+    expect(parseReferenceRange("от 4")).toEqual({ lower: 4 });
+    expect(parseReferenceRange("по возрасту")).toBeNull();
   });
-
-  it("sorts actual measurements newest first and labels unknown test IDs safely", () => {
-    const records: Record<string, LabMeasurement[]> = {
-      ferritin: [{ id: "old", date: "2025-01-01", value: "30", unit: "нг/мл" }],
-      cbc: [{ id: "new", date: "2026-11-01", value: "5.1", unit: "ммоль/л" }],
-      unknown: [{ id: "middle", date: "2026-01-01", value: "qualitative", unit: "" }],
-    };
-    const recent = buildRecentMeasurements(records, new Map([["ferritin", "Ферритин"]]), 2);
-    expect(recent.map(item => item.id)).toEqual(["new", "middle"]);
-    expect(recent[1].testName).toBe("unknown");
+  it("classifies values only when a numeric reference was supplied", () => {
+    expect(getReferenceStatus(3, "4-6")).toBe("low");
+    expect(getReferenceStatus(5, "4-6")).toBe("normal");
+    expect(getReferenceStatus(7, "4-6")).toBe("high");
+    expect(getReferenceStatus(7, "по возрасту")).toBe("unknown");
   });
-
-  it("counts recorded teeth separately from non-healthy statuses", () => {
-    const records: Record<number, DentalRecord> = {
-      11: { status: "healthy", note: "" },
-      12: { status: "caries", note: "review" },
-      13: { status: "filled", note: "" },
-    };
-    expect(buildDentalSummary(records)).toEqual({ recorded: 3, attention: 2 });
-    expect(buildDentalSummary({})).toEqual({ recorded: 0, attention: 0 });
+  it("combines only equal indicator names and units and preserves source references", () => {
+    const results: LabResultEntry[] = [{ id: "study-1", testId: "cbc", testName: "ОАК", date: "2026-01-02", notes: "", indicators: [
+      { id: "i1", name: "Гемоглобин", value: 120, unit: "г/л", referenceRange: "120-160" },
+      { id: "i2", name: "Глюкоза", value: 5, unit: "ммоль/л" },
+    ] }];
+    const manual: Record<string, LabMeasurement[]> = { hemoglobin: [{ id: "m1", date: "2025-01-02", value: "115", unit: "г/л" }] };
+    const monitoring: HealthMonitoringItem[] = [{ id: "weight", name: "Вес", kind: "measurement", unit: "кг", intervalDays: null, nextDueDate: "2026-12-01", lastCheckedDate: "", notes: "", reminder: { enabled: false, leadDays: 0, time: "09:00" }, measurements: [{ id: "r1", date: "2026-01-01", value: 70, unit: "кг" }] }];
+    const series = buildAnalyticsSeries(results, manual, new Map([["hemoglobin", "Гемоглобин"]]), monitoring);
+    const hemoglobin = series.find(item => item.name === "Гемоглобин");
+    expect(hemoglobin?.points.map(point => point.value)).toEqual([115, 120]);
+    expect(hemoglobin?.points[1].sourceId).toBe("study-1");
+    expect(series.some(item => item.name === "Вес" && item.category === "monitoring")).toBe(true);
   });
-
-  it("returns an empty recent history for profiles without measurements", () => {
-    expect(buildRecentMeasurements({}, new Map())).toEqual([]);
+  it("filters by category, period and query without mutating source data", () => {
+    const series = buildAnalyticsSeries([{ id: "s", testId: "x", testName: "Анализ", date: "2026-02-01", notes: "", indicators: [{ id: "a", name: "Ферритин", value: 40, unit: "нг/мл" }] }], {}, new Map(), []);
+    expect(filterAnalyticsSeries(series, { category: "laboratory", query: "фер", fromDate: "2026-01-01", toDate: "2026-03-01" })).toHaveLength(1);
+    expect(filterAnalyticsSeries(series, { category: "monitoring", query: "", fromDate: "", toDate: "" })).toHaveLength(0);
+    expect(series[0].points).toHaveLength(1);
+  });
+  it("calculates absolute and relative changes safely when the baseline is zero", () => {
+    expect(getSeriesChange([{ id: "1", date: "2025-01-01", value: 0, unit: "", source: "manual", sourceId: "1", sourceLabel: "" }, { id: "2", date: "2026-01-01", value: 5, unit: "", source: "manual", sourceId: "2", sourceLabel: "" }])).toMatchObject({ delta: 5, percent: null, direction: "up" });
   });
 });
