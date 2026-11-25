@@ -7,9 +7,11 @@
     "build": "vite build",
     "dev": "vite",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run src",
+    "test": "vitest run src && npm run test:server",
     "test:e2e": "playwright test",
-    "check:structure": "node scripts/check-project-structure.mjs"
+    "check:structure": "node scripts/check-project-structure.mjs",
+    "start": "node server/index.mjs",
+    "test:server": "node --test server/*.test.mjs"
   },
   "dependencies": {
     "lucide-react": "0.487.0",
