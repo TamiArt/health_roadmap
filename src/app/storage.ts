@@ -236,8 +236,10 @@ function versionMedicalValue(key: string, previous: unknown, next: unknown, tomb
     return versionCollection(key, previous, next, tombstones, now);
   }
   if (shortKey === "labMeasurements" && next && typeof next === "object" && !Array.isArray(next)) {
+    const entries = Object.entries(next as Record<string, unknown>);
+    if (!entries.every(([, values]) => Array.isArray(values))) return next;
     const oldMap = previous && typeof previous === "object" && !Array.isArray(previous) ? previous as Record<string, unknown> : {};
-    return Object.fromEntries(Object.entries(next as Record<string, unknown>).map(([testId, values]) => [
+    return Object.fromEntries(entries.map(([testId, values]) => [
       testId, versionCollection(key + "." + testId, oldMap[testId], values, tombstones, now),
     ]));
   }
