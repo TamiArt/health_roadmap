@@ -1,4 +1,5 @@
 import type { BackupPayload } from "./storage";
+import { VACCINES } from "./healthData";
 const missing = Symbol("missing");
 type Value = unknown | typeof missing;
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -51,7 +52,11 @@ export function isPristineBackup(payload: BackupPayload): boolean {
   return Object.entries(payload.records).every(([key, value]) => {
     if (Array.isArray(value)) return value.length === 0;
     if (!isObject(value)) return value === null || value === undefined;
-    return key === "vaccineStatuses" || key === "notificationSettings" || Object.keys(value).length === 0;
+    if (key === "vaccineStatuses") {
+      const defaults = Object.fromEntries(VACCINES.map(vaccine => [vaccine.id, vaccine.status]));
+      return equal(value, defaults);
+    }
+    return Object.keys(value).length === 0;
   });
 }
 export function backupsEqual(a: BackupPayload, b: BackupPayload): boolean {
