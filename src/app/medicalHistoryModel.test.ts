@@ -6,7 +6,8 @@ const stages = [{ id: "blood", label: "Анализы крови", age: "все"
 describe("unified medical history", () => {
   const entries = buildMedicalHistory({
     stages,
-    measurements: { cbc: [{ id: "m1", date: "2026-02-01", value: "5.4", unit: "ммоль/л" }] },\n    uploads: { cbc: [{ id: "file-1", name: "analysis.pdf", date: "20.02.2026", blob: new Blob(["file"]), isPdf: true }] },
+    measurements: { cbc: [{ id: "m1", date: "2026-02-01", value: "5.4", unit: "ммоль/л" }] },
+    uploads: { cbc: [{ id: "file-1", name: "analysis.pdf", date: "20.02.2026", blob: new Blob(["file"]), isPdf: true }] },
     labResults: [{
       id: "lab1", testId: "custom:cbc", testName: "ОАК", date: "2026-03-01",
       indicators: [{ id: "hb", name: "Гемоглобин", value: 132, unit: "г/л" }],
