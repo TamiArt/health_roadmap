@@ -1072,7 +1072,7 @@ test("keeps lab measurements isolated between child profiles after switching and
     await page.getByLabel("Значение результата").fill(value);
     await page.getByLabel("Единицы измерения").fill("г/л");
     await page.getByRole("button", { name: "Сохранить результат" }).click();
-    const measurementText = new RegExp(`${value.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\    await expect(page.getByText(value + " г/л", { exact: true }).first()).toBeVisible();").replace(/\\\\\\./g, "[.,]")}\\\\s*г/л`, "i");
+    const measurementText = new RegExp(`${value.replace(".", "[.,]")}\\s*г/л`, "i");
     await expect.poll(() => page.locator("body").innerText()).toMatch(measurementText);
     await expect(page.locator("span:visible").filter({ hasText: measurementText }).first()).toBeVisible();
     await page.getByRole("button", { name: "Вернуться к семье" }).click();
@@ -1085,7 +1085,8 @@ test("keeps lab measurements isolated between child profiles after switching and
   await page.getByRole("button", { name: /Дошкольник/ }).click();
   // The adult health section is also mounted but hidden; assert only visible child-profile measurements.
   const measurementPattern = (value: string) =>
-    new RegExp(`${value.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\  const visibleMeasurement = (value: string) => page.locator("span:visible").filter({ hasText: value + " г/л" });").replace(/\\\\\\./g, "[.,]")}\\\\s*г/л`, "i");
+    new RegExp(`${value.replace(".", "[.,]")}\\s*г/л`, "i");
+  const visibleMeasurement = (value: string) => page.locator("span:visible").filter({ hasText: value + " г/л" });").replace(/\\\\\\./g, "[.,]")}\\\\s*г/л`, "i");
   const visibleMeasurement = (value: string) =>
     page.locator("span:visible").filter({ hasText: measurementPattern(value) });
   const expectMeasurementInRenderedText = async (value: string) => {
