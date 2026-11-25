@@ -41,6 +41,11 @@ describe("local backup schema", () => {
     expect(migrateBackup(payload)).toEqual(payload);
     const vaccine = (payload.records.vaccineRecords as Array<Record<string, unknown>>)[0];
     expect(() => migrateBackup({ ...payload, records: { vaccineRecords: [{ ...vaccine, date: "2026-02-30" }] } })).toThrow("история вакцинации");
+    const duplicateDocuments = { ...vaccine, documents: [
+      { id: "doc-1", name: "a.pdf", mimeType: "application/pdf", blob: { __lifeMapsBlob: true, mimeType: "application/pdf", base64: "dGVzdA==" } },
+      { id: "doc-1", name: "b.pdf", mimeType: "application/pdf", blob: { __lifeMapsBlob: true, mimeType: "application/pdf", base64: "dGVzdA==" } },
+    ] };
+    expect(() => migrateBackup({ ...payload, records: { vaccineRecords: [duplicateDocuments] } })).toThrow("история вакцинации");
   });
 
   it("rejects unknown record types rather than silently importing them", () => {
