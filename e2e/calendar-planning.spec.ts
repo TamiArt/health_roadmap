@@ -59,11 +59,11 @@ test("treatment courses keep their end date and can be edited or deleted", async
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
 
   const course = page.locator("article").filter({ hasText: "Курс лечения" }).last();
-  await expect(course).toContainText("Курс до 2026-12-14");
+  await expect(course).toContainText("курс до 2026-12-14");
   await course.getByRole("button", { name: "Изменить: Курс лечения" }).click();
   await page.getByLabel("Дата окончания курса").fill("2026-12-15");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await expect(page.locator("article").filter({ hasText: "Курс лечения" }).last()).toContainText("Курс до 2026-12-15");
+  await expect(page.locator("article").filter({ hasText: "Курс лечения" }).last()).toContainText("курс до 2026-12-15");
 
   page.once("dialog", dialog => dialog.accept());
   await page.locator("article").filter({ hasText: "Курс лечения" }).last().getByRole("button", { name: "Удалить: Курс лечения" }).click();
