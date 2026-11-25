@@ -41,9 +41,9 @@ export function validateCalendarEvent(input: Omit<CalendarPlanEvent, "id" | "cre
   if (!isValidRequiredText(input.title, 120)) return "Укажите название события (до 120 символов).";
   if (!isIsoDate(input.date)) return "Укажите корректную дату события.";
   if (input.endDate && (!isIsoDate(input.endDate) || input.endDate < input.date)) return "Дата окончания не может быть раньше даты начала.";
-  if (input.time && !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(input.time)) return "Проверьте время события.";
+  if (input.time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(input.time)) return "Проверьте время события.";
   if (input.facility.length > 160 || input.details.length > 1500) return "Проверьте длину места проведения или описания.";
-  if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(input.reminder.time)) return "Укажите корректное время напоминания.";
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.reminder.time)) return "Укажите корректное время напоминания.";
   if (!Number.isInteger(input.reminder.leadDays) || input.reminder.leadDays < 0 || input.reminder.leadDays > 365) return "Срок напоминания должен быть от 0 до 365 дней.";
   if (input.link && (!input.link.id || !input.link.label)) return "Проверьте связь с медицинской записью.";
   return null;
