@@ -67,6 +67,8 @@ describe("self-hosted account API", () => {
   it("requires authentication and keeps backup data isolated by account", async () => {
     const unauthorized = await request("/api/data");
     assert.equal(unauthorized.status, 401);
+    const unauthorizedSyncStatus = await request("/api/sync/status");
+    assert.equal(unauthorizedSyncStatus.status, 401);
 
     const ownerLogin = await request("/api/auth/login", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -82,6 +84,9 @@ describe("self-hosted account API", () => {
     });
     assert.equal(create.status, 200);
     assert.equal((await create.json()).revision, 1);
+    const syncStatus = await request("/api/sync/status", { headers: { Cookie: ownerCookie } });
+    assert.equal(syncStatus.status, 200);
+    assert.equal((await syncStatus.json()).revision, 1);
 
     const ownerData = await request("/api/data", { headers: { Cookie: ownerCookie } });
     const ownerPayload = await ownerData.json();
@@ -95,6 +100,8 @@ describe("self-hosted account API", () => {
     const secondCookie = cookieFrom(secondRegistration);
     const secondData = await request("/api/data", { headers: { Cookie: secondCookie } });
     assert.equal((await secondData.json()).payload, null);
+    const secondSyncStatus = await request("/api/sync/status", { headers: { Cookie: secondCookie } });
+    assert.deepEqual(await secondSyncStatus.json(), { revision: null, updatedAt: null });
   });
 
   it("rejects stale writes rather than silently overwriting another device's data", async () => {
