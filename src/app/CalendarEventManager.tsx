@@ -15,7 +15,7 @@ const emptyDraft = (): EventDraft => ({
   facility: "", details: "", reminder: { enabled: true, leadDays: 1, time: "09:00" },
 });
 
-export function CalendarEventManager({ storagePrefix = "", profileLabel = "Взрослый профиль" }: { storagePrefix?: string; profileLabel?: string }) {
+export function CalendarEventManager({ storagePrefix = "", profileLabel = "Взрослый профиль", onOpenHistory }: { storagePrefix?: string; profileLabel?: string; onOpenHistory?: () => void }) {
   const [events, setEvents, ready, error, conflict] = usePersistentState<CalendarPlanEvent[]>(`${storagePrefix}calendarEvents`, []);
   const [healthEvents] = usePersistentState<HealthEvent[]>(`${storagePrefix}healthEvents`, []);
   const [labs] = usePersistentState<LabResultEntry[]>(`${storagePrefix}labResultEntries`, []);
@@ -150,7 +150,7 @@ export function CalendarEventManager({ storagePrefix = "", profileLabel = "Вз�
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{new Date(event.date + "T00:00:00").toLocaleDateString("ru-RU")} · {event.time}{event.endDate ? ` — ${new Date(event.endDate + "T00:00:00").toLocaleDateString("ru-RU")}` : ""}{event.facility ? ` · ${event.facility}` : ""}</p>
                 {event.details && <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{event.details}</p>}
-                {event.link && <p className="mt-2 flex items-center gap-1 text-[11px] text-primary"><Link2 size={12}/> Связано: {event.link.label}</p>}
+                {event.link && <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-primary"><span className="flex items-center gap-1"><Link2 size={12}/> Связано: {event.link.label}</span>{onOpenHistory && <button type="button" onClick={onOpenHistory} className="font-medium underline underline-offset-2">Открыть медицинскую историю</button>}</div>}
                 {event.reminder.enabled && event.status === "planned" && <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><Bell size={11}/> За {event.reminder.leadDays} дн. · {event.reminder.time}</p>}
               </div>
               <div className="flex items-center gap-1">
