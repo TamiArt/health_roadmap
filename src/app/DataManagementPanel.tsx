@@ -11,7 +11,7 @@ const CHANGE_LABELS: Record<string, string> = {
   vaccineStatuses: "Статусы вакцинации", vaccineRecords: "История вакцинации", adultToothData: "Стоматология",
   labUploads: "Документы анализов", labMeasurements: "Измерения анализов", healthEvents: "Медицинские события",
   healthMonitoring: "Контрольные показатели", labResultEntries: "Результаты анализов", childHealth: "Данные детей",
-  syncTombstones: "Удаления записей", notificationSettings: "Настройки уведомлений",
+  syncTombstones: "Удаления записей", notificationSettings: "Настройки уведомлений", calendarEvents: "Календарь и планы",
 };
 
 async function readApiError(response: Response): Promise<string> {
