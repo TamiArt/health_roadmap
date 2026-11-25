@@ -395,7 +395,7 @@ export function HealthSection({
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
   onNavigate?: (section: Section) => void;
   children?: Child[];
-  initialTab?: "roadmap" | "history";
+  initialTab?: "roadmap" | "history" | "tests" | "monitoring";
 }) {
   const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental"|"events"|"monitoring"|"history">(initialTab);
   useEffect(() => setTab(initialTab), [initialTab]);

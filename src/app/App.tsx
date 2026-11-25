@@ -44,7 +44,7 @@ export default function App() {
 
 function AppContent() {
   const [section, setSection] = useState<Section>("map");
-  const [healthInitialTab, setHealthInitialTab] = useState<"roadmap" | "history">("roadmap");
+  const [healthInitialTab, setHealthInitialTab] = useState<"roadmap" | "history" | "tests" | "monitoring">("roadmap");
   const [visitedSections, setVisitedSections] = useState<Set<Section>>(() => new Set(["map"]));
   const [children, , childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
   const [vaccineStatuses, setVaccineStatuses, storageReady, storageError] = usePersistentState<Record<string, VaccineStatus>>(
@@ -104,7 +104,7 @@ function AppContent() {
         )}
         {visitedSections.has("analytics") && (
           <motion.div hidden={section !== "analytics"} initial={false} animate={section === "analytics" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-            <Suspense fallback={<SectionFallback />}><AnalyticsSection children={children} onNavigate={navigateTo} /></Suspense>
+            <Suspense fallback={<SectionFallback />}><AnalyticsSection children={children} onNavigate={navigateTo} onOpenSource={(source, sourceId, pointId) => { const tab = source === "lab-result" ? "history" : source === "manual" ? "tests" : "monitoring"; setHealthInitialTab(tab); navigateTo("health"); window.setTimeout(() => { const target = source === "monitoring" ? `medical-source-monitoring-${sourceId}-${pointId}` : `medical-source-tests-${sourceId}`; document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" }); }, 650); }} /></Suspense>
           </motion.div>
         )}
       </main>
