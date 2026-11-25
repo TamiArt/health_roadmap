@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { setStorageScope, usePersistentState } from "./storage";
+import { getStorageScope, setStorageScope, usePersistentState } from "./storage";
 import { activateAccountWorkspace } from "./accountSync";
 import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
@@ -29,7 +29,7 @@ export default function App() {
       .then(async result => { if (!active) return; if (result.user) await activateAccountWorkspace(result.user.id); else setStorageScope("guest"); })
       .catch(() => {
         // Retain the last authenticated workspace while offline.
-        if (active) setStorageScope("guest");
+        if (active) setStorageScope(getStorageScope());
       })
       .finally(() => { if (active) setWorkspaceReady(true); });
     return () => { active = false; };
