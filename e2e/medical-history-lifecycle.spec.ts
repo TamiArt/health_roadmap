@@ -39,6 +39,49 @@ test("catalog lab measurements and uploaded reports support edit, replacement an
   await expect(page.getByRole("link", { name: "catalog-report-updated.pdf" })).toHaveCount(0);
 });
 
+test("dental records can be edited and safely deleted", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
+  await page.getByRole("tab", { name: "Стоматолог", exact: true }).click();
+  await page.locator('button[title="Зуб 11 — верхний правый резец"]').click();
+  await page.getByRole("button", { name: "Кариес", exact: true }).click();
+  await page.getByPlaceholder("Заметки: дата, врач, жалобы...").fill("Запись для удаления");
+  await expect(page.getByRole("button", { name: "Удалить запись о зубе" })).toBeVisible();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Удалить запись о зубе" }).click();
+  await expect(page.getByRole("button", { name: "Удалить запись о зубе" })).toHaveCount(0);
+});
+
+test("vaccination history remains isolated to the selected child profile", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья" }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  for (const name of ["Вакцинационный профиль A", "Вакцинационный профиль B"]) {
+    await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+    await page.getByPlaceholder("Имя").fill(name);
+    await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+    await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  }
+  await page.getByRole("button", { name: "Готово" }).click();
+  await page.getByText("Вакцинационный профиль A", { exact: true }).first().click();
+  await page.getByRole("tab", { name: "Прививки", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить запись" }).click();
+  await page.getByLabel("Вакцина для записи").selectOption({ index: 1 });
+  await page.getByLabel("Дата вакцинации").fill("2026-11-15");
+  await page.getByLabel("Доза вакцины").fill("Только профиль A");
+  await page.getByRole("button", { name: "Сохранить запись" }).click();
+  await expect(page.getByText("Только профиль A", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+  await page.getByText("Вакцинационный профиль B", { exact: true }).first().click();
+  await page.getByRole("tab", { name: "Прививки", exact: true }).click();
+  await expect(page.getByText("Только профиль A", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
+  await page.getByRole("tab", { name: "Прививки", exact: true }).click();
+  await expect(page.getByText("Только профиль A", { exact: true })).toHaveCount(0);
+});
+
 test("medical events support create, edit, search and confirmed delete", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Здоровье", exact: true }).click();
