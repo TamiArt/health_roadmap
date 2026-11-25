@@ -137,7 +137,7 @@ export function LabResultsTab({ storageKey = "labResultEntries" }: { storageKey?
   if (!ready) return <p className="text-sm text-muted-foreground">Загрузка истории анализов…</p>;
   if (error) return <p role="alert" className="text-sm text-red-600">{error}</p>;
 
-  return <section className="space-y-4">
+  return <section aria-label="Подробные результаты анализов" className="space-y-4">
     {conflict && <p role="status" className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">История изменена в другой вкладке. Загружена последняя сохранённая версия.</p>}
     <input ref={replaceFileRef} type="file" aria-label="Выбрать документ для замены" accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={handleReplacement}/>
     <div className="flex items-center justify-between gap-3"><div><h2 className="text-base font-semibold">История результатов</h2><p className="text-xs text-muted-foreground">Сохраняйте все числовые показатели каждого анализа по датам</p></div><button type="button" onClick={() => setEditing(value => !value)} className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs text-primary-foreground"><Plus size={13}/> Добавить анализ</button></div>
