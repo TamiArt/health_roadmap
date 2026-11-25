@@ -755,7 +755,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
     buffer: Buffer.from("%PDF-1.4 first"),
   });
   await page.getByRole("button", { name: "Сохранить анализ" }).click();
-  await expect(page.getByText("E2E биохимия", { exact: true })).toBeVisible();
+  await expect(page.getByText("E2E биохимия", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Креатинин", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "first-result.pdf" })).toBeVisible();
 
