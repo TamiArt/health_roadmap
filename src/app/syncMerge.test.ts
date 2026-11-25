@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mergeBackups, isPristineBackup } from "./syncMerge";
 import type { BackupPayload } from "./storage";
+import { VACCINES } from "./healthData";
 const payload = (records: Record<string, unknown>): BackupPayload => ({
   format: "life-maps-backup", schemaVersion: 1, exportedAt: "2026-11-25T00:00:00.000Z", records,
 });
@@ -46,9 +47,9 @@ describe("multi-device backup merge", () => {
   });
 
   it("treats untouched defaults as pristine but keeps user-edited defaults", () => {
-    expect(isPristineBackup(payload({ lifeEvents: [], vaccineStatuses: {
-      hepb: "done", bcg: "done", dtp: "done", adt: "overdue",
-    } }))).toBe(true);
+    expect(isPristineBackup(payload({ lifeEvents: [], vaccineStatuses:
+      Object.fromEntries(VACCINES.map(vaccine => [vaccine.id, vaccine.status])),
+    }))).toBe(true);
     expect(isPristineBackup(payload({ vaccineStatuses: { hepb: "not-done" } }))).toBe(false);
   });
 });
