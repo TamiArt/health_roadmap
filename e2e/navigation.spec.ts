@@ -1072,7 +1072,9 @@ test("keeps lab measurements isolated between child profiles after switching and
     await page.getByLabel("Значение результата").fill(value);
     await page.getByLabel("Единицы измерения").fill("г/л");
     await page.getByRole("button", { name: "Сохранить результат" }).click();
-    await expect(page.getByText(value + " г/л", { exact: true }).first()).toBeVisible();
+    const measurementText = new RegExp(`${value.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\    await expect(page.getByText(value + " г/л", { exact: true }).first()).toBeVisible();").replace(/\\\\\\./g, "[.,]")}\\\\s*г/л`, "i");
+    await expect.poll(() => page.locator("body").innerText()).toMatch(measurementText);
+    await expect(page.locator("span:visible").filter({ hasText: measurementText }).first()).toBeVisible();
     await page.getByRole("button", { name: "Вернуться к семье" }).click();
   }
 
@@ -1082,27 +1084,37 @@ test("keeps lab measurements isolated between child profiles after switching and
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
   // The adult health section is also mounted but hidden; assert only visible child-profile measurements.
-  const visibleMeasurement = (value: string) => page.locator("span:visible").filter({ hasText: value + " г/л" });
-  await expect(visibleMeasurement("12.1")).toHaveCount(1);
+  const measurementPattern = (value: string) =>
+    new RegExp(`${value.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\  const visibleMeasurement = (value: string) => page.locator("span:visible").filter({ hasText: value + " г/л" });").replace(/\\\\\\./g, "[.,]")}\\\\s*г/л`, "i");
+  const visibleMeasurement = (value: string) =>
+    page.locator("span:visible").filter({ hasText: measurementPattern(value) });
+  const expectMeasurementInRenderedText = async (value: string) => {
+    const pattern = measurementPattern(value);
+    // innerText is intentional: it helps distinguish a missing record from a brittle
+    // selector and includes the actual rendered text in Playwright's failure output.
+    await expect.poll(() => page.locator("body").innerText()).toMatch(pattern);
+    await expect(visibleMeasurement(value)).toHaveCount(1);
+  };
+  await expectMeasurementInRenderedText("12.1");
   await expect(visibleMeasurement("9.2")).toHaveCount(0);
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
 
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
   // The first profile panel remains mounted but must be hidden while the second profile is active.
-  await expect(visibleMeasurement("9.2")).toHaveCount(1);
+  await expectMeasurementInRenderedText("9.2");
   await expect(visibleMeasurement("12.1")).toHaveCount(0);
 
   await page.reload();
   await page.getByRole("button", { name: "Семья" }).click();
   await page.getByRole("button", { name: /Открыть профиль ребёнка Первый профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
-  await expect(visibleMeasurement("12.1")).toHaveCount(1);
+  await expectMeasurementInRenderedText("12.1");
   await expect(visibleMeasurement("9.2")).toHaveCount(0);
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
   await page.getByRole("button", { name: /Открыть профиль ребёнка Второй профиль — изоляция/ }).click();
   await page.getByRole("button", { name: /Дошкольник/ }).click();
-  await expect(visibleMeasurement("9.2")).toHaveCount(1);
+  await expectMeasurementInRenderedText("9.2");
   await expect(visibleMeasurement("12.1")).toHaveCount(0);
 });
 
