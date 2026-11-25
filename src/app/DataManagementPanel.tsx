@@ -169,15 +169,15 @@ export function DataManagementPanel({
 
   async function handleDownloadFromServer() {
     if (!account) return;
-    const latest = await refreshRemote();
-    if (!latest.payload) {
-      showMessage("В аккаунте пока нет резервной копии.", "error");
-      return;
-    }
-    if (!window.confirm("Загрузка заменит все текущие локальные данные данными аккаунта, включая семейные профили и вложения. Перед продолжением рекомендуется скачать локальную резервную копию. Продолжить?")) return;
     setBusy(true);
     setMessage(null);
     try {
+      const latest = await refreshRemote();
+      if (!latest.payload) {
+        showMessage("В аккаунте пока нет резервной копии.", "error");
+        return;
+      }
+      if (!window.confirm("Загрузка заменит все текущие локальные данные данными аккаунта, включая семейные профили и вложения. Перед продолжением рекомендуется скачать локальную резервную копию. Продолжить?")) return;
       const file = new File([JSON.stringify(latest.payload)], "life-maps-account-backup.json", { type: "application/json" });
       await importBackup(file);
       showMessage("Данные аккаунта восстановлены на этом устройстве.", "success");
