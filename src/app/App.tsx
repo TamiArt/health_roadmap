@@ -61,7 +61,7 @@ export default function App() {
         )}
         {visitedSections.has("health") && (
           <motion.div hidden={section !== "health"} initial={false} animate={section === "health" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-            <Suspense fallback={<SectionFallback />}><HealthSection vaccineStatuses={vaccineStatuses} setVaccineStatuses={setVaccineStatuses} /></Suspense>
+            <Suspense fallback={<SectionFallback />}><HealthSection vaccineStatuses={vaccineStatuses} setVaccineStatuses={setVaccineStatuses} onNavigate={navigateTo} /></Suspense>
           </motion.div>
         )}
         {visitedSections.has("family") && (
