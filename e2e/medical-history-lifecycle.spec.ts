@@ -16,7 +16,7 @@ test("catalog lab measurements and uploaded reports support edit, replacement an
   await page.getByRole("button", { name: "Изменить результат от 2026-11-19" }).click();
   await page.getByLabel("Значение результата").fill("5.6");
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
-  await expect(page.getByText("5.6 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.6 ммоль/л", { exact: true }).first()).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Удалить результат от 2026-11-19" }).click();
@@ -211,7 +211,7 @@ test("monitoring items and their manual readings support create, edit and delete
   await page.getByRole("button", { name: "Изменить значение Глюкоза обновлена от 2026-11-20" }).click();
   await page.getByLabel("Значение Глюкоза обновлена").fill("5.8");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await expect(page.getByText("5.8 ммоль/л", { exact: true })).toBeVisible();
+  await expect(page.getByText("5.8 ммоль/л", { exact: true }).first()).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Удалить значение Глюкоза обновлена от 2026-11-20" }).click();
