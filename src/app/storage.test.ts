@@ -33,6 +33,15 @@ describe("local backup schema", () => {
     expect(migrated.records.lifeEvents).toEqual([]);
   });
 
+  it("preserves vaccination records and rejects malformed vaccine history", () => {
+    const payload: BackupPayload = {
+      format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
+      records: { vaccineRecords: [{ id: "dose-1", vaccineId: "mmr", vaccineName: "MMR", date: "2026-04-12", dose: "1", facility: "", notes: "" }] },
+    };
+    expect(migrateBackup(payload)).toEqual(payload);
+    expect(() => migrateBackup({ ...payload, records: { vaccineRecords: [{ ...payload.records.vaccineRecords[0], date: "2026-02-30" }] } })).toThrow("история вакцинации");
+  });
+
   it("rejects unknown record types rather than silently importing them", () => {
     expect(() => migrateBackup({
       format: BACKUP_FORMAT,
