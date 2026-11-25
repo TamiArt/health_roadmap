@@ -26,7 +26,7 @@ export default function App() {
         if (!response.ok) throw new Error("Account service unavailable");
         return response.json() as Promise<{ user: { id: string } | null }>;
       })
-      .then(async result => { if (!active) return; if (result.user) await activateAccountWorkspace(result.user.id); else setStorageScope("guest"); })
+      .then(async result => { if (!active) return; if (result.user) await activateAccountWorkspace(result.user.id, getStorageScope() === "guest"); else setStorageScope("guest"); })
       .catch(() => {
         // Retain the last authenticated workspace while offline.
         if (active) setStorageScope(getStorageScope());
