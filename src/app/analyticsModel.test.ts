@@ -7,7 +7,9 @@ describe("medical analytics model", () => {
   it("parses bounded, one-sided and invalid reference ranges", () => {
     expect(parseReferenceRange("3,5–5,5")).toEqual({ lower: 3.5, upper: 5.5 });
     expect(parseReferenceRange("< 5.2")).toEqual({ upper: 5.2 });
-    expect(parseReferenceRange("от 4")).toEqual({ lower: 4 });
+    expect(parseReferenceRange("от 4")).toEqual({ lower: 4, lowerInclusive: true });
+    expect(parseReferenceRange("<= 5,2")).toEqual({ upper: 5.2, upperInclusive: true });
+    expect(parseReferenceRange("> 4")).toEqual({ lower: 4, lowerInclusive: false });
     expect(parseReferenceRange("по возрасту")).toBeNull();
   });
   it("classifies values only when a numeric reference was supplied", () => {
@@ -16,7 +18,11 @@ describe("medical analytics model", () => {
     expect(getReferenceStatus(7, "4-6")).toBe("high");
     expect(getReferenceStatus(7, "по возрасту")).toBe("unknown");
     expect(getReferenceStatus(4, "< 5")).toBe("normal");
+    expect(getReferenceStatus(5, "< 5")).toBe("high");
+    expect(getReferenceStatus(5, "≤ 5")).toBe("normal");
     expect(getReferenceStatus(6, "< 5")).toBe("high");
+    expect(getReferenceStatus(4, "> 4")).toBe("low");
+    expect(getReferenceStatus(4, "≥ 4")).toBe("normal");
     expect(getReferenceStatus(3, "> 4")).toBe("low");
   });
   it("combines only equal indicator names and units and preserves source references", () => {
@@ -31,6 +37,16 @@ describe("medical analytics model", () => {
     expect(hemoglobin?.points.map(point => point.value)).toEqual([115, 120]);
     expect(hemoglobin?.points[1].sourceId).toBe("study-1");
     expect(series.some(item => item.name === "Вес" && item.category === "monitoring")).toBe(true);
+  });
+  it("normalizes whitespace in indicator names and units without merging different units", () => {
+    const results: LabResultEntry[] = [
+      { id: "a", testId: "x", testName: "Анализ", date: "2026-01-01", notes: "", indicators: [{ id: "a1", name: "  С-реактивный   белок ", value: 2, unit: "мг/л" }] },
+      { id: "b", testId: "x", testName: "Анализ", date: "2026-02-01", notes: "", indicators: [{ id: "b1", name: "С-реактивный белок", value: 3, unit: " мг/л " }] },
+      { id: "c", testId: "x", testName: "Анализ", date: "2026-03-01", notes: "", indicators: [{ id: "c1", name: "С-реактивный белок", value: 4, unit: "г/л" }] },
+    ];
+    const series = buildAnalyticsSeries(results, {}, new Map(), []);
+    expect(series).toHaveLength(2);
+    expect(series.find(item => item.unit === "мг/л")?.points).toHaveLength(2);
   });
   it("filters by category, period and query without mutating source data", () => {
     const series = buildAnalyticsSeries([{ id: "s", testId: "x", testName: "Анализ", date: "2026-02-01", notes: "", indicators: [{ id: "a", name: "Ферритин", value: 40, unit: "нг/мл" }] }], {}, new Map(), []);

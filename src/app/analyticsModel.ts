@@ -3,30 +3,32 @@ import type { HealthMonitoringItem, LabResultEntry } from "./healthRecords";
 export type AnalyticsCategory = "all" | "laboratory" | "monitoring";
 export interface AnalyticsPoint { id: string; date: string; value: number; unit: string; referenceRange?: string; source: "lab-result" | "manual" | "monitoring"; sourceId: string; sourceLabel: string; }
 export interface AnalyticsSeries { id: string; name: string; unit: string; category: Exclude<AnalyticsCategory, "all">; points: AnalyticsPoint[]; }
-export interface ReferenceBounds { lower?: number; upper?: number; }
+export interface ReferenceBounds { lower?: number; upper?: number; lowerInclusive?: boolean; upperInclusive?: boolean; }
 function numeric(value: string | number): number | null { const parsed = typeof value === "number" ? value : Number(value.trim().replace(",", ".")); return Number.isFinite(parsed) ? parsed : null; }
 export function parseReferenceRange(value?: string): ReferenceBounds | null {
   if (!value?.trim()) return null;
-  const raw = value.trim().replace(/,/g, ".").replace(/[–—]/g, "-").replace(/\s+/g, " ");
-  const pair = raw.match(/^(-?\d+(?:\.\d+)?)\s*(?:-|\.\.)\s*(-?\d+(?:\.\d+)?)$/);
-  if (pair) { const lower = Number(pair[1]); const upper = Number(pair[2]); return lower <= upper ? { lower, upper } : { lower: upper, upper: lower }; }
-  const upper = raw.match(/^(?:<\s*|≤\s*|до\s+)(-?\d+(?:\.\d+)?)$/i);
-  if (upper) return { upper: Number(upper[1]) };
-  const lower = raw.match(/^(?:>\s*|≥\s*|от\s+)(-?\d+(?:\.\d+)?)$/i);
-  if (lower) return { lower: Number(lower[1]) };
+  const raw = value.trim().replace(/,/g, ".").replace(/[–—−]/g, "-").replace(/\s+/g, " ");
+  const pair = raw.match(/^([+-]?\d+(?:\.\d+)?)\s*(?:-|\.\.)\s*([+-]?\d+(?:\.\d+)?)$/);
+  if (pair) { const a = Number(pair[1]); const b = Number(pair[2]); return a <= b ? { lower: a, upper: b, lowerInclusive: true, upperInclusive: true } : { lower: b, upper: a, lowerInclusive: true, upperInclusive: true }; }
+  const upper = raw.match(/^(<|<=|≤|до)\s*([+-]?\d+(?:\.\d+)?)$/i);
+  if (upper) return { upper: Number(upper[2]), upperInclusive: upper[1] === "≤" || upper[1] === "<=" || upper[1].toLocaleLowerCase("ru") === "до" };
+  const lower = raw.match(/^(>|>=|≥|от)\s*([+-]?\d+(?:\.\d+)?)$/i);
+  if (lower) return { lower: Number(lower[2]), lowerInclusive: lower[1] === "≥" || lower[1] === ">=" || lower[1].toLocaleLowerCase("ru") === "от" };
   return null;
 }
 export function getReferenceStatus(value: number, range?: string): "low" | "normal" | "high" | "unknown" {
-  const bounds = parseReferenceRange(range); if (!bounds) return "unknown";
-  if (bounds.lower !== undefined && value < bounds.lower) return "low";
-  if (bounds.upper !== undefined && value > bounds.upper) return "high";
+  const bounds = parseReferenceRange(range); if (!bounds || !Number.isFinite(value)) return "unknown";
+  if (bounds.lower !== undefined && (value < bounds.lower || (!bounds.lowerInclusive && value === bounds.lower))) return "low";
+  if (bounds.upper !== undefined && (value > bounds.upper || (!bounds.upperInclusive && value === bounds.upper))) return "high";
   return "normal";
 }
 export function buildAnalyticsSeries(results: LabResultEntry[], measurements: Record<string, LabMeasurement[]>, testNames: ReadonlyMap<string, string>, monitoring: HealthMonitoringItem[]): AnalyticsSeries[] {
   const grouped = new Map<string, AnalyticsSeries>();
   const add = (name: string, unit: string, category: AnalyticsSeries["category"], point: AnalyticsPoint) => {
-    const id = [category, name.trim().toLocaleLowerCase("ru"), unit.trim().toLocaleLowerCase("ru")].join(":");
-    const current = grouped.get(id) ?? { id, name: name.trim(), unit: unit.trim(), category, points: [] };
+    const normalizedName = name.trim().replace(/\s+/g, " ").toLocaleLowerCase("ru");
+    const normalizedUnit = unit.trim().replace(/\s+/g, " ").toLocaleLowerCase("ru");
+    const id = [category, normalizedName, normalizedUnit].join(":");
+    const current = grouped.get(id) ?? { id, name: name.trim().replace(/\s+/g, " "), unit: unit.trim().replace(/\s+/g, " "), category, points: [] };
     current.points.push(point); grouped.set(id, current);
   };
   for (const result of results) for (const indicator of result.indicators ?? []) add(indicator.name, indicator.unit, "laboratory", {
