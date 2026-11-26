@@ -1341,3 +1341,29 @@ test("keeps medical entry forms usable on a 320px phone and exposes keyboard nav
   expect(dateBox).not.toBeNull();
   expect(dateBox!.y).toBeGreaterThan(nameBox!.y + nameBox!.height - 1);
 });
+
+
+test("keeps navigation and every primary section usable on tablet widths", async ({ page }) => {
+  await page.goto("/");
+  for (const viewport of [{ width: 768, height: 1024 }, { width: 1024, height: 768 }]) {
+    await page.setViewportSize(viewport);
+    const navigation = page.getByRole("navigation", { name: "Основная навигация" });
+    const navigationBox = await navigation.boundingBox();
+    expect(navigationBox).not.toBeNull();
+    expect(navigationBox!.height).toBeGreaterThan(viewport.height * 0.5);
+
+    for (const section of ["Карта жизни", "Здоровье", "Семья", "Календарь", "Аналитика"]) {
+      await page.getByRole("button", { name: section }).click();
+      const dimensions = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        page: document.documentElement.scrollWidth,
+        main: document.querySelector("main")?.scrollWidth ?? 0,
+        mainClient: document.querySelector("main")?.clientWidth ?? 0,
+      }));
+      expect(dimensions.page, `Page horizontal overflow in ${section} at ${viewport.width}px`)
+        .toBeLessThanOrEqual(dimensions.viewport);
+      expect(dimensions.main, `Section horizontal overflow in ${section} at ${viewport.width}px`)
+        .toBeLessThanOrEqual(dimensions.mainClient);
+    }
+  }
+});
