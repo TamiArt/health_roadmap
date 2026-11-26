@@ -6,8 +6,12 @@ const databasePath = process.env.DATABASE_PATH ?? "/app/data/life-maps.sqlite";
 const backupDirectory = process.env.BACKUP_DIR ?? "/backups";
 const retentionDays = Number(process.env.BACKUP_RETENTION_DAYS ?? 14);
 const intervalHours = Number(process.env.BACKUP_INTERVAL_HOURS ?? 24);
+const maxAgeHours = Number(process.env.BACKUP_MAX_AGE_HOURS ?? 30);
 if (!Number.isFinite(intervalHours) || intervalHours < 1 || intervalHours > 168) {
   throw new Error("BACKUP_INTERVAL_HOURS must be between 1 and 168.");
+}
+if (!Number.isFinite(maxAgeHours) || maxAgeHours <= intervalHours || maxAgeHours > 744) {
+  throw new Error("BACKUP_MAX_AGE_HOURS must exceed the backup interval and be at most 744.");
 }
 
 async function runBackup() {
