@@ -756,7 +756,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   });
   await page.getByRole("button", { name: "Сохранить анализ" }).click();
   await expect(page.getByText("E2E биохимия", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Креатинин", { exact: true })).toBeVisible();
+  await expect(page.getByText("Креатинин", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "first-result.pdf" })).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
@@ -1257,4 +1257,113 @@ test("an open stale tab cannot recreate child records after the profile is delet
   await staleTab.getByRole("button", { name: "Семья" }).click();
   await expect(staleTab.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);
   await staleTab.close();
+});
+
+
+test("medical analytics plots dated lab history and opens the exact source result", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
+  await page.getByRole("tab", { name: "История", exact: true }).click();
+
+  for (const result of [
+    { name: "E2E аналитика 1", date: "2025-01-10", value: "20", range: "30-150" },
+    { name: "E2E аналитика 2", date: "2025-06-10", value: "45", range: "35-150" },
+  ]) {
+    await page.getByRole("button", { name: "Добавить анализ", exact: true }).click();
+    await page.getByLabel("Название анализа").fill(result.name);
+    await page.getByLabel("Дата анализа").fill(result.date);
+    await page.getByLabel("Название показателя 1").fill("Ферритин");
+    await page.getByLabel("Значение показателя 1").fill(result.value);
+    await page.getByLabel("Единица измерения 1").fill("нг/мл");
+    await page.getByLabel("Референсный диапазон 1").fill(result.range);
+    await page.getByRole("button", { name: "Сохранить анализ" }).click();
+    await expect(page.getByText(result.name, { exact: true }).first()).toBeVisible();
+  }
+
+  await page.getByRole("button", { name: "Аналитика", exact: true }).click();
+  await expect(page.getByRole("img", { name: /График Ферритин/ })).toBeVisible();
+  await expect(page.getByText(/Референсы различаются по датам/)).toBeVisible();
+  await expect(page.getByText(/Референс этого результата: 35-150 нг\/мл/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Открыть запись" }).first().click();
+  await expect(page.getByText("E2E аналитика 2", { exact: true }).first()).toBeVisible();
+});
+
+
+test("exposes installable PWA metadata and restores the app shell offline", async ({ page, context }) => {
+  const manifestResponse = await page.request.get("/manifest.webmanifest");
+  expect(manifestResponse.ok()).toBeTruthy();
+  const manifest = await manifestResponse.json();
+  expect(manifest.display).toBe("standalone");
+  expect(manifest.start_url).toBe("/");
+  expect(manifest.icons.some((icon: { src: string }) => icon.src === "/apple-touch-icon.png")).toBeTruthy();
+
+  const workerResponse = await page.request.get("/sw.js");
+  expect(workerResponse.ok()).toBeTruthy();
+  const workerSource = await workerResponse.text();
+  expect(workerSource).toContain('request.mode === "navigate"');
+  expect(workerSource).toContain('url.pathname.startsWith("/api/")');
+
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Карта жизни" })).toBeVisible();
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Карта жизни" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBeTruthy();
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Карта жизни" })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole("status").filter({ hasText: "Нет подключения к интернету" })).toBeVisible();
+  await context.setOffline(false);
+});
+
+test("keeps medical entry forms usable on a 320px phone and exposes keyboard navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 780 });
+  await page.goto("/");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Перейти к основному содержимому" })).toBeVisible();
+
+  const healthNavigation = page.getByRole("button", { name: "Здоровье", exact: true });
+  await healthNavigation.click();
+  await expect(healthNavigation).toHaveAttribute("aria-current", "page");
+  await page.getByRole("tab", { name: "История", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить анализ" }).click();
+
+  const name = page.getByLabel("Название анализа");
+  const date = page.getByLabel("Дата анализа");
+  const nameBox = await name.boundingBox();
+  const dateBox = await date.boundingBox();
+  expect(nameBox).not.toBeNull();
+  expect(dateBox).not.toBeNull();
+  expect(dateBox!.y).toBeGreaterThan(nameBox!.y + nameBox!.height - 1);
+});
+
+
+test("keeps navigation and every primary section usable on tablet widths", async ({ page }) => {
+  await page.goto("/");
+  for (const viewport of [{ width: 768, height: 1024 }, { width: 1024, height: 768 }]) {
+    await page.setViewportSize(viewport);
+    const navigation = page.getByRole("navigation", { name: "Основная навигация" });
+    const navigationBox = await navigation.boundingBox();
+    expect(navigationBox).not.toBeNull();
+    expect(navigationBox!.height).toBeGreaterThan(viewport.height * 0.5);
+
+    for (const section of ["Карта жизни", "Здоровье", "Семья", "Календарь", "Аналитика"]) {
+      await page.getByRole("button", { name: section }).click();
+      const dimensions = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        page: document.documentElement.scrollWidth,
+        main: document.querySelector("main")?.scrollWidth ?? 0,
+        mainClient: document.querySelector("main")?.clientWidth ?? 0,
+      }));
+      expect(dimensions.page, `Page horizontal overflow in ${section} at ${viewport.width}px`)
+        .toBeLessThanOrEqual(dimensions.viewport);
+      expect(dimensions.main, `Section horizontal overflow in ${section} at ${viewport.width}px`)
+        .toBeLessThanOrEqual(dimensions.mainClient);
+    }
+  }
 });

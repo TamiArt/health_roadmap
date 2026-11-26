@@ -10,3 +10,5 @@ data/
 .playwright/
 playwright-report/
 test-results/
+backups/
+offsite-backups/
