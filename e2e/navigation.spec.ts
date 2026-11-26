@@ -1288,3 +1288,56 @@ test("medical analytics plots dated lab history and opens the exact source resul
   await page.getByRole("button", { name: "Открыть запись" }).first().click();
   await expect(page.getByText("E2E аналитика 2", { exact: true }).first()).toBeVisible();
 });
+
+
+test("exposes installable PWA metadata and restores the app shell offline", async ({ page, context }) => {
+  const manifestResponse = await page.request.get("/manifest.webmanifest");
+  expect(manifestResponse.ok()).toBeTruthy();
+  const manifest = await manifestResponse.json();
+  expect(manifest.display).toBe("standalone");
+  expect(manifest.start_url).toBe("/");
+  expect(manifest.icons.some((icon: { src: string }) => icon.src === "/apple-touch-icon.png")).toBeTruthy();
+
+  const workerResponse = await page.request.get("/sw.js");
+  expect(workerResponse.ok()).toBeTruthy();
+  const workerSource = await workerResponse.text();
+  expect(workerSource).toContain('request.mode === "navigate"');
+  expect(workerSource).toContain('url.pathname.startsWith("/api/")');
+
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Карта жизни" })).toBeVisible();
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Карта жизни" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBeTruthy();
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Карта жизни" })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole("status").filter({ hasText: "Нет подключения к интернету" })).toBeVisible();
+  await context.setOffline(false);
+});
+
+test("keeps medical entry forms usable on a 320px phone and exposes keyboard navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 780 });
+  await page.goto("/");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Перейти к основному содержимому" })).toBeVisible();
+
+  const healthNavigation = page.getByRole("button", { name: "Здоровье", exact: true });
+  await healthNavigation.click();
+  await expect(healthNavigation).toHaveAttribute("aria-current", "page");
+  await page.getByRole("tab", { name: "История", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить анализ" }).click();
+
+  const name = page.getByRole("textbox", { name: "Название анализа" });
+  const date = page.getByRole("textbox", { name: "Дата анализа" });
+  const nameBox = await name.boundingBox();
+  const dateBox = await date.boundingBox();
+  expect(nameBox).not.toBeNull();
+  expect(dateBox).not.toBeNull();
+  expect(dateBox!.y).toBeGreaterThan(nameBox!.y + nameBox!.height - 1);
+});
