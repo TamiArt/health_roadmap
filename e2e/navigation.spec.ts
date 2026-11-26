@@ -756,7 +756,7 @@ test("adds medical events, monitoring items and multi-indicator lab history", as
   });
   await page.getByRole("button", { name: "Сохранить анализ" }).click();
   await expect(page.getByText("E2E биохимия", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Креатинин", { exact: true })).toBeVisible();
+  await expect(page.getByText("Креатинин", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "first-result.pdf" })).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
@@ -1257,4 +1257,34 @@ test("an open stale tab cannot recreate child records after the profile is delet
   await staleTab.getByRole("button", { name: "Семья" }).click();
   await expect(staleTab.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);
   await staleTab.close();
+});
+
+
+test("medical analytics plots dated lab history and opens the exact source result", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
+  await page.getByRole("tab", { name: "История", exact: true }).click();
+
+  for (const result of [
+    { name: "E2E аналитика 1", date: "2025-01-10", value: "20", range: "30-150" },
+    { name: "E2E аналитика 2", date: "2025-06-10", value: "45", range: "35-150" },
+  ]) {
+    await page.getByRole("button", { name: "Добавить анализ", exact: true }).click();
+    await page.getByLabel("Название анализа").fill(result.name);
+    await page.getByLabel("Дата анализа").fill(result.date);
+    await page.getByLabel("Название показателя 1").fill("Ферритин");
+    await page.getByLabel("Значение показателя 1").fill(result.value);
+    await page.getByLabel("Единица измерения 1").fill("нг/мл");
+    await page.getByLabel("Референсный диапазон 1").fill(result.range);
+    await page.getByRole("button", { name: "Сохранить анализ" }).click();
+    await expect(page.getByText(result.name, { exact: true }).first()).toBeVisible();
+  }
+
+  await page.getByRole("button", { name: "Аналитика", exact: true }).click();
+  await expect(page.getByRole("img", { name: /График Ферритин/ })).toBeVisible();
+  await expect(page.getByText(/Референсы различаются по датам/)).toBeVisible();
+  await expect(page.getByText(/Референс этого результата: 35-150 нг\/мл/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Открыть запись" }).last().click();
+  await expect(page.getByText("E2E аналитика 2", { exact: true }).first()).toBeVisible();
 });
