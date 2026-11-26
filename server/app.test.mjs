@@ -49,6 +49,29 @@ describe("self-hosted account API", () => {
     assert.deepEqual(readiness.checks, { database: "ok", encryption: "configured" });
     assert.ok(ready.headers.get("x-request-id"));
   });
+  it("marks production session cookies Secure and uses the __Host- prefix", async () => {
+    const secureServer = createAppServer({
+      databasePath: ":memory:",
+      encryptionKey: Buffer.from(encryptionKey, "hex"),
+      secureCookies: true,
+    });
+    await new Promise(resolve => secureServer.listen(0, "127.0.0.1", resolve));
+    try {
+      const response = await fetch(`http://127.0.0.1:${secureServer.address().port}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "secure@example.com", password: "secure-test-password-123" }),
+      });
+      assert.equal(response.status, 201);
+      assert.match(response.headers.get("set-cookie"), /^__Host-life_maps_session=/);
+      assert.match(response.headers.get("set-cookie"), /; Secure(?:;|$)/);
+      assert.match(response.headers.get("set-cookie"), /HttpOnly/);
+      assert.match(response.headers.get("set-cookie"), /SameSite=Strict/);
+    } finally {
+      await new Promise((resolve, reject) => secureServer.close(error => error ? reject(error) : resolve()));
+    }
+  });
+
   it("registers an account, normalizes email and creates an HttpOnly session", async () => {
     const response = await request("/api/auth/register", {
       method: "POST",
