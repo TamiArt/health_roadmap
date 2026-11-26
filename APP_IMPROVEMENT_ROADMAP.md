@@ -316,3 +316,20 @@
 
 
 - 2026-11-26 — P4 UX/PWA: добавлены production service worker и precache всех production-ресурсов из Vite manifest, offline shell с network-first навигацией и cache-first статикой, исключение API из кэша, offline-индикатор, iOS safe-area и мобильные формы. Добавлены E2E-проверки PWA/offline, 320 px keyboard/form и планшетных 768/1024 px. Документация установки и ограничений — `docs/pwa-mobile-accessibility.md`. Полный CI нового HEAD ожидается; ручной скринридер-аудит остаётся отдельным пунктом.
+
+
+### P8. Серверная инфраструктура и безопасность
+
+**Статус: реализация подготовлена; полный CI и реальный deployment drill ожидаются.**
+
+- [x] Self-hosted Docker Compose с Node.js API, SQLite, Caddy HTTPS и постоянными volumes.
+- [x] Изоляция приложения и backup worker, non-root, read-only filesystem, dropped capabilities, ротация логов.
+- [x] Автоматические ежедневные SQLite snapshots, SHA-256/integrity verification, retention и healthcheck свежести.
+- [x] Restore CLI с проверкой резервной копии и safety snapshot перед заменой базы.
+- [x] Проверка ключа AES-256-GCM, account isolation, production Secure cookie, database persistence.
+- [x] Liveness/readiness endpoints, структурированные privacy-safe logs, request correlation ID.
+- [x] Инструкции deployment, offsite backup и disaster recovery.
+- [ ] Полный CI на финальном commit.
+- [ ] Проверка восстановления на отдельном сервере и независимом offsite носителе.
+- [ ] Реальный публичный запуск после настройки VPS, домена/DNS и production secret владельца.
+
