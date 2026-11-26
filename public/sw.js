@@ -7,6 +7,23 @@ self.addEventListener("install", event => {
     await Promise.all(APP_SHELL.map(async path => {
       try { await cache.add(path); } catch { /* An optional icon must not block installation. */ }
     }));
+    try {
+      const manifestResponse = await fetch("/build-manifest.json", { cache: "no-store" });
+      if (manifestResponse.ok) {
+        const manifest = await manifestResponse.json();
+        const assets = new Set(["/build-manifest.json"]);
+        for (const entry of Object.values(manifest)) {
+          if (!entry || typeof entry !== "object") continue;
+          const record = entry;
+          for (const asset of [record.file, ...(record.css ?? []), ...(record.assets ?? [])]) {
+            if (typeof asset === "string" && !/^(?:https?:)?\\/\\//i.test(asset)) assets.add(asset.startsWith("/") ? asset : "/" + asset);
+          }
+        }
+        await Promise.all([...assets].map(async asset => {
+          try { await cache.add(asset); } catch { /* A failed optional asset does not block offline startup. */ }
+        }));
+      }
+    } catch { /* Development and older deployments may not expose a build manifest. */ }
     await self.skipWaiting();
   })());
 });
