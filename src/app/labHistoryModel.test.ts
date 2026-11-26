@@ -46,6 +46,17 @@ describe("lab history model", () => {
       .toBe(LAB_TEST_ASSIGNMENTS.length);
   });
 
+  it("uses Hemotest lipid-complex terminology and distinguishes HDL from LDL cholesterol", () => {
+    const lipidProfile = LAB_TEST_CONCEPTS.find(concept => concept.id === "lipid-profile");
+    expect(lipidProfile?.name).toBe("Липидный профиль (холестерин)");
+    expect(lipidProfile?.what).toContain("холестерин общий");
+    expect(lipidProfile?.what).toContain("холестерин липопротеинов низкой плотности (ЛПНП, «плохой»)");
+    expect(lipidProfile?.what).toContain("холестерин липопротеинов высокой плотности (ЛПВП, «хороший»)");
+    expect(lipidProfile?.what).toContain("холестерин липопротеинов очень низкой плотности (ЛПОНП)");
+    expect(lipidProfile?.what).toContain("триглицериды");
+    expect(lipidProfile?.what).toContain("индекс атерогенности");
+  });
+
   it("keeps every assignment connected to an existing concept and stage", () => {
     const conceptIds = new Set(LAB_TEST_CONCEPTS.map(concept => concept.id));
     const stageIds = new Set(LAB_TEST_STAGE_DEFINITIONS.map(stage => stage.id));
