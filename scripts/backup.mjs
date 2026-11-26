@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { chmodSync, createReadStream, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { basename, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 
 function integrityCheck(filename) {
@@ -41,6 +41,10 @@ export async function backupDatabase(databasePath, backupDirectory, retentionDay
   let databaseClosed = false;
   try {
     database.exec("PRAGMA busy_timeout = 10000");
+    const requiredTables = new Set(database.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(row => row.name));
+    for (const table of ["users", "sessions", "user_backups", "sync_operations", "change_log"]) {
+      if (!requiredTables.has(table)) throw new Error(`SQLite schema is not ready: missing ${table}.`);
+    }
     const checkpoint = database.prepare("PRAGMA wal_checkpoint(FULL)").get();
     if (checkpoint?.busy) throw new Error("SQLite WAL checkpoint is busy; retry the backup.");
     const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
@@ -87,9 +91,8 @@ export async function backupDatabase(databasePath, backupDirectory, retentionDay
 export async function verifyBackup(backupPath) {
   const filename = resolve(backupPath);
   const manifestPath = filename + ".manifest.json";
-  const manifest = JSON.parse((await import("node:fs/promises")).readFile
-    ? await (await import("node:fs/promises")).readFile(manifestPath, "utf8")
-    : "{}");
+  const { readFile } = await import("node:fs/promises");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   if (manifest.format !== "life-maps-sqlite-backup" || manifest.version !== 1 ||
       manifest.file !== basename(filename) || manifest.integrity !== "ok" ||
       !/^[a-f0-9]{64}$/.test(manifest.sha256)) {
