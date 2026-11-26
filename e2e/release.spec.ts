@@ -5,8 +5,16 @@ const password = "release-test-password-2026";
 
 async function openAccountPanel(page: import("@playwright/test").Page) {
   const toggle = page.getByRole("button", { name: "Аккаунт и синхронизация" });
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  const panelContent = page.getByRole("button", { name: "Регистрация", exact: true })
+    .or(page.getByText("Выполнен вход", { exact: true }));
+
+  // Logout does not necessarily collapse the panel. Avoid toggling an already-open panel.
+  if (!(await panelContent.isVisible().catch(() => false))) {
+    await toggle.click();
+  }
+
+  // Assert the user-facing content, not the implementation detail aria-expanded.
+  await expect(panelContent).toBeVisible({ timeout: 10_000 });
 }
 
 async function waitUntilSynced(page: import("@playwright/test").Page) {
