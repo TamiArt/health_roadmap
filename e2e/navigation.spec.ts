@@ -1333,8 +1333,8 @@ test("keeps medical entry forms usable on a 320px phone and exposes keyboard nav
   await page.getByRole("tab", { name: "История", exact: true }).click();
   await page.getByRole("button", { name: "Добавить анализ" }).click();
 
-  const name = page.getByRole("textbox", { name: "Название анализа" });
-  const date = page.getByRole("textbox", { name: "Дата анализа" });
+  const name = page.getByLabel("Название анализа");
+  const date = page.getByLabel("Дата анализа");
   const nameBox = await name.boundingBox();
   const dateBox = await date.boundingBox();
   expect(nameBox).not.toBeNull();
