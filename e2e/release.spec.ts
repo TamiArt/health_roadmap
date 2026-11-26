@@ -73,4 +73,14 @@ test("registers an account and synchronizes online/offline edits and deletions b
   } finally {
     await secondContext.close();
   }
+
+  await page.getByRole("button", { name: "Выйти", exact: true }).click();
+  await expect(page.getByText("Выполнен вход", { exact: true })).toHaveCount(0);
+  await openAccountPanel(page);
+  await page.getByRole("button", { name: "Вход", exact: true }).click();
+  await page.getByLabel("Электронная почта").fill(email);
+  await page.locator('input[type="password"]').fill(password);
+  await page.getByRole("button", { name: "Войти", exact: true }).click();
+  await expect(page.getByText("Выполнен вход", { exact: true })).toBeVisible();
+  await waitUntilSynced(page);
 });
