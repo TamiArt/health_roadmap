@@ -46,7 +46,7 @@ export async function backupDatabase(databasePath, backupDirectory, retentionDay
       if (!requiredTables.has(table)) throw new Error(`SQLite schema is not ready: missing ${table}.`);
     }
     const checkpoint = database.prepare("PRAGMA wal_checkpoint(FULL)").get();
-    if (checkpoint?.busy) throw new Error("SQLite WAL checkpoint is busy; retry the backup.");
+    if (checkpoint?.busy > 0) throw new Error("SQLite WAL checkpoint is busy; retry the backup.");
     const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
     const filename = `life-maps-${stamp}-${randomBytes(4).toString("hex")}.sqlite`;
     const finalPath = join(destinationDirectory, filename);
