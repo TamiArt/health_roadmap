@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { parseReferenceRange } from "./analyticsModel";
 export interface LabTrendPoint { date: string; value: number; }
 const format = (value: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 3 }).format(value);
@@ -21,6 +21,10 @@ export function LabIndicatorTrend({ name, unit, points, referenceRange }: { name
       <ResponsiveContainer width="100%" height="100%"><LineChart data={data} margin={{ top: 8, right: 12, bottom: 2, left: 0 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false}/>
         {bounds?.lower !== undefined && bounds.upper !== undefined && <ReferenceArea y1={bounds.lower} y2={bounds.upper} fill="#16a34a" fillOpacity={0.08}/>}
+        {bounds?.lower !== undefined && bounds.upper === undefined && <ReferenceArea y1={bounds.lower} y2={domain[1]} fill="#16a34a" fillOpacity={0.08}/>}
+        {bounds?.upper !== undefined && bounds.lower === undefined && <ReferenceArea y1={domain[0]} y2={bounds.upper} fill="#16a34a" fillOpacity={0.08}/>}
+        {bounds?.lower !== undefined && <ReferenceLine y={bounds.lower} stroke="#16a34a" strokeDasharray="4 3"/>}
+        {bounds?.upper !== undefined && <ReferenceLine y={bounds.upper} stroke="#16a34a" strokeDasharray="4 3"/>}
         <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={value => new Date(`${value}T00:00:00`).toLocaleDateString("ru-RU")}/>
         <YAxis width={52} domain={domain} tick={{ fontSize: 10 }}/>
         <Tooltip labelFormatter={value => new Date(`${value}T00:00:00`).toLocaleDateString("ru-RU")} formatter={value => [`${format(Number(value))} ${unit}`, name]}/>
