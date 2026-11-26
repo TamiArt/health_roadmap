@@ -50,11 +50,11 @@ describe("lab history model", () => {
     const lipidProfile = LAB_TEST_CONCEPTS.find(concept => concept.id === "lipid-profile");
     expect(lipidProfile?.name).toBe("Липидный профиль (холестерин)");
     expect(lipidProfile?.what).toContain("холестерин общий");
-    expect(lipidProfile?.what).toContain("холестерин липопротеинов низкой плотности (ЛПНП, «плохой»)");
-    expect(lipidProfile?.what).toContain("холестерин липопротеинов высокой плотности (ЛПВП, «хороший»)");
+    expect(lipidProfile?.what).toContain("хороший холестерин — холестерин липопротеинов высокой плотности (ЛПВП)");
+    expect(lipidProfile?.what).toContain("плохой холестерин — холестерин липопротеинов низкой плотности (ЛПНП)");
     expect(lipidProfile?.what).toContain("холестерин липопротеинов очень низкой плотности (ЛПОНП)");
     expect(lipidProfile?.what).toContain("триглицериды");
-    expect(lipidProfile?.what).toContain("индекс атерогенности");
+    expect(lipidProfile?.what).toContain("индекс атерогенности (расчёт по общему холестерину и ЛПВП)");
   });
 
   it("keeps every assignment connected to an existing concept and stage", () => {
