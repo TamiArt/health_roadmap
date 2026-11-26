@@ -251,6 +251,27 @@ Life Maps — клиентское приложение для карты жиз
 **Критерии завершения:** полный CI на одном commit: TypeScript, structure check, npm audit, unit/API, E2E и production build — success. Отдельно подтвердить отсутствие потери данных при сетевом повторе, первом входе с локальной базой, удалении и разрешении конфликтов.
 
 Подробности протокола: [docs/sync-conflict-protection.md](./docs/sync-conflict-protection.md).
+### Этап 8. Серверная инфраструктура и безопасность (пользовательская нумерация)
+
+**Статус: инфраструктурная реализация подготовлена; подтверждение полного CI и развёртывание на сервере владельца — обязательные финальные gates.** Внутренний этап 8 по аккаунтам и синхронизации сохранён отдельно, чтобы не менять историю ранее выполненных работ.
+
+- [x] Самостоятельный Docker Compose deployment: Node.js API, SQLite, Caddy reverse proxy и постоянные volumes.
+- [x] HTTPS через Caddy Automatic HTTPS; постоянное хранение TLS-состояния; HSTS и базовые security headers.
+- [x] Ограничение контейнеров: non-root runtime, read-only root filesystem, no-new-privileges, drop capabilities, tmpfs и ротация Docker logs.
+- [x] Постоянное хранение SQLite в отдельном volume; API не публикует порт наружу.
+- [x] Ежедневный SQLite backup через WAL checkpoint и VACUUM INTO, retention, manifest, SHA-256 и integrity check.
+- [x] Безопасное восстановление: остановка app/backup, проверка checksum/integrity, safety snapshot текущей базы, атомарная замена и повторная integrity check.
+- [x] Тесты backup/restore, tamper detection, backup freshness, DB persistence across restart, криптографических операций, production Secure cookies и API readiness.
+- [x] Защита секретов: проверка 256-битного DATA_ENCRYPTION_KEY при старте, .env вне Git, инструкция прав 0600 и раздельного хранения ключа.
+- [x] Проверка изоляции аккаунтов и доступа к зашифрованному снимку через авторизованный API; документы остаются внутри account-scoped зашифрованного payload.
+- [x] Мониторинг: liveness /api/health, readiness /api/ready, Docker healthchecks, отдельная проверка свежести/целостности backup, JSON request/error logs без email, cookie и медицинских значений, X-Request-Id.
+- [x] Документировать запуск, обновление, offsite backup, restore drill, диагностику и ограничения в docs/self-hosting.md и docs/operations-runbook.md.
+- [ ] Подтвердить полный CI на финальном commit.
+- [ ] Выполнить пробное восстановление на отдельном сервере и настроить независимый offsite backup/внешние alerts.
+- [ ] Публичное развёртывание возможно после предоставления владельцем VPS/сервера, домена/DNS и защищённого способа задать production secret.
+
+**Критерии завершения кода:** воспроизводимый self-hosted compose, HTTPS-конфигурация, persistent storage, автоматические проверяемые backup, безопасный restore, account isolation, мониторинг и успешный CI. Публичный go-live и offsite recovery drill требуют ресурсов владельца сервера и не могут быть подтверждены только Git-коммитом.
+
 ## Статус этапов и журнал
 
 | Этап | Статус | Что подтверждено |
@@ -263,8 +284,8 @@ Life Maps — клиентское приложение для карты жиз
 | 5. Аналитика | Завершён | Профильная динамика лабораторных показателей и мониторинга, сравнение дат, референсы, фильтры и переходы к исходным записям; полный CI run `45691354142` — success. Подробности — `docs/medical-analytics.md`. |
 | 6. UX и доступность | Автоматизированная реализация завершена; ручной аудит ожидает | PWA/offline shell, responsive 320–1024 px, клавиатурные сценарии и live status покрыты E2E; ручной screen-reader/dialog audit остаётся открытым. |
 | 7. Выпуск | Запланирован | Финальный release checklist ещё не сформирован. |
-| 8. Аккаунты и перенос данных | Автоматическая синхронизация реализована | CI run `45657934104`: 77 app unit, 15 server tests, 52/52 E2E и production build. Подтверждены автоматический pull/push, offline/reconnect, вложения, разрешение конфликтов и изоляция аккаунтов. Email verification, password reset, управление сессиями и публичное развёртывание остаются отдельными задачами. |
-| P0. Защита синхронизации (этап 4 по запросу) | Завершён | CI run `45666744541`: 82 app unit, 17 server tests, 52/52 E2E, TypeScript, structure, npm audit и production build — success. Версии записей, tombstone, idempotency, журнал, безопасный первый merge, графики и поиск подтверждены. |
+| 8a. Аккаунты и перенос данных (внутренняя нумерация) | Автоматическая синхронизация реализована | CI run `45657934104`: 77 app unit, 15 server tests, 52/52 E2E и production build. Подтверждены автоматический pull/push, offline/reconnect, вложения, разрешение конфликтов и изоляция аккаунтов. Email verification, password reset, управление сессиями и публичное развёртывание остаются отдельными задачами. |
+| 8. Серверная инфраструктура и безопасность | Реализация подготовлена; CI/production drill ожидаются | Docker Compose, Caddy HTTPS, постоянные volumes, ежедневный проверяемый SQLite backup, restore tool, crypto/account isolation tests, readiness и backup healthchecks; см. docs/operations-runbook.md. Публичный deployment и offsite restore drill требуют VPS/DNS владельца. |\n| P0. Защита синхронизации (этап 4 по запросу) | Завершён | CI run `45666744541`: 82 app unit, 17 server tests, 52/52 E2E, TypeScript, structure, npm audit и production build — success. Версии записей, tombstone, idempotency, журнал, безопасный первый merge, графики и поиск подтверждены. |
 
 - 2026-11-25 — Этап 1 (повторный архитектурный аудит): подтверждён единый слой пользовательского хранилища; клиентская и серверная backup-валидация дополнена календарной проверкой медицинских дат и уникальностью ID записей, показателей и измерений. Добавлены регрессии, сохранена совместимость исторических записей мониторинга, актуализирована `docs/data-model.md`. CI run [45657934104](https://github.com/TamiArt/health_roadmap/actions/runs/45657934104), commit `585498bf457a498aec05976af66f501a4d206e12`: TypeScript, structure check, npm audit, 77 app unit-тестов, 15 server tests, 52/52 E2E и production build — success. В том числе подтверждены account-scoped storage и миграция IndexedDB v1 → v2.
 
@@ -301,3 +322,4 @@ Life Maps — клиентское приложение для карты жиз
 
 
 - 2026-11-26 — Этап UX/PWA в ветке `feat/medical-analytics-dynamics`: добавлены production service worker, precache code-split ресурсов по Vite build manifest, offline navigation fallback, исключение `/api/` из Cache Storage, offline status banner, iOS safe-area и компактные мобильные формы. Добавлены E2E-сценарии PWA/offline, 320 px keyboard/form и планшетных 768/1024 px; документация `docs/pwa-mobile-accessibility.md`. Реализация находится в ветке; полный CI для нового HEAD ещё требуется подтвердить. Ручной screen-reader/dialog audit не заменяется автоматическими тестами.
+\n- 2026-11-26 — Пользовательский этап 8 «Серверная инфраструктура и безопасность»: добавлены автоматические SQLite backups (WAL checkpoint, VACUUM INTO, integrity check, SHA-256 manifest, retention), проверка свежести/целостности backup, CLI restore с safety snapshot, отдельный изолированный backup worker, hardened Docker Compose, readiness endpoint, privacy-safe JSON logs, HSTS/security headers, security/DB/backup tests и эксплуатационный runbook. Полный CI на финальном commit и проверка восстановления на отдельном VPS остаются gates; публичное развёртывание требует VPS, DNS и production secret владельца.\n
