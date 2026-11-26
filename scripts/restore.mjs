@@ -30,7 +30,7 @@ export async function restoreDatabase(databasePath, backupPath, backupDirectory)
       } catch (backupError) {
         mkdirSync(safetyDirectory, { recursive: true });
         const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-        safetyBackup = join(safetyDirectory, `life-maps-pre-restore-raw-${stamp}.sqlite`);
+        safetyBackup = join(safetyDirectory, `life-maps-pre-restore-raw-${stamp}-${randomBytes(4).toString("hex")}.sqlite`);
         copyFileSync(target, safetyBackup);
         chmodSync(safetyBackup, 0o600);
         for (const suffix of ["-wal", "-shm"]) {
