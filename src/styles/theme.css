@@ -277,3 +277,39 @@
     padding-bottom: 0;
   }
 }
+
+
+/* Narrow form layouts keep medical fields readable on compact phones. */
+@media (max-width: 380px) {
+  .grid.grid-cols-2:has(input),
+  .grid.grid-cols-2:has(select),
+  .grid.grid-cols-2:has(textarea) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-bottom-nav nav button {
+    min-width: 0;
+    font-size: 9px;
+  }
+
+  .backup-panel {
+    left: 0.5rem;
+    right: 0.5rem;
+  }
+}
+
+/* Avoid zoom-on-focus in iOS Safari and preserve comfortable touch targets. */
+@media (max-width: 639px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
+
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-bottom-nav {
+    padding-left: max(0.25rem, env(safe-area-inset-left));
+    padding-right: max(0.25rem, env(safe-area-inset-right));
+  }
+}
