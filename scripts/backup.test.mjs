@@ -1,8 +1,8 @@
 import { afterEach, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { appendFileSync, copyFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { backupDatabase, verifyBackup } from "./backup.mjs";
 import { restoreDatabase } from "./restore.mjs";
@@ -46,11 +46,13 @@ it("refuses tampered backup and restores a verified snapshot with a pre-restore 
   assert.equal(restored.prepare("SELECT payload FROM medical_records WHERE id = ?").get("record-1").payload, "encrypted-value");
   restored.close();
 
-  const tampered = join(backupDirectory, "tampered.sqlite");
-  const { copyFileSync, appendFileSync } = await import("node:fs");
+  const tamperDirectory = join(backupDirectory, "tampered");
+  mkdirSync(tamperDirectory);
+  const tampered = join(tamperDirectory, basename(backup.path));
   copyFileSync(backup.path, tampered);
+  copyFileSync(backup.manifestPath, tampered + ".manifest.json");
   appendFileSync(tampered, "tampered");
-  await assert.rejects(() => verifyBackup(tampered), /manifest|checksum/i);
+  await assert.rejects(() => verifyBackup(tampered), /checksum/i);
 });
 
 it("reports backup freshness and detects stale backup sets", async () => {
