@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { backupDatabase, verifyBackup } from "./backup.mjs";
 import { restoreDatabase } from "./restore.mjs";
+import { checkLatestBackup } from "./backup-health.mjs";
 
 const directories = [];
 function fixture() {
@@ -50,4 +51,12 @@ it("refuses tampered backup and restores a verified snapshot with a pre-restore 
   copyFileSync(backup.path, tampered);
   appendFileSync(tampered, "tampered");
   await assert.rejects(() => verifyBackup(tampered), /manifest|checksum/i);
+});
+
+it("reports backup freshness and detects stale backup sets", async () => {
+  const { databasePath, backupDirectory } = fixture();
+  await backupDatabase(databasePath, backupDirectory, 14);
+  const healthy = await checkLatestBackup(backupDirectory, 30);
+  assert.equal(healthy.integrity, "ok");
+  await assert.rejects(() => checkLatestBackup(backupDirectory, 1, Date.now() + 2 * 60 * 60 * 1000), /stale/i);
 });
