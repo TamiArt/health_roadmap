@@ -5,15 +5,19 @@ const password = "release-test-password-2026";
 
 async function openAccountPanel(page: import("@playwright/test").Page) {
   const toggle = page.getByRole("button", { name: "Аккаунт и синхронизация" });
-  const panelContent = page.getByRole("button", { name: "Регистрация", exact: true })
-    .or(page.getByText("Выполнен вход", { exact: true }));
+  const registration = page.getByRole("button", { name: "Регистрация", exact: true });
+  const signedIn = page.getByText("Выполнен вход", { exact: true });
+  const panelContent = registration.or(signedIn);
 
-  // Logout does not necessarily collapse the panel. Avoid toggling an already-open panel.
-  if (!(await panelContent.isVisible().catch(() => false))) {
+  await expect(toggle).toBeVisible({ timeout: 10_000 });
+
+  // The panel may already be open after account-state restoration or remain open after logout.
+  if (await toggle.getAttribute("aria-expanded") !== "true") {
     await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true", { timeout: 10_000 });
   }
 
-  // Assert the user-facing content, not the implementation detail aria-expanded.
+  // Wait for either the guest registration action or the authenticated account state.
   await expect(panelContent).toBeVisible({ timeout: 10_000 });
 }
 
