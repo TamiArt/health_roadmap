@@ -11,6 +11,18 @@ const backup = {
     lifeEvents: [{ id: "event-1", title: "Private event" }],
     children: [{ id: "child-1", name: "Child" }],
     "childHealth:child-1:labMeasurements": { ferritin: [{ id: "measurement-1", date: "2026-11-25", value: "12.1", unit: "г/л" }] },
+    labResultEntries: [{
+      id: "lab-entry-1",
+      testName: "Общий анализ крови",
+      date: "2026-11-25",
+      indicators: [{ id: "indicator-1", name: "Гемоглобин", value: 13.2, unit: "г/дл" }],
+      documents: [{
+        id: "document-1",
+        name: "lab-result.pdf",
+        mimeType: "application/pdf",
+        blob: { __lifeMapsBlob: true, mimeType: "application/pdf", base64: "JVBERi0xLjQ=" },
+      }],
+    }],
   },
 };
 
@@ -126,6 +138,8 @@ describe("self-hosted account API", () => {
     const ownerPayload = await ownerData.json();
     assert.equal(ownerPayload.payload.records.lifeEvents[0].title, "Private event");
     assert.equal(ownerPayload.payload.records["childHealth:child-1:labMeasurements"].ferritin[0].value, "12.1");
+    assert.equal(ownerPayload.payload.records.labResultEntries[0].documents[0].name, "lab-result.pdf");
+    assert.equal(ownerPayload.payload.records.labResultEntries[0].documents[0].blob.base64, "JVBERi0xLjQ=");
 
     const secondRegistration = await request("/api/auth/register", {
       method: "POST", headers: { "Content-Type": "application/json" },
