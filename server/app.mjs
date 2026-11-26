@@ -142,7 +142,7 @@ export function createAppServer({
         event: "http_request", requestId, method: request.method ?? "GET",
         path: new URL(request.url ?? "/", "http://localhost").pathname,
         status: response.statusCode, durationMs: Math.round(performance.now() - requestStartedAt),
-      }) + "\\n");
+      }) + "\n");
     });
     const url = new URL(request.url ?? "/", "http://localhost");
     const method = request.method ?? "GET";
@@ -333,7 +333,7 @@ export function createAppServer({
       sendJson(response, 405, { error: "Method not allowed." });
     } catch (error) {
       if (!error.status) {
-        process.stderr.write(JSON.stringify({ timestamp: new Date().toISOString(), level: "error", event: "request_failed", requestId, errorName: error?.name ?? "Error" }) + "\\n");
+        process.stderr.write(JSON.stringify({ timestamp: new Date().toISOString(), level: "error", event: "request_failed", requestId, errorName: error?.name ?? "Error" }) + "\n");
       }
       if (!response.headersSent) sendJson(response, error.status ?? 500, { error: error.status ? error.message : "Внутренняя ошибка сервера." });
       else response.destroy();
