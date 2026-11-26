@@ -46,6 +46,17 @@ export function DataManagementPanel({
   const [accountExpanded, setAccountExpanded] = useState(false);
   const [serverAvailable, setServerAvailable] = useState(true);
   const [changeLog, setChangeLog] = useState<SyncChange[]>([]);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+
+  useEffect(() => {
+    const updateOnline = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -227,6 +238,7 @@ export function DataManagementPanel({
 
   return (
     <section aria-label="Резервное копирование" aria-busy={busy} className="backup-panel pointer-events-none fixed z-40 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
+      {!isOnline && <p role="status" aria-live="polite" className="pointer-events-auto max-w-full rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-950 shadow sm:max-w-80">Нет подключения к интернету. Изменения продолжают сохраняться на этом устройстве; синхронизация возобновится автоматически после восстановления сети.</p>}
       <div className="pointer-events-auto flex w-full flex-col gap-2 rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur sm:w-auto">
         <div className="flex items-center justify-center gap-2">
           <button type="button" onClick={() => void handleExport()} disabled={busy || !storageReady || !!storageError}
