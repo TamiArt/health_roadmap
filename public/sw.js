@@ -16,7 +16,7 @@ self.addEventListener("install", event => {
           if (!entry || typeof entry !== "object") continue;
           const record = entry;
           for (const asset of [record.file, ...(record.css ?? []), ...(record.assets ?? [])]) {
-            if (typeof asset === "string" && !/^(?:https?:)?\\/\\//i.test(asset)) assets.add(asset.startsWith("/") ? asset : "/" + asset);
+            if (typeof asset === "string" && !asset.startsWith("http") && !asset.startsWith("//")) assets.add(asset.startsWith("/") ? asset : "/" + asset);
           }
         }
         await Promise.all([...assets].map(async asset => {
