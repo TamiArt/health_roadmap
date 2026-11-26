@@ -29,7 +29,7 @@ export async function restoreDatabase(databasePath, backupPath, backupDirectory)
         safetyBackup = (await backupDatabase(target, safetyDirectory, 365)).path;
       } catch (backupError) {
         mkdirSync(safetyDirectory, { recursive: true });
-        const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\\.\\d{3}Z$/, "Z");
+        const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
         safetyBackup = join(safetyDirectory, `life-maps-pre-restore-raw-${stamp}.sqlite`);
         copyFileSync(target, safetyBackup);
         chmodSync(safetyBackup, 0o600);
@@ -37,7 +37,7 @@ export async function restoreDatabase(databasePath, backupPath, backupDirectory)
           if (existsSync(target + suffix)) copyFileSync(target + suffix, safetyBackup + suffix);
         }
         writeFileSync(safetyBackup + ".note.txt",
-          `Raw pre-restore files were preserved because a validated SQLite snapshot failed: ${backupError.message}\\n`,
+          `Raw pre-restore files were preserved because a validated SQLite snapshot failed: ${backupError.message}\n`,
           { mode: 0o600 });
       }
     }
