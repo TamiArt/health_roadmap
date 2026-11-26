@@ -6,7 +6,7 @@ import {
 } from "./security.mjs";
 
 it("requires a full 256-bit encryption key and rejects malformed secrets", () => {
-  assert.throws(() => parseEncryptionKey("too-short"), /64 hexadecimal/);
+  assert.throws(() => parseEncryptionKey("too-short"), /64.*(?:hexadecimal|шестнадцатеричных)/i);
   assert.throws(() => parseEncryptionKey("g".repeat(64)), /64 hexadecimal/);
   assert.equal(parseEncryptionKey("ab".repeat(32)).length, 32);
 });
