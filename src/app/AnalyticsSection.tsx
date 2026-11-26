@@ -71,7 +71,7 @@ function ProfileAnalytics({ child, onNavigate, onOpenSource }: { child?: Child; 
           const change = getSeriesChange(item.points);
           const latest = item.points[item.points.length - 1];
           const status = getReferenceStatus(latest.value, latest.referenceRange);
-          const statusLabel = status === "low" ? "Ниже указанного референса" : status === "high" ? "Выше указанного референса" : status === "normal" ? "В пределах указанного референса" : "Референс не указан";
+          const statusLabel = status === "low" ? "Ниже указанного референса" : status === "high" ? "Выше указанного референса" : status === "normal" ? "В пределах указанного референса" : latest.referenceRange?.trim() ? "Референс указан; оценка недоступна" : "Референс не указан";
           return <article key={item.id} className="rounded-xl border border-border bg-background p-3">
             <div className="flex flex-wrap items-start justify-between gap-2"><div><h4 className="text-sm font-semibold text-foreground">{item.name}</h4><p className="text-[11px] text-muted-foreground">{item.category === "laboratory" ? "Лабораторный показатель" : "Измерение / наблюдение"} · {item.unit}</p></div><span className="rounded-full bg-muted px-2 py-1 text-[10px] text-muted-foreground">{statusLabel}</span></div>
             <p className="mt-2 text-xs text-foreground">Последнее значение: <strong>{new Intl.NumberFormat("ru-RU",{maximumFractionDigits:3}).format(latest.value)} {item.unit}</strong> · {new Date(`${latest.date}T00:00:00`).toLocaleDateString("ru-RU")}</p>
