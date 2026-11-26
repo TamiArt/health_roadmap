@@ -1285,6 +1285,6 @@ test("medical analytics plots dated lab history and opens the exact source resul
   await expect(page.getByText(/Референсы различаются по датам/)).toBeVisible();
   await expect(page.getByText(/Референс этого результата: 35-150 нг\/мл/)).toBeVisible();
 
-  await page.getByRole("button", { name: "Открыть запись" }).last().click();
+  await page.getByRole("button", { name: "Открыть запись" }).first().click();
   await expect(page.getByText("E2E аналитика 2", { exact: true }).first()).toBeVisible();
 });
