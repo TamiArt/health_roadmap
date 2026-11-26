@@ -35,7 +35,7 @@ it("persists account, session and encrypted backup metadata across database rest
     assert.equal(reopened.getSessionUser("session-hash").email, "owner@example.com");
     const persistedBackup = reopened.getBackup("user-1");
     assert.equal(persistedBackup.revision, 1);
-    assert.equal(persistedBackup.encrypted_payload.toString(), "encrypted-payload");
+    assert.equal(Buffer.from(persistedBackup.encrypted_payload).toString("utf8"), "encrypted-payload");
     assert.equal(reopened.healthCheck(), true);
   } finally {
     reopened.close();
