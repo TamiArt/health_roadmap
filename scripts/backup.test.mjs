@@ -13,7 +13,7 @@ function fixture() {
   directories.push(directory);
   const databasePath = join(directory, "life-maps.sqlite");
   const database = new DatabaseSync(databasePath);
-  database.exec("CREATE TABLE users (id TEXT PRIMARY KEY); CREATE TABLE sessions (id TEXT PRIMARY KEY); CREATE TABLE user_backups (id TEXT PRIMARY KEY); CREATE TABLE sync_operations (id TEXT PRIMARY KEY); CREATE TABLE change_log (id TEXT PRIMARY KEY); CREATE TABLE medical_records (id TEXT PRIMARY KEY, payload TEXT NOT NULL); INSERT INTO medical_records VALUES ('record-1', 'encrypted-value')");
+  database.exec("PRAGMA journal_mode = WAL; CREATE TABLE users (id TEXT PRIMARY KEY); CREATE TABLE sessions (id TEXT PRIMARY KEY); CREATE TABLE user_backups (id TEXT PRIMARY KEY); CREATE TABLE sync_operations (id TEXT PRIMARY KEY); CREATE TABLE change_log (id TEXT PRIMARY KEY); CREATE TABLE medical_records (id TEXT PRIMARY KEY, payload TEXT NOT NULL); INSERT INTO medical_records VALUES ('record-1', 'encrypted-value')");
   database.close();
   return { directory, databasePath, backupDirectory: join(directory, "backups") };
 }
