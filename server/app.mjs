@@ -133,6 +133,17 @@ export function createAppServer({
   const rateLimited = createRateLimiter();
 
   const server = createServer(async (request, response) => {
+    const requestId = randomUUID();
+    const requestStartedAt = performance.now();
+    response.setHeader("X-Request-Id", requestId);
+    response.on("finish", () => {
+      process.stdout.write(JSON.stringify({
+        timestamp: new Date().toISOString(), level: response.statusCode >= 500 ? "error" : "info",
+        event: "http_request", requestId, method: request.method ?? "GET",
+        path: new URL(request.url ?? "/", "http://localhost").pathname,
+        status: response.statusCode, durationMs: Math.round(performance.now() - requestStartedAt),
+      }) + "\\n");
+    });
     const url = new URL(request.url ?? "/", "http://localhost");
     const method = request.method ?? "GET";
     const ip = request.socket.remoteAddress ?? "unknown";
@@ -140,14 +151,30 @@ export function createAppServer({
     try {
       if (method !== "GET" && method !== "HEAD" && url.pathname.startsWith("/api/")) {
         const origin = request.headers.origin;
-        if (origin && new URL(origin).host !== request.headers.host) {
-          sendJson(response, 403, { error: "Запрос с другого источника запрещён." });
-          return;
+        if (origin) {
+          let originHost = "";
+          try { originHost = new URL(origin).host; } catch { /* malformed Origin is rejected below */ }
+          if (!originHost || originHost !== request.headers.host) {
+            sendJson(response, 403, { error: "Запрос с другого источника запрещён." });
+            return;
+          }
         }
       }
 
       if (method === "GET" && url.pathname === "/api/health") {
-        sendJson(response, 200, { status: "ok" });
+        sendJson(response, 200, { status: "ok", timestamp: new Date().toISOString() });
+        return;
+      }
+
+      if (method === "GET" && url.pathname === "/api/ready") {
+        const databaseReady = database.healthCheck();
+        const encryptionReady = Buffer.isBuffer(encryptionKey) && encryptionKey.length === 32;
+        const ready = databaseReady && encryptionReady;
+        sendJson(response, ready ? 200 : 503, {
+          status: ready ? "ready" : "not_ready",
+          checks: { database: databaseReady ? "ok" : "error", encryption: encryptionReady ? "configured" : "missing" },
+          timestamp: new Date().toISOString(),
+        });
         return;
       }
 
@@ -305,7 +332,11 @@ export function createAppServer({
       }
       sendJson(response, 405, { error: "Method not allowed." });
     } catch (error) {
-      sendJson(response, error.status ?? 500, { error: error.status ? error.message : "Внутренняя ошибка сервера." });
+      if (!error.status) {
+        process.stderr.write(JSON.stringify({ timestamp: new Date().toISOString(), level: "error", event: "request_failed", requestId, errorName: error?.name ?? "Error" }) + "\\n");
+      }
+      if (!response.headersSent) sendJson(response, error.status ?? 500, { error: error.status ? error.message : "Внутренняя ошибка сервера." });
+      else response.destroy();
     }
   });
 
