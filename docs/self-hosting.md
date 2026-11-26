@@ -53,7 +53,7 @@ docker compose ps
 docker compose logs -f app backup caddy
 ~~~
 
-После запуска откройте https://ваш-домен. Caddy автоматически запросит и будет обновлять TLS-сертификат. Liveness: https://ваш-домен/api/health; readiness с проверкой SQLite и ключа шифрования: https://ваш-домен/api/ready. Порты API напрямую наружу не публикуются.
+После запуска откройте https://ваш-домен. Caddy автоматически запросит и будет обновлять TLS-сертификат. Liveness: https://ваш-домен/api/health; readiness с проверкой SQLite и ключа шифрования: https://ваш-домен/api/ready. Backup worker отдельно контролирует свежесть и целостность резервных копий. Порты API напрямую наружу не публикуются.
 
 ## Локальная разработка
 
@@ -74,7 +74,7 @@ Vite проксирует /api на локальный API-сервер 127.0.0.
 
 ## Резервное копирование и восстановление сервера
 
-Отдельный backup-контейнер автоматически создаёт SQLite-снимок при старте и затем каждые 24 часа. Выполняются WAL checkpoint, проверка схемы, `PRAGMA integrity_check`, SHA-256 и создание manifest. По умолчанию хранятся 14 дней; срок и интервал можно изменить через `BACKUP_RETENTION_DAYS` и `BACKUP_INTERVAL_HOURS`.
+Отдельный backup-контейнер автоматически создаёт SQLite-снимок при старте и затем каждые 24 часа. Выполняются WAL checkpoint, проверка схемы, `PRAGMA integrity_check`, SHA-256 и создание manifest. По умолчанию хранятся 14 дней; срок и интервал можно изменить через `BACKUP_RETENTION_DAYS` и `BACKUP_INTERVAL_HOURS`. Healthcheck backup-контейнера проверяет, что последний backup не старше `BACKUP_MAX_AGE_HOURS` (по умолчанию 30 часов), а manifest, SHA-256 и SQLite integrity корректны.
 
 Ручной снимок: `docker compose run --rm --no-deps backup node scripts/backup.mjs`.
 
