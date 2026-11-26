@@ -272,6 +272,25 @@ Life Maps — клиентское приложение для карты жиз
 
 **Критерии завершения кода:** воспроизводимый self-hosted compose, HTTPS-конфигурация, persistent storage, автоматические проверяемые backup, безопасный restore, account isolation, мониторинг и успешный CI. Публичный go-live и offsite recovery drill требуют ресурсов владельца сервера и не могут быть подтверждены только Git-коммитом.
 
+### Этап 9. Финальное тестирование и выпуск MVP
+
+**Статус: release candidate; автоматизированные сценарии расширены, выпуск в production не подтверждён.** Для завершения необходим успешный CI на HEAD и ручные эксплуатационные gates из [docs/mvp-release-checklist.md](./docs/mvp-release-checklist.md).
+
+- [x] Добавить E2E-регрессию регистрации аккаунта.
+- [x] Проверить вход второго независимого browser context в тот же аккаунт по серверной сессии.
+- [x] Проверить передачу онлайн-изменений между двумя browser contexts.
+- [x] Проверить постановку локальных изменений в offline queue и отправку после восстановления сети.
+- [x] Проверить распространение удаления записи на второе устройство.
+- [x] Подготовить руководство пользователя: аккаунт, синхронизация, конфликты, медицинские разделы, экспорт/импорт, PWA и ограничения.
+- [x] Подготовить release checklist с разделением автоматических и ручных проверок.
+- [ ] Подтвердить полный CI на одном HEAD: typecheck, structure, audit, unit/API/operations, Chromium E2E и production build.
+- [ ] Провести ручной тест на двух физических устройствах и production сервере: вход/выход, offline/reconnect, конфликт одинаковых полей, удаление/tombstone, вложения.
+- [ ] Проверить полный экспорт/импорт на отдельном тестовом пространстве и сравнить медицинские записи и документы.
+- [ ] Выполнить production backup/restore drill и независимое offsite-восстановление.
+- [ ] Провести ручную мобильную и screen-reader проверку на Android/iOS.
+
+**Критерии выпуска:** успешный полный CI на текущем HEAD, пройденные ручные gates для включённых функций, проверенные резервные копии и опубликованный пользовательский guide. До выполнения внешних gates статус остаётся release candidate; Git-коммит не подтверждает production go-live.
+
 ## Статус этапов и журнал
 
 | Этап | Статус | Что подтверждено |
@@ -283,7 +302,7 @@ Life Maps — клиентское приложение для карты жиз
 | 4. Календарь | Основной пользовательский scope завершён | Пользовательский этап 5 подтверждён CI run `45680745756`: 87 unit, 56/56 E2E, TypeScript, structure, npm audit и production build. Расширенные переходы к конкретной записи и Web Push остаются отдельной полировкой. |
 | 5. Аналитика | Завершён | Профильная динамика лабораторных показателей и мониторинга, сравнение дат, референсы, фильтры и переходы к исходным записям; полный CI run `45691354142` — success. Подробности — `docs/medical-analytics.md`. |
 | 6. UX и доступность | Автоматизированная реализация завершена; ручной аудит ожидает | PWA/offline shell, responsive 320–1024 px, клавиатурные сценарии и live status покрыты E2E; ручной screen-reader/dialog audit остаётся открытым. |
-| 7. Выпуск | Запланирован | Финальный release checklist ещё не сформирован. |
+| 7. Выпуск / 9. Финальное тестирование MVP | Release candidate | Добавлены E2E регистрации, двух browser contexts, online/offline queue и удаления; user guide и release checklist. Полный CI и ручные production gates ожидают проверки. |
 | 8a. Аккаунты и перенос данных (внутренняя нумерация) | Автоматическая синхронизация реализована | CI run `45657934104`: 77 app unit, 15 server tests, 52/52 E2E и production build. Подтверждены автоматический pull/push, offline/reconnect, вложения, разрешение конфликтов и изоляция аккаунтов. Email verification, password reset, управление сессиями и публичное развёртывание остаются отдельными задачами. |
 | 8. Серверная инфраструктура и безопасность | Реализация подготовлена; CI/production drill ожидаются | Docker Compose, Caddy HTTPS, постоянные volumes, ежедневный проверяемый SQLite backup, restore tool, crypto/account isolation tests, readiness и backup healthchecks; см. docs/operations-runbook.md. Публичный deployment и offsite restore drill требуют VPS/DNS владельца. |
 | P0. Защита синхронизации (этап 4 по запросу) | Завершён | CI run `45666744541`: 82 app unit, 17 server tests, 52/52 E2E, TypeScript, structure, npm audit и production build — success. Версии записей, tombstone, idempotency, журнал, безопасный первый merge, графики и поиск подтверждены. |
@@ -324,3 +343,5 @@ Life Maps — клиентское приложение для карты жиз
 
 - 2026-11-26 — Этап UX/PWA в ветке `feat/medical-analytics-dynamics`: добавлены production service worker, precache code-split ресурсов по Vite build manifest, offline navigation fallback, исключение `/api/` из Cache Storage, offline status banner, iOS safe-area и компактные мобильные формы. Добавлены E2E-сценарии PWA/offline, 320 px keyboard/form и планшетных 768/1024 px; документация `docs/pwa-mobile-accessibility.md`. Реализация находится в ветке; полный CI для нового HEAD ещё требуется подтвердить. Ручной screen-reader/dialog audit не заменяется автоматическими тестами.
 \n- 2026-11-26 — Пользовательский этап 8 «Серверная инфраструктура и безопасность»: добавлены автоматические SQLite backups (WAL checkpoint, VACUUM INTO, integrity check, SHA-256 manifest, retention), проверка свежести/целостности backup, CLI restore с safety snapshot, отдельный изолированный backup worker, hardened Docker Compose, readiness endpoint, privacy-safe JSON logs, HSTS/security headers, security/DB/backup tests и эксплуатационный runbook. Полный CI на финальном commit и проверка восстановления на отдельном VPS остаются gates; публичное развёртывание требует VPS, DNS и production secret владельца.\n
+
+- 2026-11-26 — Этап 9: добавлен release E2E сценарий регистрации и синхронизации между двумя независимыми browser contexts, включая online update, offline queue/reconnect и распространение удаления. Подготовлены docs/user-guide.md и docs/mvp-release-checklist.md. CI на итоговом HEAD и ручные production/device/restore gates ещё не подтверждены; выпуск зафиксирован как release candidate, не production go-live.
