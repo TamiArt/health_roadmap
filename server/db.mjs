@@ -167,6 +167,11 @@ export class AppDatabase {
     return result?.quick_check === "ok";
   }
 
+  healthCheck() {
+    const result = this.database.prepare("PRAGMA quick_check").get();
+    return result?.quick_check === "ok";
+  }
+
   close() {
     this.database.close();
   }
