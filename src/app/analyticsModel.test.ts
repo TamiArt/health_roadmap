@@ -5,8 +5,8 @@ import type { LabMeasurement } from "./models";
 
 describe("medical analytics model", () => {
   it("parses bounded, one-sided and invalid reference ranges", () => {
-    expect(parseReferenceRange("3,5–5,5")).toEqual({ lower: 3.5, upper: 5.5 });
-    expect(parseReferenceRange("< 5.2")).toEqual({ upper: 5.2 });
+    expect(parseReferenceRange("3,5–5,5")).toEqual({ lower: 3.5, upper: 5.5, lowerInclusive: true, upperInclusive: true });
+    expect(parseReferenceRange("< 5.2")).toEqual({ upper: 5.2, upperInclusive: false });
     expect(parseReferenceRange("от 4")).toEqual({ lower: 4, lowerInclusive: true });
     expect(parseReferenceRange("<= 5,2")).toEqual({ upper: 5.2, upperInclusive: true });
     expect(parseReferenceRange("> 4")).toEqual({ lower: 4, lowerInclusive: false });
