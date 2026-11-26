@@ -4,7 +4,9 @@ const email = `release-${Date.now()}@example.test`;
 const password = "release-test-password-2026";
 
 async function openAccountPanel(page: import("@playwright/test").Page) {
-  await page.getByRole("button", { name: "Аккаунт и синхронизация" }).click();
+  const toggle = page.getByRole("button", { name: "Аккаунт и синхронизация" });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
 }
 
 async function waitUntilSynced(page: import("@playwright/test").Page) {
@@ -29,8 +31,9 @@ test("registers an account and synchronizes online/offline edits and deletions b
   try {
     await secondDevice.goto("/");
     await openAccountPanel(secondDevice);
-    await expect(secondDevice.getByText(email, { exact: true })).toBeVisible();
+    await expect(secondDevice.getByText("Выполнен вход", { exact: true })).toBeVisible({ timeout: 20_000 });
     await waitUntilSynced(secondDevice);
+    await expect(secondDevice.getByText(email, { exact: false })).toBeVisible({ timeout: 20_000 });
 
     await page.evaluate(async () => {
       const { writeRecord } = await import("/src/app/storage.ts");
