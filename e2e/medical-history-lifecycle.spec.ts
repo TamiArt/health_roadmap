@@ -75,19 +75,19 @@ test("vaccination history remains isolated to the selected child profile", async
   expect(await page.getByRole("alert").allTextContents()).toEqual([]);
   const readPersistedDose = async () => page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("life-maps", 1);
+      const request = indexedDB.open("life-maps", 2);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
     const store = db.transaction("app-records", "readonly").objectStore("app-records");
     const children = await new Promise<any>((resolve, reject) => {
-      const request = store.get("children");
+      const request = store.get("guest::children");
       request.onsuccess = () => resolve(request.result?.value ?? []);
       request.onerror = () => reject(request.error);
     });
     const child = children.find((item: any) => item.name === "Вакцинационный профиль A");
     const records = await new Promise<any>((resolve, reject) => {
-      const request = store.get("childHealth:" + child.id + ":vaccineRecords");
+      const request = store.get("guest::childHealth:" + child.id + ":vaccineRecords");
       request.onsuccess = () => resolve(request.result?.value ?? []);
       request.onerror = () => reject(request.error);
     });
@@ -283,6 +283,45 @@ test("unified medical history searches, filters and sorts adult records without 
   await expect(history.getByText("Запись для общей истории", { exact: true })).toBeVisible();
   await page.getByLabel("Тип медицинской записи").selectOption("event");
   await expect(history.getByText("Запись для общей истории", { exact: true })).toBeVisible();
+  await history.getByRole("button", { name: "Открыть исходную запись" }).click();
+  await expect(page.getByRole("tab", { name: "События", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[id^="medical-source-events-"]').filter({ hasText: "Запись для общей истории" })).toBeVisible();
+  await page.getByRole("tab", { name: "История", exact: true }).click();
+  await page.getByLabel("Поиск по всей истории").fill("общей истории");
   await page.getByLabel("С даты").fill("2026-11-11");
   await expect(history.getByText("Запись для общей истории", { exact: true })).toHaveCount(0);
+});
+
+test("unified timeline filters by child profile and opens the exact child source", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Семья", exact: true }).click();
+  await page.getByRole("button", { name: "Изменить" }).click();
+  await page.getByRole("button", { name: "Добавить ребёнка" }).click();
+  await page.getByPlaceholder("Имя").fill("Профиль хронологии");
+  await page.getByPlaceholder("Год рождения (2022)").fill("2021");
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByRole("button", { name: "Готово" }).click();
+
+  await page.getByRole("button", { name: /Открыть профиль ребёнка Профиль хронологии/ }).click();
+  await page.getByRole("tab", { name: "События", exact: true }).click();
+  await page.getByRole("button", { name: "Добавить", exact: true }).click();
+  await page.getByLabel("Дата").fill("2026-11-18");
+  await page.getByLabel("Тип события").selectOption("diagnosis");
+  await page.getByLabel("Название события").fill("Событие детского профиля");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+  await page.getByRole("button", { name: "Вернуться к семье" }).click();
+
+  await page.getByRole("button", { name: "Здоровье", exact: true }).click();
+  await page.getByRole("tab", { name: "История", exact: true }).click();
+  const history = page.getByRole("region", { name: "Единая медицинская история" });
+  await page.getByLabel("Поиск по всей истории").fill("Событие детского профиля");
+  await expect(history.getByText("Событие детского профиля", { exact: true })).toBeVisible();
+  await page.getByLabel("Профиль медицинской истории").selectOption({ label: "Взрослый профиль" });
+  await expect(history.getByText("Событие детского профиля", { exact: true })).toHaveCount(0);
+  await page.getByLabel("Профиль медицинской истории").selectOption({ label: "Профиль хронологии" });
+  await expect(history.getByText("Событие детского профиля", { exact: true })).toBeVisible();
+  await history.getByRole("button", { name: "Открыть исходную запись" }).click();
+
+  await expect(page.getByRole("tab", { name: "События", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[id^="medical-source-events-"]').filter({ hasText: "Событие детского профиля" })).toBeVisible();
 });

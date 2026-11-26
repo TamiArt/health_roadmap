@@ -41,6 +41,47 @@ describe("local backup schema", () => {
     expect(migrateBackup(payload)).toEqual(payload);
     const vaccine = (payload.records.vaccineRecords as Array<Record<string, unknown>>)[0];
     expect(() => migrateBackup({ ...payload, records: { vaccineRecords: [{ ...vaccine, date: "2026-02-30" }] } })).toThrow("история вакцинации");
+    const duplicateDocuments = { ...vaccine, documents: [
+      { id: "doc-1", name: "a.pdf", mimeType: "application/pdf", blob: { __lifeMapsBlob: true, mimeType: "application/pdf", base64: "dGVzdA==" } },
+      { id: "doc-1", name: "b.pdf", mimeType: "application/pdf", blob: { __lifeMapsBlob: true, mimeType: "application/pdf", base64: "dGVzdA==" } },
+    ] };
+    expect(() => migrateBackup({ ...payload, records: { vaccineRecords: [duplicateDocuments] } })).toThrow("история вакцинации");
+  });
+
+  it("accepts versioned deletion tombstones and rejects malformed tombstone metadata", () => {
+    const payload: BackupPayload = {
+      format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
+      records: { lifeEvents: [], syncTombstones: {
+        lifeEvents: { "event-1": { version: 2, deletedAt: "2026-11-25T12:00:00.000Z" } },
+      } },
+    };
+    expect(migrateBackup(payload)).toEqual(payload);
+    expect(() => migrateBackup({ ...payload, records: { syncTombstones: {
+      lifeEvents: { "event-1": { version: 0, deletedAt: "not-a-date" } },
+    } } })).toThrow("Журнал удалений");
+  });
+
+  it("validates calendar plans before local restore", () => {
+    const event = {
+      id: "calendar-1", type: "appointment", title: "Doctor visit", date: "2026-12-10",
+      endDate: "", time: "09:30", status: "planned", facility: "Clinic", details: "",
+      reminder: { enabled: true, leadDays: 2, time: "08:30" },
+      link: { type: "health", id: "health-1", label: "Health event" },
+      createdAt: "2026-11-25T12:00:00.000Z", updatedAt: "2026-11-25T12:00:00.000Z",
+    };
+    const payload: BackupPayload = {
+      format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
+      records: { children: [{ id: "child-1", name: "Ребёнок", birthYear: 2021, emoji: "🧒" }], calendarEvents: [event], "childHealth:child-1:calendarEvents": [{ ...event, id: "child-calendar-1", link: undefined }] },
+    };
+    expect(migrateBackup(payload)).toEqual(payload);
+    expect(() => migrateBackup({ ...payload, records: { calendarEvents: [{ ...event, time: "99:99" }] } })).toThrow("календаря");
+    expect(() => migrateBackup({ ...payload, records: { calendarEvents: [{ ...event, endDate: "2026-12-09" }] } })).toThrow("календаря");
+  });
+
+  it("allows calendar plans in adult and child backup namespaces", () => {
+    expect(isAllowedRecordKey("calendarEvents")).toBe(true);
+    expect(isAllowedRecordKey("childHealth:child-1:calendarEvents")).toBe(true);
+    expect(isAllowedRecordKey("childHealth:child-1:calendarSecret")).toBe(false);
   });
 
   it("rejects unknown record types rather than silently importing them", () => {
@@ -143,7 +184,7 @@ describe("local backup schema", () => {
       format: BACKUP_FORMAT,
       schemaVersion: CURRENT_SCHEMA_VERSION,
       exportedAt: "2026-01-01T00:00:00.000Z",
-      records: { children: [], "childHealth:deleted-child:healthEvents": [{ id: "orphan" }] },
+      records: { children: [], "childHealth:deleted-child:healthEvents": [{ id: "orphan", date: "2026-11-06" }] },
     })).toThrow("отсутствующего профиля ребёнка");
   });
 
@@ -155,6 +196,37 @@ describe("local backup schema", () => {
       exportedAt: "2026-01-01T00:00:00.000Z",
       records: { "childHealth:child-1:labUploads": { cbc: [{ id: "bad", blob: { nope: true } }] } },
     })).toThrow("Повреждены вложения");
+  });
+
+  it("rejects impossible medical dates and duplicate record identifiers", () => {
+    const base: BackupPayload = {
+      format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
+      records: { children: [{ id: "child-1", name: "Ребёнок" }] },
+    };
+    expect(() => migrateBackup({ ...base, records: { healthEvents: [{ id: "event-1", date: "2026-02-30", title: "Осмотр" }] } }))
+      .toThrow("даты медицинских событий");
+    expect(() => migrateBackup({ ...base, records: { children: [{ id: "child-1" }, { id: "child-1" }] } }))
+      .toThrow("повторяющиеся идентификаторы");
+    expect(() => migrateBackup({ ...base, records: { labResultEntries: [{
+      id: "lab-1", testName: "ОАК", date: "2026-02-30",
+      indicators: [{ id: "hb", name: "Hb", value: 120, unit: "г/л" }],
+    }] } })).toThrow("история результатов анализов");
+  });
+
+  it("preserves legacy monitoring records while validating supplied dates", () => {
+    const monitoring = [{
+      id: "monitor-1", name: "Контроль", kind: "measurement", unit: "ммоль/л",
+      intervalDays: null, notes: "",
+      measurements: [{ id: "reading-1", date: "2026-11-06", value: 5.4, unit: "ммоль/л" }],
+    }];
+    const payload: BackupPayload = {
+      format: BACKUP_FORMAT, schemaVersion: CURRENT_SCHEMA_VERSION, exportedAt: "2026-11-25T00:00:00.000Z",
+      records: { healthMonitoring: monitoring },
+    };
+    expect(migrateBackup(payload).records.healthMonitoring).toEqual(monitoring);
+    expect(() => migrateBackup({ ...payload, records: { healthMonitoring: [{
+      ...monitoring[0], nextDueDate: "2026-02-30",
+    }] } })).toThrow("история значений");
   });
 
   it("rejects backups created by a newer unsupported schema", () => {

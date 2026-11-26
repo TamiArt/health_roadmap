@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Download, LogIn, LogOut, RefreshCw, ShieldCheck, Upload } from "lucide-react";
-import { exportBackup, importBackup } from "./storage";
+import { exportBackup, importBackup, setStorageScope } from "./storage";
+import { activateAccountWorkspace, startAccountSync, type SyncView } from "./accountSync";
 
 type Account = { id: string; email: string; createdAt: string };
-type RemoteState = { payload: Record<string, unknown> | null; revision: number | null; updatedAt: string | null };
 type AuthMode = "login" | "register";
+type SyncChange = { revision: number; operation_id: string; created_at: string; record_count: number; change_summary: string[] };
+const CHANGE_LABELS: Record<string, string> = {
+  lifeEvents: "Карта жизни", familyMembers: "Члены семьи", children: "Профили детей", familyEvents: "Семейные даты",
+  vaccineStatuses: "Статусы вакцинации", vaccineRecords: "История вакцинации", adultToothData: "Стоматология",
+  labUploads: "Документы анализов", labMeasurements: "Измерения анализов", healthEvents: "Медицинские события",
+  healthMonitoring: "Контрольные показатели", labResultEntries: "Результаты анализов", childHealth: "Данные детей",
+  syncTombstones: "Удаления записей", notificationSettings: "Настройки уведомлений", calendarEvents: "Календарь и планы",
+};
 
 async function readApiError(response: Response): Promise<string> {
   try {
@@ -31,13 +39,17 @@ export function DataManagementPanel({
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remote, setRemote] = useState<RemoteState | null>(null);
+  const [syncState, setSyncState] = useState<SyncView>({ status: "syncing", updatedAt: null, pending: false, detail: "Ожидание подключения аккаунта…" });
+  const [workspaceConflicts, setWorkspaceConflicts] = useState<string[]>([]);
+  const retrySync = useRef<(() => void) | null>(null);
+  const resolveSync = useRef<((strategy: "local" | "remote") => Promise<void>) | null>(null);
   const [accountExpanded, setAccountExpanded] = useState(false);
   const [serverAvailable, setServerAvailable] = useState(true);
+  const [changeLog, setChangeLog] = useState<SyncChange[]>([]);
 
   useEffect(() => {
     let active = true;
-    void fetch("/api/auth/me", { credentials: "same-origin" })
+    void fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" })
       .then(async response => {
         if (!response.ok) throw new Error(await readApiError(response));
         return response.json() as Promise<{ user: Account | null }>;
@@ -45,11 +57,15 @@ export function DataManagementPanel({
       .then(async result => {
         if (!active) return;
         setServerAvailable(true);
-        setAccount(result.user);
         if (result.user) {
-          const response = await fetch("/api/data", { credentials: "same-origin" });
-          if (!response.ok) throw new Error(await readApiError(response));
-          if (active) setRemote(await response.json() as RemoteState);
+          const activation = await activateAccountWorkspace(result.user.id);
+          if (!active) return;
+          setWorkspaceConflicts(activation.conflicts);
+          setAccount(result.user);
+          setAccountExpanded(true);
+        } else {
+          setStorageScope("guest");
+          setAccount(null);
         }
       })
       .catch(() => {
@@ -58,17 +74,66 @@ export function DataManagementPanel({
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const handleWorkspaceChange = (event: StorageEvent) => {
+      if (event.key !== "life-maps:active-storage-scope") return;
+      void fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" })
+        .then(async response => {
+          if (!response.ok) throw new Error(await readApiError(response));
+          return response.json() as Promise<{ user: Account | null }>;
+        })
+        .then(async result => {
+          if (!active) return;
+          if (result.user) {
+            const activation = await activateAccountWorkspace(result.user.id);
+            if (!active) return;
+            setWorkspaceConflicts(activation.conflicts);
+            setAccount(result.user);
+            setAccountExpanded(true);
+          } else {
+            setWorkspaceConflicts([]);
+            setAccount(null);
+            setAccountExpanded(false);
+          }
+        })
+        .catch(() => { if (active) setServerAvailable(false); });
+    };
+    window.addEventListener("storage", handleWorkspaceChange);
+    return () => {
+      active = false;
+      window.removeEventListener("storage", handleWorkspaceChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!account) { setChangeLog([]); return () => { active = false; }; }
+    void fetch("/api/sync/changes?after=0", { credentials: "same-origin", cache: "no-store" })
+      .then(async response => {
+        if (!response.ok) throw new Error(await readApiError(response));
+        return response.json() as Promise<{ changes: SyncChange[] }>;
+      })
+      .then(result => { if (active) setChangeLog(result.changes.slice(0, 20)); })
+      .catch(() => { if (active) setChangeLog([]); });
+    return () => { active = false; };
+  }, [account?.id, syncState.status, syncState.updatedAt]);
+
+  useEffect(() => {
+    if (!account || !storageReady || storageError || workspaceConflicts.length) return;
+    const controller = startAccountSync(account.id, setSyncState);
+    retrySync.current = controller.retry;
+    resolveSync.current = controller.resolveConflict;
+    return () => {
+      controller.stop();
+      retrySync.current = null;
+      resolveSync.current = null;
+    };
+  }, [account?.id, storageReady, storageError, workspaceConflicts.length]);
+
   function showMessage(text: string, type: "success" | "error") {
     setMessage(text);
     setMessageType(type);
-  }
-
-  async function refreshRemote(): Promise<RemoteState> {
-    const response = await fetch("/api/data", { credentials: "same-origin" });
-    if (!response.ok) throw new Error(await readApiError(response));
-    const result = await response.json() as RemoteState;
-    setRemote(result);
-    return result;
   }
 
   async function handleExport() {
@@ -123,66 +188,21 @@ export function DataManagementPanel({
       });
       if (!response.ok) throw new Error(await readApiError(response));
       const result = await response.json() as { user: Account };
+      const activation = await activateAccountWorkspace(result.user.id, authMode === "register");
+      setWorkspaceConflicts(activation.conflicts);
       setAccount(result.user);
       setPassword("");
       setServerAvailable(true);
-      const remoteData = await refreshRemote();
       setAccountExpanded(true);
-      showMessage(
-        remoteData.payload
-          ? "Вход выполнен. На сервере есть сохранённые данные — выберите, что с ними сделать."
-          : "Аккаунт создан. Локальные данные пока не загружены на сервер.",
-        "success",
-      );
+      if (activation.conflicts.length) {
+        showMessage("В локальных данных найдены совпадающие записи с разными изменениями. Оба набора сохранены; автоматическая синхронизация приостановлена.", "error");
+      } else {
+        showMessage(activation.guestDataMoved
+          ? "Локальные данные перенесены в пространство аккаунта. Автоматическая синхронизация запущена."
+          : "Вход выполнен. Автоматическая синхронизация запущена.", "success");
+      }
     } catch (error) {
       showMessage(error instanceof Error ? error.message : "Не удалось выполнить вход.", "error");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleUploadToServer() {
-    if (!account || !storageReady || storageError) return;
-    if (remote?.revision !== null && remote?.revision !== undefined &&
-      !window.confirm("На сервере уже есть резервная копия. Заменить её всеми текущими локальными данными?")) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      const backupBlob = await exportBackup();
-      const payload: unknown = JSON.parse(await backupBlob.text());
-      const response = await fetch("/api/data", {
-        method: "PUT",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payload, expectedRevision: remote?.revision ?? null }),
-      });
-      if (!response.ok) throw new Error(await readApiError(response));
-      const result = await response.json() as { revision: number };
-      setRemote({ payload: payload as Record<string, unknown>, revision: result.revision, updatedAt: new Date().toISOString() });
-      showMessage("Все локальные данные и вложения сохранены в аккаунте.", "success");
-    } catch (error) {
-      showMessage(error instanceof Error ? error.message : "Не удалось сохранить данные на сервере.", "error");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleDownloadFromServer() {
-    if (!account) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      const latest = await refreshRemote();
-      if (!latest.payload) {
-        showMessage("В аккаунте пока нет резервной копии.", "error");
-        return;
-      }
-      if (!window.confirm("Загрузка заменит все текущие локальные данные данными аккаунта, включая семейные профили и вложения. Перед продолжением рекомендуется скачать локальную резервную копию. Продолжить?")) return;
-      const file = new File([JSON.stringify(latest.payload)], "life-maps-account-backup.json", { type: "application/json" });
-      await importBackup(file);
-      showMessage("Данные аккаунта восстановлены на этом устройстве.", "success");
-    } catch (error) {
-      showMessage(error instanceof Error ? error.message : "Не удалось загрузить данные аккаунта.", "error");
     } finally {
       setBusy(false);
     }
@@ -193,8 +213,9 @@ export function DataManagementPanel({
     try {
       const response = await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
       if (!response.ok) throw new Error(await readApiError(response));
+      setStorageScope("guest");
       setAccount(null);
-      setRemote(null);
+      setWorkspaceConflicts([]);
       setAccountExpanded(false);
       showMessage("Вы вышли из аккаунта. Локальные данные этого браузера не удалены.", "success");
     } catch (error) {
@@ -240,22 +261,56 @@ export function DataManagementPanel({
                       <LogOut size={13} /> Выйти
                     </button>
                   </div>
-                  <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
-                    {remote?.revision
-                      ? `Резервная копия на сервере · версия ${remote.revision}${remote.updatedAt ? ` · ${new Date(remote.updatedAt).toLocaleString("ru-RU")}` : ""}`
-                      : "На сервере пока нет сохранённых данных."}
+                  <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground" aria-live="polite">
+                    <p className="font-medium text-foreground">
+                      {syncState.status === "synced" ? "Синхронизировано" :
+                        syncState.status === "syncing" ? "Синхронизация…" :
+                        syncState.status === "offline" ? "Нет подключения" :
+                        syncState.status === "conflict" ? "Требуется разрешить конфликт" :
+                        syncState.status === "error" ? "Ошибка синхронизации" : "Проверка аккаунта…"}
+                    </p>
+                    <p>{syncState.detail}</p>
+                    {syncState.updatedAt && <p className="mt-1">Последняя синхронизация: {new Date(syncState.updatedAt).toLocaleString("ru-RU")}</p>}
+                    {syncState.pending && <p className="mt-1">Есть изменения, ожидающие отправки.</p>}
+                    {workspaceConflicts.length > 0 && <p className="mt-1">Не объединены записи: {workspaceConflicts.slice(0, 3).join(", ")}</p>}
                   </div>
-                  <button type="button" onClick={() => void handleUploadToServer()} disabled={busy || !storageReady || !!storageError}
-                    className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50">
-                    <Upload size={13} /> Сохранить локальные данные в аккаунте
-                  </button>
-                  <button type="button" onClick={() => void handleDownloadFromServer()} disabled={busy || !remote?.payload}
+                  {changeLog.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-foreground">Журнал синхронизации</p>
+                      <ul className="max-h-36 space-y-1 overflow-y-auto text-[11px] text-muted-foreground">
+                        {changeLog.map(item => <li key={item.operation_id} className="flex items-start justify-between gap-2 border-b border-border/50 pb-1">
+                          <span className="min-w-0">Ревизия {item.revision} · {item.record_count} записей<br />{item.change_summary.map(key => CHANGE_LABELS[key] ?? "Изменения").join(", ") || "Изменений в разделах не найдено"}</span>
+                          <time dateTime={item.created_at} className="shrink-0">{new Date(item.created_at).toLocaleString("ru-RU")}</time>
+                        </li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {syncState.status === "conflict" && (
+                    <div className="space-y-2">
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        Выберите, какие значения оставить в конфликтующих полях. Независимые изменения обоих устройств сохраняются.
+                      </p>
+                      <button type="button" onClick={() => {
+                        if (window.confirm("Для конфликтующих полей будут выбраны значения этого устройства. Продолжить?")) {
+                          void resolveSync.current?.("local");
+                        }
+                      }} disabled={busy || !navigator.onLine}
+                        className="flex min-h-10 w-full items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50">
+                        Оставить изменения этого устройства
+                      </button>
+                      <button type="button" onClick={() => {
+                        if (window.confirm("Для конфликтующих полей будут выбраны серверные значения. Продолжить?")) {
+                          void resolveSync.current?.("remote");
+                        }
+                      }} disabled={busy || !navigator.onLine}
+                        className="flex min-h-10 w-full items-center justify-center rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50">
+                        Использовать серверные значения
+                      </button>
+                    </div>
+                  )}
+                  <button type="button" onClick={() => retrySync.current?.()} disabled={busy || !storageReady || !!storageError || workspaceConflicts.length > 0}
                     className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-foreground disabled:opacity-50">
-                    <Download size={13} /> Восстановить данные из аккаунта
-                  </button>
-                  <button type="button" onClick={() => void refreshRemote().then(() => showMessage("Состояние аккаунта обновлено.", "success")).catch(error => showMessage(error instanceof Error ? error.message : "Не удалось обновить данные.", "error"))}
-                    disabled={busy} className="flex min-h-9 w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:bg-muted/60 disabled:opacity-50">
-                    <RefreshCw size={12} /> Проверить серверную копию
+                    <RefreshCw size={13} /> Синхронизировать сейчас
                   </button>
                 </>
               ) : (
@@ -300,7 +355,7 @@ export function DataManagementPanel({
         </p>
       ) : (
         <p role="status" aria-live="polite" className="pointer-events-none hidden max-w-72 rounded-lg bg-card/95 px-3 py-1.5 text-right text-[10px] text-muted-foreground shadow sm:block">
-          {storageReady ? (account ? "Аккаунт подключён. Синхронизация выполняется вручную." : "Данные хранятся только в этом браузере.") : "Подключение локальной базы…"}
+          {storageReady ? (account ? syncState.detail : "Данные хранятся только в этом браузере.") : "Подключение локальной базы…"}
         </p>
       )}
     </section>

@@ -4,11 +4,12 @@ import { CheckCircle, ChevronRight, FileText, Image as ImageIcon, Upload, X, Tra
 import { HEALTH_ROADMAP } from "./healthData";
 import { getLabStages } from "./labCatalog";
 import type { LifeStage } from "./labCatalog";
-import type { DentalRecord, ToothStatus, UploadedResult, LabMeasurement, VaccineStatus } from "./models";
+import type { Child, DentalRecord, ToothStatus, UploadedResult, LabMeasurement, Section, VaccineStatus } from "./models";
 import { createId, validateLabMeasurement, validateLabUpload } from "./shared";
 import { usePersistentState } from "./storage";
 import { HealthEventsTab, MonitoringTab } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
+import { LabIndicatorTrend } from "./LabIndicatorTrend";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
 import { VaccinesTab } from "./VaccinesTab";
 import { handleTabListKeyDown } from "./tabNavigation";
@@ -30,6 +31,7 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
   const [measurementUnit, setMeasurementUnit] = useState("");
   const [measurementError, setMeasurementError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingId = useRef<string|null>(null);
   const pendingReplace = useRef<{ testId: string; uploadId: string } | null>(null);
@@ -129,8 +131,21 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
     setUploads(prev => ({ ...prev, [testId]:(prev[testId]??[]).filter(item => item.id!==uploadId) }));
   }
 
-  const visibleStages = allStages.filter(s => s.tests.some(t => t.gender==="all" || t.gender===gender));
-  const total = visibleStages.reduce((n,s) => n + s.tests.filter(t => t.gender==="all"||t.gender===gender).length, 0);
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase("ru");
+  const visibleStages = allStages.map(stage => ({
+    ...stage,
+    tests: stage.tests.filter(test => {
+      if (test.gender !== "all" && test.gender !== gender) return false;
+      if (!normalizedSearch) return true;
+      const measurementMatch = (measurements[test.id] ?? []).some(item =>
+        [item.value, item.unit, item.date].some(value => value.toLocaleLowerCase("ru").includes(normalizedSearch)));
+      const uploadMatch = (uploads[test.id] ?? []).some(item =>
+        [item.name, item.date].some(value => value.toLocaleLowerCase("ru").includes(normalizedSearch)));
+      return [test.name, test.what, test.frequency].some(value => value.toLocaleLowerCase("ru").includes(normalizedSearch)) ||
+        measurementMatch || uploadMatch;
+    }),
+  })).filter(stage => stage.tests.length > 0);
+  const total = visibleStages.reduce((n,s) => n + s.tests.length, 0);
 
   return (
     <div>
@@ -150,6 +165,11 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
           </div>
         </div>
       )}
+      <label className="mb-3 block text-xs text-muted-foreground">Поиск по анализам, показателям и файлам
+        <input type="search" value={searchQuery} onChange={event => setSearchQuery(event.target.value)}
+          placeholder="Название, результат, единица, дата или документ"
+          className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground" />
+      </label>
       <div className="space-y-2">
         {visibleStages.map(stage => {
           const filtered = stage.tests.filter(t => t.gender==="all"||t.gender===gender);
@@ -199,15 +219,21 @@ export function LabTestsTab({ stages, defaultGender = "f", storageKey = "labUplo
                             {(ups.length>0 || values.length>0) && (
                               <div className="mt-2 space-y-1">
                                 {values.map(item => (
-                                  <div key={item.id} className="flex items-center gap-2 bg-emerald-50/70 rounded-lg px-3 py-2">
+                                  <div key={item.id} id={`medical-source-tests-${item.id}`} className="flex items-center gap-2 bg-emerald-50/70 rounded-lg px-3 py-2">
                                     <span className="text-xs font-semibold text-foreground flex-1 min-w-0">{item.value}{item.unit ? ` ${item.unit}` : ""}</span>
                                     <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{new Date(`${item.date}T00:00:00`).toLocaleDateString("ru-RU")}</span>
                                     <button type="button" aria-label={`Изменить результат от ${item.date}`} onClick={() => startMeasurement(test.id, item)} className="text-[10px] text-primary hover:underline">Изменить</button>
                                     <button type="button" aria-label={`Удалить результат от ${item.date}`} onClick={() => removeMeasurement(test.id, item.id)}><X size={11} className="text-muted-foreground hover:text-foreground"/></button>
                                   </div>
                                 ))}
+                                {values.length > 1 && (() => {
+                                  const unit = values[0].unit;
+                                  const points = values.filter(item => item.unit === unit && Number.isFinite(Number(item.value.replace(",", "."))))
+                                    .map(item => ({ date: item.date, value: Number(item.value.replace(",", ".")) }));
+                                  return <LabIndicatorTrend name={test.name} unit={unit} points={points} />;
+                                })()}
                                 {ups.map(r => (
-                                  <div key={r.id} className="flex items-center gap-2 bg-primary/5 rounded-lg px-3 py-2">
+                                  <div key={r.id} id={`medical-source-tests-${r.id}`} className="flex items-center gap-2 bg-primary/5 rounded-lg px-3 py-2">
                                     {r.isPdf?<FileText size={12} className="text-primary shrink-0"/>:<ImageIcon size={12} className="text-primary shrink-0"/>}
                                     <a href={objectUrls.get(r.id)} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline truncate flex-1">{r.name}</a>
                                     <span className="text-[10px] text-muted-foreground shrink-0" style={{ fontFamily:"'DM Mono', monospace" }}>{r.date}</span>
@@ -299,7 +325,7 @@ export function DentalTab({
   function ToothCell({ n, upper }: { n:number; upper:boolean }) {
     const t=data[n]; const cfg=t?TOOTH_STATUS_CFG[t.status]:null; const isSel=selected===n;
     return (
-      <button type="button" onClick={() => pick(n)} title={toothLabel(n)} aria-label={`${toothLabel(n)}${t ? `, статус: ${TOOTH_STATUS_CFG[t.status].label}` : ", статус не указан"}`} aria-pressed={isSel} style={{ flexDirection:upper?"column-reverse":"column" }} className="flex flex-col items-center gap-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <button type="button" id={`medical-source-dental-${n}`} onClick={() => pick(n)} title={toothLabel(n)} aria-label={`${toothLabel(n)}${t ? `, статус: ${TOOTH_STATUS_CFG[t.status].label}` : ", статус не указан"}`} aria-pressed={isSel} style={{ flexDirection:upper?"column-reverse":"column" }} className="flex flex-col items-center gap-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <div className={`h-6 w-4 flex items-center justify-center border-2 transition-all text-[8px] font-bold sm:h-8 sm:w-6 ${upper?"rounded-t-lg rounded-b-sm":"rounded-b-lg rounded-t-sm"} ${isSel?"ring-2 ring-offset-1 ring-primary border-primary":cfg?"border-transparent":"border-border"}`}
           style={{ backgroundColor:cfg?cfg.fill:"#f1f5f9", color:cfg?(t?.status==="extracted"?"#64748b":"#fff"):"#94a3b8" }}>
           {n%10}
@@ -363,12 +389,16 @@ export function DentalTab({
 // ─── Health Section ───────────────────────────────────────────────────────────
 
 export function HealthSection({
-  vaccineStatuses, setVaccineStatuses,
+  vaccineStatuses, setVaccineStatuses, onNavigate, children = [], initialTab = "roadmap",
 }: {
   vaccineStatuses: Record<string, VaccineStatus>;
   setVaccineStatuses: (v: Record<string, VaccineStatus>) => void;
+  onNavigate?: (section: Section) => void;
+  children?: Child[];
+  initialTab?: "roadmap" | "history" | "tests" | "monitoring";
 }) {
-  const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental"|"events"|"monitoring"|"history">("roadmap");
+  const [tab, setTab] = useState<"roadmap"|"tests"|"vaccines"|"dental"|"events"|"monitoring"|"history">(initialTab);
+  useEffect(() => setTab(initialTab), [initialTab]);
   const tabsId = useId();
   const tabs = [["roadmap","Профилактика"],["tests","Анализы"],["vaccines","Прививки"],["dental","Стоматолог"],["events","События"],["monitoring","На контроле"],["history","История"]] as const;
   const [openIdx, setOpenIdx] = useState<number|null>(3);
@@ -437,7 +467,7 @@ export function HealthSection({
       <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}>{toothDataConflict && <p role="status" className="mb-3 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">Стоматологические записи изменены в другой вкладке. Загружена последняя сохранённая версия.</p>}<DentalTab data={toothData} onChange={setToothData}/></div>
       <div id={`${tabsId}-panel-events`} role="tabpanel" aria-labelledby={`${tabsId}-tab-events`} hidden={tab !== "events"}><HealthEventsTab/></div>
       <div id={`${tabsId}-panel-monitoring`} role="tabpanel" aria-labelledby={`${tabsId}-tab-monitoring`} hidden={tab !== "monitoring"}><MonitoringTab/></div>
-      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab/><div className="mt-6"><LabResultsTab/></div></div>
+      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab otherProfiles={children} onOpenSource={(source, sourceProfileId) => { const target = `medical-source-${source.section}-${source.recordId}`; if (sourceProfileId !== "adult") { onNavigate?.("family"); window.setTimeout(() => window.dispatchEvent(new CustomEvent("life-maps:open-child-history-source", { detail: { childId: sourceProfileId, source } })), 500); return; } if (source.section === "family") onNavigate?.("family"); else setTab(source.section); window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" }), source.section === "family" ? 500 : 0); }}/><div className="mt-6"><LabResultsTab/></div></div>
     </div>
   );
 }

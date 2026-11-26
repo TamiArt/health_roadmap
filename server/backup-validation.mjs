@@ -1,14 +1,19 @@
 const ALLOWED_KEYS = new Set([
   "lifeEvents", "familyMembers", "children", "familyEvents", "vaccineStatuses", "vaccineRecords",
   "adultToothData", "labUploads", "labMeasurements", "healthEvents",
-  "healthMonitoring", "labResultEntries", "notificationSettings",
+  "healthMonitoring", "labResultEntries", "syncTombstones", "notificationSettings", "calendarEvents",
 ]);
-const CHILD_KEY = /^childHealth:([a-zA-Z0-9_-]+):(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/;
-const ARRAY_KEYS = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords"]);
+const CHILD_KEY = /^childHealth:([a-zA-Z0-9_-]+):(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries|calendarEvents)$/;
+const ARRAY_KEYS = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords", "calendarEvents"]);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function isRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function uniqueIds(items) {
+  const ids = items.map(item => isRecord(item) ? item.id : undefined);
+  return ids.every(id => typeof id === "string" && id.trim().length > 0) && new Set(ids).size === ids.length;
 }
 
 function validDate(value) {
@@ -38,31 +43,58 @@ function validateEncodedValues(value, depth = 0) {
 function validateRecord(key, value) {
   const baseKey = key.startsWith("childHealth:") ? key.slice(key.lastIndexOf(":") + 1) : key;
   if (ARRAY_KEYS.has(baseKey)) {
-    if (!Array.isArray(value) || value.some(item => !isRecord(item) || typeof item.id !== "string")) return false;
+    if (!Array.isArray(value) || !uniqueIds(value)) return false;
+    if (baseKey === "healthEvents" && value.some(item => !validDate(item.date))) return false;
     if (baseKey === "vaccineRecords") {
       return value.every(record => {
         if (typeof record.vaccineId !== "string" || typeof record.vaccineName !== "string" ||
             !validDate(record.date) || typeof record.dose !== "string" ||
             typeof record.facility !== "string" || typeof record.notes !== "string") return false;
         if (record.documents === undefined) return true;
-        return Array.isArray(record.documents) && record.documents.every(document =>
+        return Array.isArray(record.documents) && uniqueIds(record.documents) && record.documents.every(document =>
           isRecord(document) && typeof document.id === "string" && typeof document.name === "string" &&
           typeof document.mimeType === "string" && isEncodedBlob(document.blob));
       });
     }
+    if (baseKey === "calendarEvents") return value.every(event => {
+      const reminder = event.reminder;
+      const types = new Set(["appointment", "examination", "lab", "vaccination", "medication", "treatment", "other"]);
+      const statuses = new Set(["planned", "completed", "cancelled"]);
+      const linkTypes = new Set(["health", "lab", "vaccine", "monitoring"]);
+      return isRecord(event) && typeof event.id === "string" && event.id.length > 0 &&
+        types.has(event.type) && statuses.has(event.status) &&
+        typeof event.title === "string" && event.title.trim().length > 0 && event.title.length <= 120 &&
+        validDate(event.date) && (event.endDate === "" || (validDate(event.endDate) && event.endDate >= event.date)) &&
+        typeof event.time === "string" && (event.time === "" || /^([01]\d|2[0-3]):[0-5]\d$/.test(event.time)) &&
+        typeof event.facility === "string" && event.facility.length <= 160 &&
+        typeof event.details === "string" && event.details.length <= 1500 &&
+        isRecord(reminder) && typeof reminder.enabled === "boolean" &&
+        Number.isInteger(reminder.leadDays) && reminder.leadDays >= 0 && reminder.leadDays <= 365 &&
+        typeof reminder.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time) &&
+        (event.link === undefined || (isRecord(event.link) && linkTypes.has(event.link.type) &&
+          typeof event.link.id === "string" && event.link.id.length > 0 &&
+          typeof event.link.label === "string" && event.link.label.length <= 300)) &&
+        typeof event.createdAt === "string" && !Number.isNaN(Date.parse(event.createdAt)) &&
+        typeof event.updatedAt === "string" && !Number.isNaN(Date.parse(event.updatedAt));
+    });
     if (baseKey === "healthMonitoring") return value.every(item => {
+      const reminder = item.reminder;
       const readings = item.measurements ?? [];
-      return Array.isArray(readings) && readings.every(reading => isRecord(reading) &&
-        typeof reading.id === "string" && validDate(reading.date) &&
-        typeof reading.value === "number" && Number.isFinite(reading.value) &&
-        typeof reading.unit === "string");
+      (item.nextDueDate === undefined || item.nextDueDate === "" || validDate(item.nextDueDate)) &&
+        (item.lastCheckedDate === undefined || item.lastCheckedDate === "" || validDate(item.lastCheckedDate)) &&
+        (reminder === undefined || (isRecord(reminder) && typeof reminder.enabled === "boolean" &&
+          Number.isInteger(reminder.leadDays) && reminder.leadDays >= 0 && reminder.leadDays <= 365 &&
+          typeof reminder.time === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time))) &&
+        Array.isArray(readings) && uniqueIds(readings) && readings.every(reading => isRecord(reading) &&
+          validDate(reading.date) && typeof reading.value === "number" && Number.isFinite(reading.value) &&
+          typeof reading.unit === "string");
     });
     return true;
   }
   if (baseKey === "labResultEntries") {
-    return Array.isArray(value) && value.every(entry => {
-      if (!isRecord(entry) || typeof entry.id !== "string" || typeof entry.testName !== "string" ||
-          !validDate(entry.date) || !Array.isArray(entry.indicators) || entry.indicators.length === 0) return false;
+    return Array.isArray(value) && uniqueIds(value) && value.every(entry => {
+      if (!isRecord(entry) || typeof entry.id !== "string" || !entry.id.trim() || typeof entry.testName !== "string" ||
+          !validDate(entry.date) || !Array.isArray(entry.indicators) || entry.indicators.length === 0 || !uniqueIds(entry.indicators)) return false;
       if (!entry.indicators.every(item => isRecord(item) && typeof item.id === "string" &&
           typeof item.name === "string" && typeof item.value === "number" &&
           Number.isFinite(item.value) && typeof item.unit === "string")) return false;
@@ -73,16 +105,22 @@ function validateRecord(key, value) {
       if (entry.document !== undefined && !validDocument(entry.document, false)) return false;
       if (entry.documents !== undefined &&
           (!Array.isArray(entry.documents) || !entry.documents.every(document => validDocument(document)))) return false;
+      const documentIds = [...(entry.documents ?? []), ...(entry.document ? [entry.document] : [])];
+      if (!uniqueIds(documentIds)) return false;
       return true;
     });
   }
   if (!isRecord(value)) return false;
+  if (baseKey === "syncTombstones") return Object.entries(value).every(([path, entries]) =>
+    typeof path === "string" && path.length <= 256 && isRecord(entries) &&
+    Object.entries(entries).every(([id, tombstone]) => typeof id === "string" && id.length > 0 &&
+      isRecord(tombstone) && Number.isSafeInteger(tombstone.version) && tombstone.version >= 1 &&
+      typeof tombstone.deletedAt === "string" && !Number.isNaN(Date.parse(tombstone.deletedAt))));
   if (baseKey === "labMeasurements") return Object.values(value).every(items =>
-    Array.isArray(items) && items.every(item => isRecord(item) && typeof item.id === "string" &&
+    Array.isArray(items) && uniqueIds(items) && items.every(item => isRecord(item) &&
       typeof item.value === "string" && typeof item.unit === "string" && validDate(item.date)));
   if (baseKey === "labUploads") return Object.values(value).every(items =>
-    Array.isArray(items) && items.every(item => isRecord(item) && typeof item.id === "string" &&
-      isEncodedBlob(item.blob)));
+    Array.isArray(items) && uniqueIds(items) && items.every(item => isRecord(item) && isEncodedBlob(item.blob)));
   return true;
 }
 
@@ -95,10 +133,10 @@ export function validateBackupPayload(payload) {
     validateEncodedValues(value))) return false;
 
   const children = payload.records.children;
-  const childIds = new Set(Array.isArray(children)
-    ? children.filter(item => isRecord(item) && typeof item.id === "string" &&
-      /^[a-zA-Z0-9_-]+$/.test(item.id)).map(item => item.id)
-    : []);
+  const childList = Array.isArray(children) ? children : [];
+  if (childList.length && (!uniqueIds(childList) || childList.some(item =>
+    !isRecord(item) || typeof item.id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(item.id)))) return false;
+  const childIds = new Set(childList.map(item => item.id));
   return entries.every(([key]) => {
     const match = CHILD_KEY.exec(key);
     return !match || childIds.has(match[1]);

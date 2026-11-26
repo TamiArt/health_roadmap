@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, resolve, sep } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { AppDatabase } from "./db.mjs";
 import { validateBackupPayload } from "./backup-validation.mjs";
@@ -54,6 +54,16 @@ async function readJson(request) {
   }
 }
 
+
+function changedLogicalKeys(previousRecords = {}, nextRecords = {}) {
+  const keys = new Set([...Object.keys(previousRecords), ...Object.keys(nextRecords)]);
+  const changed = [];
+  for (const key of keys) {
+    if (JSON.stringify(previousRecords[key]) === JSON.stringify(nextRecords[key])) continue;
+    changed.push(key.startsWith("childHealth:") ? "childHealth" : key);
+  }
+  return [...new Set(changed)].sort();
+}
 
 function createRateLimiter() {
   const attempts = new Map();
@@ -211,6 +221,33 @@ export function createAppServer({
         return;
       }
 
+      if (method === "GET" && url.pathname === "/api/sync/changes") {
+        if (!user) {
+          sendJson(response, 401, { error: "Требуется вход в аккаунт." });
+          return;
+        }
+        const after = Number(url.searchParams.get("after") ?? 0);
+        if (!Number.isSafeInteger(after) || after < 0) {
+          sendJson(response, 400, { error: "Некорректная ревизия журнала." });
+          return;
+        }
+        sendJson(response, 200, { changes: database.listChanges(user.id, after, 100) });
+        return;
+      }
+
+      if (method === "GET" && url.pathname === "/api/sync/status") {
+        if (!user) {
+          sendJson(response, 401, { error: "Требуется вход в аккаунт." });
+          return;
+        }
+        const metadata = database.getBackupMetadata(user.id);
+        sendJson(response, 200, {
+          revision: metadata?.revision ?? null,
+          updatedAt: metadata?.updated_at ?? null,
+        });
+        return;
+      }
+
       if (url.pathname === "/api/data" && (method === "GET" || method === "PUT")) {
         if (!user) {
           sendJson(response, 401, { error: "Требуется вход в аккаунт." });
@@ -231,17 +268,30 @@ export function createAppServer({
           sendJson(response, 400, { error: "Формат резервной копии не поддерживается." });
           return;
         }
+        if (typeof body.operationId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.operationId)) {
+          sendJson(response, 400, { error: "Для синхронизации требуется корректный идентификатор операции." });
+          return;
+        }
         if (body.expectedRevision !== null && (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 1)) {
           sendJson(response, 400, { error: "Некорректная версия данных." });
           return;
         }
+        const serializedPayload = JSON.stringify(body.payload.records);
+        const requestHash = createHash("sha256").update(serializedPayload).digest("hex");
+        const previousStored = database.getBackup(user.id);
+        const previousPayload = previousStored ? decryptPayload(previousStored, encryptionKey) : null;
+        const changeSummary = changedLogicalKeys(previousPayload?.records, body.payload.records);
         const encrypted = encryptPayload(body.payload, encryptionKey);
-        const saved = database.saveBackup(user.id, encrypted, body.expectedRevision, new Date().toISOString());
+        const recordCount = Object.values(body.payload.records).reduce((total, value) => total + (Array.isArray(value) ? value.length : 1), 0);
+        const saved = database.saveBackup(user.id, encrypted, body.expectedRevision, new Date().toISOString(),
+          body.operationId, requestHash, recordCount, changeSummary);
         if (saved.conflict) {
-          sendJson(response, 409, { error: "Данные аккаунта изменились на другом устройстве. Сначала загрузите актуальную версию.", revision: saved.currentRevision });
+          sendJson(response, 409, { error: saved.reason === "operation-id-reused"
+            ? "Идентификатор операции уже использован для другого содержимого."
+            : "Данные аккаунта изменились на другом устройстве. Сначала загрузите актуальную версию.", revision: saved.currentRevision });
           return;
         }
-        sendJson(response, 200, { revision: saved.revision });
+        sendJson(response, 200, { revision: saved.revision, duplicate: saved.duplicate });
         return;
       }
 

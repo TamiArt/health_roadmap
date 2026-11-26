@@ -67,6 +67,8 @@ describe("self-hosted account API", () => {
   it("requires authentication and keeps backup data isolated by account", async () => {
     const unauthorized = await request("/api/data");
     assert.equal(unauthorized.status, 401);
+    const unauthorizedSyncStatus = await request("/api/sync/status");
+    assert.equal(unauthorizedSyncStatus.status, 401);
 
     const ownerLogin = await request("/api/auth/login", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -78,10 +80,13 @@ describe("self-hosted account API", () => {
     const create = await request("/api/data", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Cookie: ownerCookie },
-      body: JSON.stringify({ payload: backup, expectedRevision: null }),
+      body: JSON.stringify({ payload: backup, expectedRevision: null, operationId: "00000000-0000-4000-8000-000000000001" }),
     });
     assert.equal(create.status, 200);
     assert.equal((await create.json()).revision, 1);
+    const syncStatus = await request("/api/sync/status", { headers: { Cookie: ownerCookie } });
+    assert.equal(syncStatus.status, 200);
+    assert.equal((await syncStatus.json()).revision, 1);
 
     const ownerData = await request("/api/data", { headers: { Cookie: ownerCookie } });
     const ownerPayload = await ownerData.json();
@@ -95,6 +100,8 @@ describe("self-hosted account API", () => {
     const secondCookie = cookieFrom(secondRegistration);
     const secondData = await request("/api/data", { headers: { Cookie: secondCookie } });
     assert.equal((await secondData.json()).payload, null);
+    const secondSyncStatus = await request("/api/sync/status", { headers: { Cookie: secondCookie } });
+    assert.deepEqual(await secondSyncStatus.json(), { revision: null, updatedAt: null });
   });
 
   it("rejects stale writes rather than silently overwriting another device's data", async () => {
@@ -106,7 +113,7 @@ describe("self-hosted account API", () => {
     const update = await request("/api/data", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({ payload: { ...backup, exportedAt: "2026-11-26T00:00:00.000Z" }, expectedRevision: 1 }),
+      body: JSON.stringify({ payload: { ...backup, exportedAt: "2026-11-26T00:00:00.000Z" }, expectedRevision: 1, operationId: "00000000-0000-4000-8000-000000000002" }),
     });
     assert.equal(update.status, 200);
     assert.equal((await update.json()).revision, 2);
@@ -114,7 +121,7 @@ describe("self-hosted account API", () => {
     const stale = await request("/api/data", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({ payload: backup, expectedRevision: 1 }),
+      body: JSON.stringify({ payload: backup, expectedRevision: 1, operationId: "00000000-0000-4000-8000-000000000003" }),
     });
     assert.equal(stale.status, 409);
   });
@@ -128,13 +135,40 @@ describe("self-hosted account API", () => {
     const invalid = await request("/api/data", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({ payload: { ...backup, records: { ...backup.records, credentials: { token: "invalid" } } }, expectedRevision: 2 }),
+      body: JSON.stringify({ payload: { ...backup, records: { ...backup.records, credentials: { token: "invalid" } } }, expectedRevision: 2, operationId: "00000000-0000-4000-8000-000000000004" }),
     });
     assert.equal(invalid.status, 400);
     const current = await request("/api/data", { headers: { Cookie: cookie } });
     const data = await current.json();
     assert.equal(data.revision, 2);
     assert.equal(data.payload.records.lifeEvents[0].title, "Private event");
+  });
+
+  it("deduplicates repeated operations and exposes an append-only change log", async () => {
+    const registration = await request("/api/auth/register", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "journal@example.com", password: "a-secure-password-123" }),
+    });
+    const cookie = cookieFrom(registration);
+    const operationId = "00000000-0000-4000-8000-000000000099";
+    const body = JSON.stringify({ payload: backup, expectedRevision: null, operationId });
+    const first = await request("/api/data", { method: "PUT", headers: { "Content-Type": "application/json", Cookie: cookie }, body });
+    assert.equal(first.status, 200);
+    assert.deepEqual(await first.json(), { revision: 1, duplicate: false });
+    const retry = await request("/api/data", { method: "PUT", headers: { "Content-Type": "application/json", Cookie: cookie }, body });
+    assert.equal(retry.status, 200);
+    assert.deepEqual(await retry.json(), { revision: 1, duplicate: true });
+    const reusedId = await request("/api/data", {
+      method: "PUT", headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ payload: { ...backup, records: { ...backup.records, lifeEvents: [] } }, expectedRevision: 1, operationId }),
+    });
+    assert.equal(reusedId.status, 409);
+    const changes = await request("/api/sync/changes?after=0", { headers: { Cookie: cookie } });
+    assert.equal(changes.status, 200);
+    const result = await changes.json();
+    assert.equal(result.changes.length, 1);
+    assert.equal(result.changes[0].operation_id, operationId);
+    assert.equal(result.changes[0].revision, 1);
   });
 
   it("rejects cross-origin state-changing requests", async () => {

@@ -607,11 +607,11 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await staleTab.getByRole("button", { name: "Базовые — при рождении" }).click();
   await expect(staleTab.getByText("5.4 ммоль/л", { exact: true }).first()).toBeVisible();
   const staleRevision = await staleTab.evaluate(() => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get("labMeasurements");
+      const read = transaction.objectStore("app-records").get("guest::labMeasurements");
       read.onsuccess = () => resolve(read.result?.revision ?? 0);
       read.onerror = () => reject(read.error);
     };
@@ -619,11 +619,11 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   // Merely opening a tab must not create a new revision by re-saving the
   // snapshot it just loaded.
   await expect.poll(async () => staleTab.evaluate(() => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get("labMeasurements");
+      const read = transaction.objectStore("app-records").get("guest::labMeasurements");
       read.onsuccess = () => resolve(read.result?.revision ?? 0);
       read.onerror = () => reject(read.error);
     };
@@ -634,11 +634,11 @@ test("stale tab cannot overwrite a newer lab measurement revision", async ({ pag
   await page.getByRole("button", { name: "Сохранить изменения" }).click();
   await expect(page.getByText("6.1 ммоль/л", { exact: true }).first()).toBeVisible();
   await expect.poll(async () => page.evaluate(() => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get("labMeasurements");
+      const read = transaction.objectStore("app-records").get("guest::labMeasurements");
       read.onsuccess = () => resolve(read.result?.revision ?? 0);
       read.onerror = () => reject(read.error);
     };
@@ -701,11 +701,11 @@ test("saves and reloads manually entered lab measurements with date and unit", a
   await expect(page.getByText("07.11.2026", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("5.4 ммоль/л", { exact: true }).first()).toHaveCount(0);
   const storedRevision = await page.evaluate(() => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get("labMeasurements");
+      const read = transaction.objectStore("app-records").get("guest::labMeasurements");
       read.onsuccess = () => resolve(read.result?.revision ?? 0);
       read.onerror = () => reject(read.error);
     };
@@ -832,22 +832,22 @@ test("deleting a child profile removes its health records and keeps tombstone re
   await page.getByRole("button", { name: "Вернуться к семье" }).click();
 
   const childId = await page.evaluate(() => new Promise<string>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get("children");
+      const read = transaction.objectStore("app-records").get("guest::children");
       read.onsuccess = () => resolve(read.result.value.find((child: { name: string }) => child.name === "Профиль для удаления").id);
       read.onerror = () => reject(read.error);
     };
   }));
   const key = `childHealth:${childId}:labMeasurements`;
   const previousRevision = await page.evaluate(key => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get(key);
+      const read = transaction.objectStore("app-records").get("guest::" + key);
       read.onsuccess = () => resolve(read.result.revision);
       read.onerror = () => reject(read.error);
     };
@@ -858,11 +858,11 @@ test("deleting a child profile removes its health records and keeps tombstone re
   await page.getByRole("button", { name: "Удалить профиль ребёнка Профиль для удаления" }).click();
   await expect(page.getByText("Профиль для удаления", { exact: true })).toHaveCount(0);
   await expect.poll(() => page.evaluate(key => new Promise<{ value: unknown; revision: number }>((resolve, reject) => {
-    const request = indexedDB.open("life-maps", 1);
+    const request = indexedDB.open("life-maps", 2);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const transaction = request.result.transaction("app-records", "readonly");
-      const read = transaction.objectStore("app-records").get(key);
+      const read = transaction.objectStore("app-records").get("guest::" + key);
       read.onsuccess = () => resolve({ value: read.result.value, revision: read.result.revision });
       read.onerror = () => reject(read.error);
     };
@@ -892,6 +892,7 @@ test("keeps primary sections within extra-narrow mobile viewports", async ({ pag
 test("provides a keyboard skip link to the main content", async ({ page }) => {
   await page.goto("/");
   const skipLink = page.getByRole("link", { name: "Перейти к основному содержимому" });
+  await expect(skipLink).toBeVisible();
 
   await page.keyboard.press("Tab");
   await expect(skipLink).toBeFocused();
@@ -1167,12 +1168,12 @@ test("isolates every child-owned health record from other children and adult rec
   for (const name of ["Профиль матрицы A", "Профиль матрицы B"]) {
     for (const key of ["vaccineStatuses", "vaccineRecords", "toothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
       const value = values[name + ":" + key] as { owner?: string } | Array<{ owner?: string }>;
-      expect(Array.isArray(value) ? value[0].owner : value.owner).toBe(name);
+      expect(Array.isArray(value) ? value[0].owner : value.owner, key).toBe(name);
     }
   }
   for (const key of ["vaccineStatuses", "adultToothData", "labUploads", "labMeasurements", "healthEvents", "healthMonitoring", "labResultEntries"]) {
     const value = values["adult:" + key] as { owner?: string } | Array<{ owner?: string }>;
-    expect(Array.isArray(value) ? value[0].owner : value.owner).toBe("adult");
+    expect(Array.isArray(value) ? value[0].owner : value.owner, key).toBe("adult");
   }
 });
 
@@ -1227,7 +1228,7 @@ test("an open stale tab cannot recreate child records after the profile is delet
     const { readRecord } = await import("/src/app/storage.ts");
     return readRecord(key);
   }, recordKey);
-  expect(staleSnapshot).toEqual([{ id: "before-delete", date: "2026-11-06", kind: "other", title: "До удаления", description: "" }]);
+  expect(staleSnapshot?.map(({ _version, _updatedAt, ...record }) => record)).toEqual([{ id: "before-delete", date: "2026-11-06", kind: "other", title: "До удаления", description: "" }]);
 
   await page.evaluate(async id => {
     const { deleteChildHealthRecords } = await import("/src/app/storage.ts");
@@ -1251,7 +1252,7 @@ test("an open stale tab cannot recreate child records after the profile is delet
     expect(state.value, key + " should remain deleted").toBeUndefined();
     expect(state.revision, key + " should retain a tombstone revision").toBeGreaterThan(0);
   }
-  expect(deletionState.adult).toEqual([{ id: "adult-survives", date: "2026-11-06", kind: "other", title: "Запись взрослого профиля", description: "" }]);
+  expect(deletionState.adult?.map(({ _version, _updatedAt, ...record }) => record)).toEqual([{ id: "adult-survives", date: "2026-11-06", kind: "other", title: "Запись взрослого профиля", description: "" }]);
   await staleTab.reload();
   await staleTab.getByRole("button", { name: "Семья" }).click();
   await expect(staleTab.getByText("Удаляемый открытый профиль", { exact: true })).toHaveCount(0);

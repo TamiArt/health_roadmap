@@ -68,7 +68,10 @@ export function createId(): string {
   }
 
   fallbackIdCounter += 1;
-  return `id-${Date.now()}-${fallbackIdCounter}`;
+  const randomPart = typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function"
+    ? Array.from(crypto.getRandomValues(new Uint32Array(2)), value => value.toString(36)).join("")
+    : Math.random().toString(36).slice(2);
+  return `id-${Date.now().toString(36)}-${fallbackIdCounter.toString(36)}-${randomPart}`;
 }
 
 export function EditToggle({ on, toggle }: { on: boolean; toggle: () => void }) {

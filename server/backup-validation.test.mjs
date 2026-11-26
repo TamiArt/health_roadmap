@@ -20,6 +20,37 @@ describe("server backup validation", () => {
     assert.equal(validateBackupPayload(valid), true);
   });
 
+  it("validates versioned deletion tombstones without medical payload data", () => {
+    const records = {
+      ...valid.records,
+      syncTombstones: { lifeEvents: {
+        "event-1": { version: 2, deletedAt: "2026-11-25T12:00:00.000Z" },
+      } },
+    };
+    assert.equal(validateBackupPayload({ ...valid, records }), true);
+    records.syncTombstones.lifeEvents["event-1"].version = 0;
+    assert.equal(validateBackupPayload({ ...valid, records }), false);
+  });
+
+  it("validates adult and child medical calendar plans", () => {
+    const event = {
+      id: "plan-1", type: "treatment", title: "Treatment course", date: "2026-12-01",
+      endDate: "2026-12-14", time: "09:00", status: "planned", facility: "Clinic",
+      details: "Follow the clinician's instructions",
+      reminder: { enabled: true, leadDays: 2, time: "08:30" },
+      link: { type: "health", id: "event-1", label: "Health event" },
+      createdAt: "2026-11-25T12:00:00.000Z", updatedAt: "2026-11-25T12:00:00.000Z",
+    };
+    const records = {
+      ...valid.records,
+      calendarEvents: [event],
+      "childHealth:child-1:calendarEvents": [{ ...event, id: "child-plan-1", link: undefined }],
+    };
+    assert.equal(validateBackupPayload({ ...valid, records }), true);
+    assert.equal(validateBackupPayload({ ...valid, records: { ...records, calendarEvents: [{ ...event, endDate: "2026-11-30" }] } }), false);
+    assert.equal(validateBackupPayload({ ...valid, records: { ...records, calendarEvents: [{ ...event, reminder: { ...event.reminder, leadDays: 366 } }] } }), false);
+  });
+
   it("rejects unknown keys and orphaned child records", () => {
     assert.equal(validateBackupPayload({ ...valid, records: { ...valid.records, credentials: {} } }), false);
     assert.equal(validateBackupPayload({ ...valid, records: { "childHealth:missing:healthEvents": [] } }), false);
@@ -71,6 +102,23 @@ describe("server backup validation", () => {
     const malformed = structuredClone(valid);
     malformed.records["childHealth:child-1:labUploads"].cbc[0].blob.base64 = "not-base64";
     assert.equal(validateBackupPayload(malformed), false);
+  });
+
+  it("rejects invalid medical dates and duplicate record identifiers", () => {
+    const badEvent = { ...valid, records: { healthEvents: [{ id: "event-1", date: "2026-02-30", title: "Осмотр" }] } };
+    assert.equal(validateBackupPayload(badEvent), false);
+    const duplicateChildren = { ...valid, records: { children: [{ id: "child-1" }, { id: "child-1" }] } };
+    assert.equal(validateBackupPayload(duplicateChildren), false);
+    const duplicateIndicators = { ...valid, records: { labResultEntries: [{
+      id: "lab-1", testName: "ОАК", date: "2026-11-20",
+      indicators: [{ id: "hb", name: "Hb", value: 120, unit: "г/л" }, { id: "hb", name: "Hb2", value: 121, unit: "г/л" }],
+    }] } };
+    assert.equal(validateBackupPayload(duplicateIndicators), false);
+    const duplicateLabEntries = { ...valid, records: { labResultEntries: [
+      { id: "same", testName: "ОАК", date: "2026-11-20", indicators: [{ id: "hb1", name: "Hb", value: 120, unit: "г/л" }] },
+      { id: "same", testName: "ОАК", date: "2026-11-20", indicators: [{ id: "hb2", name: "Hb", value: 121, unit: "г/л" }] },
+    ] } };
+    assert.equal(validateBackupPayload(duplicateLabEntries), false);
   });
 
   it("rejects malformed medical measurements and excessive nesting", () => {

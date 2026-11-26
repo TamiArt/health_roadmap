@@ -1,10 +1,12 @@
-import { lazy, Suspense, useState } from "react";
-import { usePersistentState } from "./storage";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { getStorageScope, setStorageScope, usePersistentState } from "./storage";
+import { activateAccountWorkspace } from "./accountSync";
 import { DataManagementPanel } from "./DataManagementPanel";
 import { motion } from "motion/react";
 import { VACCINES } from "./healthData";
 import type { Child, Section, VaccineStatus } from "./models";
 import { Sidebar } from "./Sidebar";
+import { CalendarReminderService } from "./CalendarReminderService";
 
 const LifeMapSection = lazy(() => import("./LifeMapSection").then(module => ({ default: module.LifeMapSection })));
 const HealthSection = lazy(() => import("./HealthSection").then(module => ({ default: module.HealthSection })));
@@ -17,7 +19,32 @@ function SectionFallback() {
 }
 
 export default function App() {
+  const [workspaceReady, setWorkspaceReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" })
+      .then(async response => {
+        if (!response.ok) throw new Error("Account service unavailable");
+        return response.json() as Promise<{ user: { id: string } | null }>;
+      })
+      .then(async result => { if (!active) return; if (result.user) await activateAccountWorkspace(result.user.id, getStorageScope() === "guest"); else setStorageScope("guest"); })
+      .catch(() => {
+        // Retain the last authenticated workspace while offline.
+        if (active) setStorageScope(getStorageScope());
+      })
+      .finally(() => { if (active) setWorkspaceReady(true); });
+    return () => { active = false; };
+  }, []);
+  if (!workspaceReady) return <div role="status" aria-live="polite" aria-busy="true"
+    className="flex min-h-screen items-center justify-center bg-background p-8 text-sm text-muted-foreground">
+    Проверка локального пространства аккаунта…
+  </div>;
+  return <AppContent />;
+}
+
+function AppContent() {
   const [section, setSection] = useState<Section>("map");
+  const [healthInitialTab, setHealthInitialTab] = useState<"roadmap" | "history" | "tests" | "monitoring">("roadmap");
   const [visitedSections, setVisitedSections] = useState<Set<Section>>(() => new Set(["map"]));
   const [children, , childrenReady, childrenError] = usePersistentState<Child[]>("children", []);
   const [vaccineStatuses, setVaccineStatuses, storageReady, storageError] = usePersistentState<Record<string, VaccineStatus>>(
@@ -54,6 +81,7 @@ export default function App() {
         style={{ backgroundImage: "radial-gradient(circle, rgba(44,95,90,0.045) 1px, transparent 1px)", backgroundSize: "26px 26px" }}
       >
         <DataManagementPanel storageReady={storageReady && childrenReady} storageError={storageError ?? childrenError} />
+        <CalendarReminderService />
         {visitedSections.has("map") && (
           <motion.div hidden={section !== "map"} initial={false} animate={section === "map" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
             <Suspense fallback={<SectionFallback />}><LifeMapSection /></Suspense>
@@ -61,7 +89,7 @@ export default function App() {
         )}
         {visitedSections.has("health") && (
           <motion.div hidden={section !== "health"} initial={false} animate={section === "health" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-            <Suspense fallback={<SectionFallback />}><HealthSection vaccineStatuses={vaccineStatuses} setVaccineStatuses={setVaccineStatuses} /></Suspense>
+            <Suspense fallback={<SectionFallback />}><HealthSection vaccineStatuses={vaccineStatuses} setVaccineStatuses={setVaccineStatuses} onNavigate={navigateTo} children={children} initialTab={healthInitialTab} /></Suspense>
           </motion.div>
         )}
         {visitedSections.has("family") && (
@@ -71,12 +99,12 @@ export default function App() {
         )}
         {visitedSections.has("calendar") && (
           <motion.div hidden={section !== "calendar"} initial={false} animate={section === "calendar" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-            <Suspense fallback={<SectionFallback />}><CalendarSection /></Suspense>
+            <Suspense fallback={<SectionFallback />}><CalendarSection onOpenHistory={() => { setHealthInitialTab("history"); navigateTo("health"); }} /></Suspense>
           </motion.div>
         )}
         {visitedSections.has("analytics") && (
           <motion.div hidden={section !== "analytics"} initial={false} animate={section === "analytics" ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }} transition={{ duration: 0.22 }}>
-            <Suspense fallback={<SectionFallback />}><AnalyticsSection children={children} onNavigate={navigateTo} /></Suspense>
+            <Suspense fallback={<SectionFallback />}><AnalyticsSection children={children} onNavigate={navigateTo} onOpenSource={(source, sourceId, pointId, profileId) => { if (profileId) { navigateTo("family"); const section = source === "monitoring" ? "monitoring" : "tests"; const key = source === "lab-result" ? `childHealth:${profileId}:labResultEntries` : source === "manual" ? `childHealth:${profileId}:labMeasurements` : `childHealth:${profileId}:healthMonitoring`; const recordId = source === "monitoring" ? `${sourceId}-${pointId}` : sourceId; window.setTimeout(() => window.dispatchEvent(new CustomEvent("life-maps:open-child-history-source", { detail: { childId: profileId, source: { key, recordId, section } } })), 700); return; } const tab = source === "lab-result" ? "history" : source === "manual" ? "tests" : "monitoring"; setHealthInitialTab(tab); navigateTo("health"); window.setTimeout(() => { const target = source === "monitoring" ? `medical-source-monitoring-${sourceId}-${pointId}` : `medical-source-tests-${sourceId}`; document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" }); }, 650); }} /></Suspense>
           </motion.div>
         )}
       </main>

@@ -1,12 +1,41 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 const DB_NAME = "life-maps";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "app-records";
 export const BACKUP_FORMAT = "life-maps-backup";
 export const CURRENT_SCHEMA_VERSION = 1;
 export const MAX_BACKUP_BYTES = 100 * 1024 * 1024;
 const RESTORE_EVENT = "life-maps:backup-restored";
+const SCOPE_EVENT = "life-maps:storage-scope";
+const ACTIVE_SCOPE_KEY = "life-maps:active-storage-scope";
+function readPersistedScope(): string {
+  try {
+    const value = localStorage.getItem(ACTIVE_SCOPE_KEY);
+    return value && /^[a-zA-Z0-9_-]{1,128}$/.test(value) ? value : "guest";
+  } catch { return "guest"; }
+}
+let activeStorageScope = readPersistedScope();
+export function getStorageScope(): string {
+  try {
+    const value = localStorage.getItem(ACTIVE_SCOPE_KEY);
+    if (value && /^[a-zA-Z0-9_-]{1,128}$/.test(value)) activeStorageScope = value;
+  } catch { /* Use the in-memory scope. */ }
+  return activeStorageScope;
+}
+export function setStorageScope(scope: string): void {
+  if (!/^(guest|[a-zA-Z0-9_-]{1,128})$/.test(scope)) throw new Error("Некорректный идентификатор локального пространства.");
+  if (activeStorageScope === scope) return;
+  activeStorageScope = scope;
+  try { localStorage.setItem(ACTIVE_SCOPE_KEY, scope); } catch { /* IndexedDB remains authoritative. */ }
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(SCOPE_EVENT, { detail: scope }));
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("life-maps:workspace");
+    channel.postMessage({ scope });
+    channel.close();
+  }
+}
+function scopedKey(key: string, scope = activeStorageScope): string { return `${scope}::${key}`; }
 
 type StoredRecord = { key: string; value: unknown; revision?: number };
 type VersionedRecord<T> = { value: T | undefined; revision: number };
@@ -30,11 +59,13 @@ const ALLOWED_KEYS = new Set([
   "healthEvents",
   "healthMonitoring",
   "labResultEntries",
+  "syncTombstones",
   "notificationSettings",
+  "calendarEvents",
 ]);
 
 export function isAllowedRecordKey(key: string): boolean {
-  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries)$/.test(key);
+  return ALLOWED_KEYS.has(key) || /^childHealth:[a-zA-Z0-9_-]+:(vaccineStatuses|vaccineRecords|toothData|labUploads|labMeasurements|healthEvents|healthMonitoring|labResultEntries|calendarEvents)$/.test(key);
 }
 
 let databasePromise: Promise<IDBDatabase> | undefined;
@@ -47,10 +78,22 @@ function openDatabase(): Promise<IDBDatabase> {
 
   databasePromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = event => {
       const database = request.result;
-      if (!database.objectStoreNames.contains(STORE_NAME)) {
-        database.createObjectStore(STORE_NAME, { keyPath: "key" });
+      const transaction = request.transaction;
+      if (!database.objectStoreNames.contains(STORE_NAME)) database.createObjectStore(STORE_NAME, { keyPath: "key" });
+      if (!database.objectStoreNames.contains("sync-meta")) database.createObjectStore("sync-meta", { keyPath: "key" });
+      if (event.oldVersion < 2 && transaction) {
+        // Existing unscoped data is migrated intact into the guest workspace.
+        const store = transaction.objectStore(STORE_NAME);
+        const cursorRequest = store.openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor) return;
+          const record = cursor.value as StoredRecord;
+          if (!record.key.includes("::")) { cursor.delete(); store.put({ ...record, key: scopedKey(record.key, "guest") }); }
+          cursor.continue();
+        };
       }
     };
     request.onsuccess = () => {
@@ -82,7 +125,7 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
 export async function readRecordState<T>(key: string): Promise<VersionedRecord<T>> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readonly");
-  const record = await requestResult<StoredRecord | undefined>(transaction.objectStore(STORE_NAME).get(key));
+  const record = await requestResult<StoredRecord | undefined>(transaction.objectStore(STORE_NAME).get(scopedKey(key)));
   return { value: record?.value as T | undefined, revision: record?.revision ?? 0 };
 }
 
@@ -93,7 +136,7 @@ export async function readRecord<T>(key: string): Promise<T | undefined> {
 /** Remove a child profile and all of its health records atomically. */
 export async function deleteChildHealthRecords(childId: string): Promise<void> {
   if (!/^[a-zA-Z0-9_-]+$/.test(childId)) throw new Error("Некорректный идентификатор профиля ребёнка.");
-  const prefix = `childHealth:${childId}:`;
+  const prefix = scopedKey(`childHealth:${childId}:`);
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
@@ -102,7 +145,7 @@ export async function deleteChildHealthRecords(childId: string): Promise<void> {
 
   request.onsuccess = () => {
     const records = request.result as StoredRecord[];
-    const childrenRecord = records.find(record => record.key === "children");
+    const childrenRecord = records.find(record => record.key === scopedKey("children"));
     const children = Array.isArray(childrenRecord?.value) ? childrenRecord.value as Array<{ id?: unknown }> : [];
     if (!children.some(child => child.id === childId)) {
       transaction.abort();
@@ -118,8 +161,19 @@ export async function deleteChildHealthRecords(childId: string): Promise<void> {
 
     const nextChildren = children.filter(child => child.id !== childId);
     const childrenRevision = (childrenRecord?.revision ?? 0) + 1;
-    store.put({ key: "children", value: nextChildren, revision: childrenRevision } satisfies StoredRecord);
+    store.put({ key: scopedKey("children"), value: nextChildren, revision: childrenRevision } satisfies StoredRecord);
     changed.unshift({ key: "children", value: nextChildren, revision: childrenRevision });
+
+    const tombstoneRecord = records.find(record => record.key === scopedKey("syncTombstones"));
+    const tombstones = tombstoneRecord?.value && typeof tombstoneRecord.value === "object"
+      ? tombstoneRecord.value as RecordTombstones : {};
+    const deletedChild = children.find(child => child.id === childId) as Record<string, unknown>;
+    tombstones.children = { ...(tombstones.children ?? {}), [childId]: {
+      version: typeof deletedChild._version === "number" ? deletedChild._version : 1,
+      deletedAt: new Date().toISOString(),
+    } };
+    store.put({ key: scopedKey("syncTombstones"), value: tombstones,
+      revision: (tombstoneRecord?.revision ?? 0) + 1 } satisfies StoredRecord);
   };
 
   await new Promise<void>((resolve, reject) => {
@@ -130,9 +184,67 @@ export async function deleteChildHealthRecords(childId: string): Promise<void> {
 
   if (changed.length && typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
-    for (const record of changed) channel.postMessage(record);
+    for (const record of changed) channel.postMessage({ ...record, scope: activeStorageScope });
     channel.close();
   }
+}
+
+const VERSIONED_COLLECTION_KEYS = new Set([
+  "lifeEvents", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords", "labResultEntries", "calendarEvents",
+]);
+type RecordTombstones = Record<string, Record<string, { version: number; deletedAt: string }>>;
+
+function stripRecordVersion(value: Record<string, unknown>): Record<string, unknown> {
+  const { _version: _version, _updatedAt: _updatedAt, ...content } = value;
+  return content;
+}
+
+function versionCollection(path: string, previous: unknown, next: unknown, tombstones: RecordTombstones, now: string): unknown[] {
+  const oldItems = Array.isArray(previous) ? previous : [];
+  const nextItems = Array.isArray(next) ? next : [];
+  const oldById = new Map<string, Record<string, unknown>>(oldItems.filter((item): item is Record<string, unknown> =>
+    Boolean(item) && typeof item === "object" && !Array.isArray(item) && typeof (item as Record<string, unknown>).id === "string")
+    .map(item => [String(item.id), item] as const));
+  const nextIds = new Set<string>();
+  const versions = tombstones[path] ?? {};
+  const output = nextItems.map(item => {
+    if (!item || typeof item !== "object" || Array.isArray(item) || typeof (item as Record<string, unknown>).id !== "string") return item;
+    const record = item as Record<string, unknown>;
+    const id = String(record.id);
+    nextIds.add(id);
+    const old = oldById.get(id);
+    const oldVersion = typeof old?._version === "number" ? old._version : 0;
+    const same = old ? JSON.stringify(stripRecordVersion(old)) === JSON.stringify(stripRecordVersion(record)) : false;
+    const version = same ? oldVersion : Math.max(oldVersion, versions[id]?.version ?? 0) + 1;
+    delete versions[id];
+    return { ...record, _version: version, _updatedAt: same && typeof old?._updatedAt === "string" ? old._updatedAt : now };
+  });
+  for (const [id, old] of oldById) {
+    if (!nextIds.has(id)) {
+      const version = typeof old._version === "number" ? old._version : 1;
+      versions[id] = { version, deletedAt: now };
+    }
+  }
+  if (Object.keys(versions).length) tombstones[path] = versions;
+  else delete tombstones[path];
+  return output;
+}
+
+function versionMedicalValue(key: string, previous: unknown, next: unknown, tombstones: RecordTombstones): unknown {
+  const now = new Date().toISOString();
+  const shortKey = key.split(":").at(-1) ?? key;
+  if (VERSIONED_COLLECTION_KEYS.has(shortKey) && Array.isArray(next)) {
+    return versionCollection(key, previous, next, tombstones, now);
+  }
+  if ((shortKey === "labMeasurements" || shortKey === "labUploads") && next && typeof next === "object" && !Array.isArray(next)) {
+    const entries = Object.entries(next as Record<string, unknown>);
+    if (!entries.every(([, values]) => Array.isArray(values))) return next;
+    const oldMap = previous && typeof previous === "object" && !Array.isArray(previous) ? previous as Record<string, unknown> : {};
+    return Object.fromEntries(entries.map(([testId, values]) => [
+      testId, versionCollection(key + "." + testId, oldMap[testId], values, tombstones, now),
+    ]));
+  }
+  return next;
 }
 
 /** Compare-and-write: a stale tab cannot overwrite a newer IndexedDB revision. */
@@ -142,17 +254,20 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
   const transaction = database.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
   let result: VersionedRecord<T> & { conflict: boolean } = { value, revision: 0, conflict: false };
-  const request = store.get(key);
+  const request = store.get(scopedKey(key));
+  const tombstonesRequest = store.get(scopedKey("syncTombstones"));
   const childMatch = /^childHealth:([a-zA-Z0-9_-]+):/.exec(key);
-  const childrenRequest = childMatch ? store.get("children") : undefined;
+  const childrenRequest = childMatch ? store.get(scopedKey("children")) : undefined;
   let recordLoaded = false;
+  let tombstonesLoaded = false;
   let childrenLoaded = !childrenRequest;
   let current: StoredRecord | undefined;
+  let tombstonesRecord: StoredRecord | undefined;
   let childrenValue: unknown;
   let profileDeleted = false;
 
   const commitIfReady = () => {
-    if (!recordLoaded || !childrenLoaded) return;
+    if (!recordLoaded || !tombstonesLoaded || !childrenLoaded) return;
     const currentRevision = current?.revision ?? 0;
     if (childMatch) {
       const exists = Array.isArray(childrenValue) && childrenValue.some(
@@ -168,13 +283,24 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
       result = { value: current?.value as T | undefined, revision: currentRevision, conflict: true };
       return;
     }
-    result = { value, revision: currentRevision + 1, conflict: false };
-    store.put({ key, value, revision: result.revision } satisfies StoredRecord);
+    const tombstones = (tombstonesRecord?.value && typeof tombstonesRecord.value === "object"
+      ? tombstonesRecord.value : {}) as RecordTombstones;
+    const persistedValue = versionMedicalValue(key, current?.value, value, tombstones);
+    result = { value: persistedValue as T, revision: currentRevision + 1, conflict: false };
+    store.put({ key: scopedKey(key), value: persistedValue, revision: result.revision } satisfies StoredRecord);
+    if (JSON.stringify(tombstones) !== JSON.stringify(tombstonesRecord?.value ?? {})) {
+      store.put({ key: scopedKey("syncTombstones"), value: tombstones, revision: (tombstonesRecord?.revision ?? 0) + 1 } satisfies StoredRecord);
+    }
   };
 
   request.onsuccess = () => {
     current = request.result as StoredRecord | undefined;
     recordLoaded = true;
+    commitIfReady();
+  };
+  tombstonesRequest.onsuccess = () => {
+    tombstonesRecord = tombstonesRequest.result as StoredRecord | undefined;
+    tombstonesLoaded = true;
     commitIfReady();
   };
   if (childrenRequest) {
@@ -192,17 +318,38 @@ export async function writeRecord<T>(key: string, value: T, expectedRevision?: n
   if (profileDeleted) throw new Error("Профиль ребёнка удалён. Изменения не сохранены.");
   if (!result.conflict && typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
-    channel.postMessage({ key, value, revision: result.revision });
+    channel.postMessage({ key, value: result.value, revision: result.revision, scope: activeStorageScope });
     channel.close();
   }
   return result;
+}
+
+export async function clearStorageWorkspace(scope: string): Promise<void> {
+  if (!/^(guest|[a-zA-Z0-9_-]{1,128})$/.test(scope)) throw new Error("Некорректное локальное пространство.");
+  const database = await openDatabase();
+  const transaction = database.transaction(STORE_NAME, "readwrite");
+  const store = transaction.objectStore(STORE_NAME);
+  const request = store.getAll();
+  request.onsuccess = () => {
+    const prefix = `${scope}::`;
+    for (const record of request.result as StoredRecord[]) {
+      if (record.key.startsWith(prefix)) store.delete(record.key);
+    }
+  };
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось очистить локальное пространство."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Очистка локального пространства отменена."));
+  });
 }
 
 async function readAllRecords(): Promise<Record<string, unknown>> {
   const database = await openDatabase();
   const transaction = database.transaction(STORE_NAME, "readonly");
   const records = await requestResult<StoredRecord[]>(transaction.objectStore(STORE_NAME).getAll());
-  return Object.fromEntries(records.filter(record => record.value !== undefined).map(record => [record.key, record.value]));
+  const prefix = `${activeStorageScope}::`;
+  return Object.fromEntries(records.filter(record => record.key.startsWith(prefix) && record.value !== undefined)
+    .map(record => [record.key.slice(prefix.length), record.value]));
 }
 
 type EncodedBlob = { __lifeMapsBlob: true; mimeType: string; base64: string };
@@ -272,17 +419,33 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function hasUniqueIds(items: unknown[]): boolean {
+  const ids = items.map(item => isPlainRecord(item) ? item.id : undefined);
+  return ids.every(id => typeof id === "string" && id.trim().length > 0) && new Set(ids).size === ids.length;
+}
+
 function validateRecordValue(key: string, value: unknown): void {
+  if (key === "syncTombstones") {
+    if (!isPlainRecord(value) || Object.entries(value).some(([path, entries]) =>
+      !path || path.length > 256 || !isPlainRecord(entries) || Object.entries(entries).some(([id, tombstone]) =>
+        !id || !isPlainRecord(tombstone) || !Number.isSafeInteger(tombstone.version) ||
+        Number(tombstone.version) < 1 || typeof tombstone.deletedAt !== "string" ||
+        Number.isNaN(Date.parse(tombstone.deletedAt))))) {
+      throw new Error("Журнал удалений содержит некорректные версии записей.");
+    }
+    return;
+  }
   if (key === "labResultEntries" || key.endsWith(":labResultEntries")) {
-    if (!Array.isArray(value) || value.some(entry => {
-      if (!isPlainRecord(entry) || typeof entry.id !== "string" || typeof entry.testName !== "string" ||
-          typeof entry.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) ||
-          !Array.isArray(entry.indicators) || entry.indicators.length === 0) return true;
+    if (!Array.isArray(value) || !hasUniqueIds(value) || value.some(entry => {
+      if (!isPlainRecord(entry) || typeof entry.id !== "string" || !entry.id.trim() || typeof entry.testName !== "string" ||
+          typeof entry.date !== "string" || !isValidBackupDate(entry.date) ||
+          !Array.isArray(entry.indicators) || entry.indicators.length === 0 || !hasUniqueIds(entry.indicators)) return true;
       if (entry.indicators.some(indicator => !isPlainRecord(indicator) || typeof indicator.id !== "string" ||
           typeof indicator.name !== "string" || typeof indicator.value !== "number" || !Number.isFinite(indicator.value) ||
           typeof indicator.unit !== "string")) return true;
       const documents = [...(Array.isArray(entry.documents) ? entry.documents : []), ...(entry.document ? [entry.document] : [])];
       if (entry.documents !== undefined && !Array.isArray(entry.documents)) return true;
+      if (!hasUniqueIds(documents)) return true;
       return documents.some(document => {
         if (!isPlainRecord(document) || typeof document.id !== "string" || typeof document.name !== "string" ||
             (document.mimeType !== undefined && typeof document.mimeType !== "string") || !isPlainRecord(document.blob)) return true;
@@ -294,12 +457,41 @@ function validateRecordValue(key: string, value: unknown): void {
     return;
   }
 
-  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords"]);
+  const arrayKeys = new Set(["lifeEvents", "familyMembers", "children", "familyEvents", "healthEvents", "healthMonitoring", "vaccineRecords", "calendarEvents"]);
   const arrayKey = arrayKeys.has(key) || [...arrayKeys].some(name => key.endsWith(`:${name}`));
   if (arrayKey) {
-    if (!Array.isArray(value)) throw new Error(`Повреждён список данных: ${key}`);
-    if (value.some(item => !isPlainRecord(item) || typeof item.id !== "string")) {
-      throw new Error(`В списке ${key} обнаружена некорректная запись.`);
+    if (!Array.isArray(value) || !hasUniqueIds(value)) {
+      throw new Error(`В списке ${key} обнаружены некорректные или повторяющиеся идентификаторы.`);
+    }
+    if (key === "calendarEvents" || key.endsWith(":calendarEvents")) {
+      const types = new Set(["appointment", "examination", "lab", "vaccination", "medication", "treatment", "other"]);
+      const statuses = new Set(["planned", "completed", "cancelled"]);
+      const linkTypes = new Set(["health", "lab", "vaccine", "monitoring"]);
+      const invalid = value.some(event => {
+        if (!isPlainRecord(event) || typeof event.id !== "string" || !event.id ||
+            !types.has(String(event.type)) || !statuses.has(String(event.status)) ||
+            typeof event.title !== "string" || !event.title.trim() || event.title.length > 120 ||
+            typeof event.date !== "string" || !isValidBackupDate(event.date) ||
+            (event.endDate !== "" && (typeof event.endDate !== "string" || !isValidBackupDate(event.endDate) || event.endDate < event.date)) ||
+            typeof event.time !== "string" || (event.time !== "" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(event.time)) ||
+            typeof event.facility !== "string" || event.facility.length > 160 ||
+            typeof event.details !== "string" || event.details.length > 1500) return true;
+        const reminder = event.reminder;
+        if (!isPlainRecord(reminder) || typeof reminder.enabled !== "boolean" ||
+            !Number.isInteger(reminder.leadDays) || Number(reminder.leadDays) < 0 || Number(reminder.leadDays) > 365 ||
+            typeof reminder.time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time)) return true;
+        if (event.link !== undefined && (!isPlainRecord(event.link) || !linkTypes.has(String(event.link.type)) ||
+            typeof event.link.id !== "string" || !event.link.id ||
+            typeof event.link.label !== "string" || event.link.label.length > 300)) return true;
+        return typeof event.createdAt !== "string" || Number.isNaN(Date.parse(event.createdAt)) ||
+          typeof event.updatedAt !== "string" || Number.isNaN(Date.parse(event.updatedAt));
+      });
+      if (invalid) throw new Error(`Повреждена запись календаря: ${key}.`);
+    }
+    if (key === "healthEvents" || key.endsWith(":healthEvents")) {
+      if (value.some(item => typeof item.date !== "string" || !isValidBackupDate(item.date))) {
+        throw new Error(`Повреждены даты медицинских событий: ${key}.`);
+      }
     }
     if (key === "vaccineRecords" || key.endsWith(":vaccineRecords")) {
       const invalid = value.some(item => {
@@ -307,7 +499,7 @@ function validateRecordValue(key: string, value: unknown): void {
             typeof item.date !== "string" || !isValidBackupDate(item.date) ||
             typeof item.dose !== "string" || typeof item.facility !== "string" || typeof item.notes !== "string") return true;
         if (item.documents === undefined) return false;
-        return !Array.isArray(item.documents) || item.documents.some(document =>
+        return !Array.isArray(item.documents) || !hasUniqueIds(item.documents) || item.documents.some(document =>
           !isPlainRecord(document) || typeof document.id !== "string" || typeof document.name !== "string" ||
           typeof document.mimeType !== "string" || !isPlainRecord(document.blob) ||
           !((typeof Blob !== "undefined" && document.blob instanceof Blob) ||
@@ -318,10 +510,18 @@ function validateRecordValue(key: string, value: unknown): void {
     if (key === "healthMonitoring" || key.endsWith(":healthMonitoring")) {
       const hasInvalidMeasurements = value.some(item => {
         if (!isPlainRecord(item)) return true;
+        if (item.nextDueDate !== undefined && item.nextDueDate !== "" &&
+            (typeof item.nextDueDate !== "string" || !isValidBackupDate(item.nextDueDate))) return true;
+        if (item.lastCheckedDate !== undefined && item.lastCheckedDate !== "" &&
+            (typeof item.lastCheckedDate !== "string" || !isValidBackupDate(item.lastCheckedDate))) return true;
+        const reminder = item.reminder;
+        if (reminder !== undefined && (!isPlainRecord(reminder) || typeof reminder.enabled !== "boolean" ||
+            !Number.isInteger(reminder.leadDays) || Number(reminder.leadDays) < 0 || Number(reminder.leadDays) > 365 ||
+            typeof reminder.time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(reminder.time))) return true;
         const readings: unknown = item.measurements ?? [];
-        if (!Array.isArray(readings)) return true;
-        return readings.some((reading: unknown) => !isPlainRecord(reading) || typeof reading.id !== "string" ||
-          typeof reading.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(reading.date) ||
+        if (!Array.isArray(readings) || !hasUniqueIds(readings)) return true;
+        return readings.some((reading: unknown) => !isPlainRecord(reading) ||
+          typeof reading.date !== "string" || !isValidBackupDate(reading.date) ||
           typeof reading.value !== "number" || !Number.isFinite(reading.value) || typeof reading.unit !== "string");
       });
       if (hasInvalidMeasurements) throw new Error(`Повреждена история значений в списке ${key}.`);
@@ -332,9 +532,9 @@ function validateRecordValue(key: string, value: unknown): void {
   if (!isPlainRecord(value)) throw new Error(`Повреждена запись данных: ${key}`);
   if (key === "labMeasurements" || key.endsWith(":labMeasurements")) {
     for (const [testId, measurements] of Object.entries(value)) {
-      if (!Array.isArray(measurements) || measurements.some(item => {
+      if (!Array.isArray(measurements) || !hasUniqueIds(measurements) || measurements.some(item => {
         if (!isPlainRecord(item) || typeof item.id !== "string" || typeof item.value !== "string" ||
-            typeof item.unit !== "string" || typeof item.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.date)) return true;
+            typeof item.unit !== "string" || typeof item.date !== "string" || !isValidBackupDate(item.date)) return true;
         const date = new Date(item.date + "T00:00:00");
         return Number.isNaN(date.getTime()) || date.getFullYear() !== Number(item.date.slice(0,4)) ||
           date.getMonth()+1 !== Number(item.date.slice(5,7)) || date.getDate() !== Number(item.date.slice(8,10));
@@ -344,8 +544,8 @@ function validateRecordValue(key: string, value: unknown): void {
 
   if (key === "labUploads" || key.endsWith(":labUploads")) {
     for (const [testId, uploads] of Object.entries(value)) {
-      if (!Array.isArray(uploads) || uploads.some(item => {
-        if (!isPlainRecord(item) || typeof item.id !== "string" || !isPlainRecord(item.blob)) return true;
+      if (!Array.isArray(uploads) || !hasUniqueIds(uploads) || uploads.some(item => {
+        if (!isPlainRecord(item) || !isPlainRecord(item.blob)) return true;
         const blob = item.blob;
         const isStoredBlob = typeof Blob !== "undefined" && blob instanceof Blob;
         const isBackupBlob = blob.__lifeMapsBlob === true && typeof blob.base64 === "string" && typeof blob.mimeType === "string";
@@ -380,11 +580,12 @@ export function migrateBackup(input: BackupPayload): BackupPayload {
     validateRecordValue(key, value);
   }
 
-  const childIds = new Set(
-    (Array.isArray(records.children) ? records.children : [])
-      .map(child => isPlainRecord(child) ? child.id : undefined)
-      .filter((id): id is string => typeof id === "string" && /^[a-zA-Z0-9_-]+$/.test(id)),
-  );
+  const children = Array.isArray(records.children) ? records.children : [];
+  if (children.length && (!hasUniqueIds(children) || children.some(child =>
+    !isPlainRecord(child) || typeof child.id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(child.id)))) {
+    throw new Error("Список профилей содержит некорректные или повторяющиеся идентификаторы.");
+  }
+  const childIds = new Set(children.map(child => (child as Record<string, unknown>).id as string));
   for (const key of Object.keys(records)) {
     const childRecord = /^childHealth:([a-zA-Z0-9_-]+):/.exec(key);
     if (childRecord && !childIds.has(childRecord[1])) {
@@ -432,16 +633,15 @@ export async function importBackup(file: File): Promise<void> {
   const store = transaction.objectStore(STORE_NAME);
   const existingRequest = store.getAll();
   existingRequest.onsuccess = () => {
-    const previousRecords = existingRequest.result as StoredRecord[];
-    const previousByKey = new Map(previousRecords.map(record => [record.key, record]));
+    const prefix = `${activeStorageScope}::`;
+    const previousRecords = (existingRequest.result as StoredRecord[]).filter(record => record.key.startsWith(prefix));
+    const previousByKey = new Map(previousRecords.map(record => [record.key.slice(prefix.length), record]));
     const allKeys = new Set([...previousByKey.keys(), ...Object.keys(decodedRecords)]);
-    store.clear();
     for (const key of allKeys) {
       const previousRevision = previousByKey.get(key)?.revision ?? 0;
       const value = Object.prototype.hasOwnProperty.call(decodedRecords, key) ? decodedRecords[key] : undefined;
-      // Advance revisions for restored and removed records. Tombstones prevent
-      // a stale tab from recreating keys that are absent from the backup.
-      store.put({ key, value, revision: previousRevision + 1 } satisfies StoredRecord);
+      // Advance revisions for restored and removed records; preserve other account workspaces.
+      store.put({ key: scopedKey(key), value, revision: previousRevision + 1 } satisfies StoredRecord);
     }
   };
 
@@ -452,10 +652,27 @@ export async function importBackup(file: File): Promise<void> {
   });
   if (typeof BroadcastChannel !== "undefined") {
     const channel = new BroadcastChannel("life-maps:records");
-    channel.postMessage({ type: "restore" });
+    channel.postMessage({ type: "restore", scope: activeStorageScope });
     channel.close();
   }
   window.dispatchEvent(new Event(RESTORE_EVENT));
+}
+
+export async function readSyncMetadata<T>(key: string): Promise<T | undefined> {
+  const database = await openDatabase();
+  const transaction = database.transaction("sync-meta", "readonly");
+  const record = await requestResult<{ key: string; value: T } | undefined>(transaction.objectStore("sync-meta").get(key));
+  return record?.value;
+}
+export async function writeSyncMetadata<T>(key: string, value: T): Promise<void> {
+  const database = await openDatabase();
+  const transaction = database.transaction("sync-meta", "readwrite");
+  transaction.objectStore("sync-meta").put({ key, value });
+  await new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("Не удалось сохранить очередь синхронизации."));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Сохранение очереди синхронизации отменено."));
+  });
 }
 
 export function usePersistentState<T>(
@@ -465,12 +682,24 @@ export function usePersistentState<T>(
   const [value, setValue] = useState<T>(initialValue);
   const [ready, setReady] = useState(false);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [scope, setScope] = useState(getStorageScope);
+  const [loadedScope, setLoadedScope] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
   const skipNextWrite = useRef<{ value: T } | null>(null);
   const revision = useRef(0);
   const writeQueue = useRef<Promise<void>>(Promise.resolve());
   const updateGeneration = useRef(0);
+
+  useEffect(() => {
+    const updateScope = () => { setReady(false); setScope(getStorageScope()); };
+    window.addEventListener(SCOPE_EVENT, updateScope);
+    window.addEventListener("storage", updateScope);
+    return () => {
+      window.removeEventListener(SCOPE_EVENT, updateScope);
+      window.removeEventListener("storage", updateScope);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -492,6 +721,7 @@ export function usePersistentState<T>(
           skipNextWrite.current = { value: loadedValue };
           setValue(loadedValue);
           setLoadedKey(key);
+          setLoadedScope(scope);
         }
         if (active) setError(null);
       } catch (cause) {
@@ -512,7 +742,8 @@ export function usePersistentState<T>(
     const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("life-maps:records") : undefined;
     if (channel) {
       channel.onmessage = event => {
-        const message = event.data as { type?: unknown; key?: unknown; value?: unknown; revision?: unknown };
+        const message = event.data as { type?: unknown; key?: unknown; value?: unknown; revision?: unknown; scope?: unknown };
+        if (message?.scope !== scope) return;
         if (message?.type === "restore") {
           void load();
           return;
@@ -532,10 +763,10 @@ export function usePersistentState<T>(
       window.removeEventListener(RESTORE_EVENT, reload);
       channel?.close();
     };
-  }, [key]);
+  }, [key, scope]);
 
   useEffect(() => {
-    if (!ready || error || loadedKey !== key) return;
+    if (!ready || error || loadedKey !== key || loadedScope !== scope) return;
     if (skipNextWrite.current) {
       const remoteUpdate = skipNextWrite.current;
       skipNextWrite.current = null;
@@ -561,7 +792,7 @@ export function usePersistentState<T>(
     }).catch(cause => {
       setError(cause instanceof Error ? cause.message : "Не удалось сохранить локальные данные.");
     });
-  }, [key, value, ready, loadedKey, error]);
+  }, [key, scope, value, ready, loadedKey, loadedScope, error]);
 
   return [value, setValue, ready, error, conflict];
 }

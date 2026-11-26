@@ -10,15 +10,22 @@ import { VaccinesTab } from "./VaccinesTab";
 import { HealthEventsTab, MonitoringTab, ReminderPermission } from "./HealthTrackingTabs";
 import { LabResultsTab } from "./LabResultsTab";
 import { MedicalHistoryTab } from "./MedicalHistoryTab";
+import type { MedicalHistorySource } from "./medicalHistoryModel";
 import { useBrowserReminders } from "./useBrowserReminders";
 import { isIsoDate, type FamilyDate } from "./healthRecords";
 import { handleTabListKeyDown } from "./tabNavigation";
 
 // ─── Child Health View ────────────────────────────────────────────────────────
 
-function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
+function ChildHealthView({ child, onBack, initialSource }: { child:Child; onBack:()=>void; initialSource?: { childId: string; source: MedicalHistorySource } | null }) {
   const age = CURRENT_YEAR - child.birthYear;
-  const [tab, setTab] = useState<"tests"|"vaccines"|"dental"|"history"|"events"|"monitoring">("tests");
+  const [tab, setTab] = useState<"tests"|"vaccines"|"dental"|"history"|"events"|"monitoring">(() => initialSource?.source.key.endsWith("labResultEntries") ? "history" : initialSource && initialSource.source.section !== "family" ? initialSource.source.section : "tests");
+  useEffect(() => {
+    if (!initialSource) return;
+    setTab(initialSource.source.key.endsWith("labResultEntries") ? "history" : initialSource.source.section !== "family" ? initialSource.source.section : "tests");
+    const target = `medical-source-${initialSource.source.section}-${initialSource.source.recordId}`;
+    window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+  }, [initialSource]);
   const tabsId = useId();
   const [vaccineStatuses, setVaccineStatuses, vaccineReady, vaccineError] = usePersistentState<Record<string,VaccineStatus>>(
     `childHealth:${child.id}:vaccineStatuses`,
@@ -58,7 +65,7 @@ function ChildHealthView({ child, onBack }: { child:Child; onBack:()=>void }) {
       <div id={`${tabsId}-panel-tests`} role="tabpanel" aria-labelledby={`${tabsId}-tab-tests`} hidden={tab !== "tests"}><LabTestsTab stages={stages} defaultGender="f" storageKey={`childHealth:${child.id}:labUploads`}/></div>
       <div id={`${tabsId}-panel-vaccines`} role="tabpanel" aria-labelledby={`${tabsId}-tab-vaccines`} hidden={tab !== "vaccines"}><VaccinesTab statuses={vaccineStatuses} setStatuses={setVaccineStatuses} filterAge={age} recordsStorageKey={`childHealth:${child.id}:vaccineRecords`}/></div>
       {age>=5 && <div id={`${tabsId}-panel-dental`} role="tabpanel" aria-labelledby={`${tabsId}-tab-dental`} hidden={tab !== "dental"}>{toothConflict && <p role="status" className="mb-3 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">Стоматологические записи изменены в другой вкладке. Загружена последняя сохранённая версия.</p>}<DentalTab data={toothData} onChange={setToothData}/></div>}
-      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab storagePrefix={`childHealth:${child.id}:`}/><div className="mt-6"><LabResultsTab storageKey={`childHealth:${child.id}:labResultEntries`}/></div></div>
+      <div id={`${tabsId}-panel-history`} role="tabpanel" aria-labelledby={`${tabsId}-tab-history`} hidden={tab !== "history"}><MedicalHistoryTab storagePrefix={`childHealth:${child.id}:`} profileId={child.id} profileLabel={child.name} onOpenSource={source => { setTab(source.section === "family" ? "history" : source.section); const target = `medical-source-${source.section}-${source.recordId}`; window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" }), 0); }}/><div className="mt-6"><LabResultsTab storageKey={`childHealth:${child.id}:labResultEntries`}/></div></div>
       <div id={`${tabsId}-panel-events`} role="tabpanel" aria-labelledby={`${tabsId}-tab-events`} hidden={tab !== "events"}><HealthEventsTab storageKey={`childHealth:${child.id}:healthEvents`}/></div>
       <div id={`${tabsId}-panel-monitoring`} role="tabpanel" aria-labelledby={`${tabsId}-tab-monitoring`} hidden={tab !== "monitoring"}><MonitoringTab storageKey={`childHealth:${child.id}:healthMonitoring`}/></div>
     </div>
@@ -73,6 +80,16 @@ export function FamilySection() {
   const [events, setEvents, eventsReady, eventsError] = usePersistentState<FamilyDate[]>("familyEvents", FAMILY_EVENTS_INIT.map(event => ({ ...event, recurringYearly: false, reminder: { enabled: false, leadDays: 1, time: "09:00" } })));
   const [editMode, setEditMode] = useState(false);
   const [viewingChild, setViewingChild] = useState<Child|null>(null);
+  const [pendingChildSource, setPendingChildSource] = useState<{ childId: string; source: MedicalHistorySource } | null>(null);
+  useEffect(() => {
+    const handleSourceRequest = (event: Event) => {
+      const request = (event as CustomEvent<{ childId: string; source: MedicalHistorySource }>).detail;
+      const child = children.find(item => item.id === request.childId);
+      if (child) { setPendingChildSource(request); setViewingChild(child); }
+    };
+    window.addEventListener("life-maps:open-child-history-source", handleSourceRequest);
+    return () => window.removeEventListener("life-maps:open-child-history-source", handleSourceRequest);
+  }, [children]);
   const childProfileTriggerRef = useRef<HTMLButtonElement>(null);
   const wasViewingChildRef = useRef(false);
   useEffect(() => {
@@ -239,7 +256,7 @@ export function FamilySection() {
       <div className="flex items-center justify-between gap-2 mb-3 mt-2"><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Памятные даты</p><ReminderPermission enabled={notificationSettings.enabled} onEnable={enabled => setNotificationSettings({ enabled })}/></div>
       <div className="space-y-2.5">
         {events.map(ev => (
-          <motion.div key={ev.id} initial={{ opacity:0,x:-12 }} animate={{ opacity:1,x:0 }} className="flex items-center gap-4 bg-card border border-border rounded-xl p-4">
+          <motion.div key={ev.id} id={`medical-source-family-${ev.id}`} initial={{ opacity:0,x:-12 }} animate={{ opacity:1,x:0 }} className="flex items-center gap-4 bg-card border border-border rounded-xl p-4">
             <span className="text-2xl shrink-0">{ev.emoji}</span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">{ev.title}</p>
@@ -272,7 +289,7 @@ export function FamilySection() {
       ))}
     </div>
     {viewingChild && children.some(child => child.id === viewingChild.id) && (
-      <ChildHealthView child={viewingChild} onBack={() => setViewingChild(null)}/>
+      <ChildHealthView key={viewingChild.id} child={viewingChild} initialSource={pendingChildSource?.childId === viewingChild.id ? pendingChildSource : null} onBack={() => { setViewingChild(null); setPendingChildSource(null); }}/>
     )}
     </>
   );
