@@ -11,15 +11,19 @@ if (!Number.isFinite(intervalHours) || intervalHours < 1 || intervalHours > 168)
 }
 
 async function runBackup() {
-  while (!existsSync(databasePath)) {
-    process.stdout.write(JSON.stringify({ event: "backup_waiting_for_database" }) + "\n");
-    await delay(30_000);
-  }
-  try {
-    const result = await backupDatabase(databasePath, backupDirectory, retentionDays);
-    process.stdout.write(JSON.stringify({ event: "backup_created", ...result }) + "\n");
-  } catch (error) {
-    process.stderr.write(JSON.stringify({ event: "backup_failed", error: error.message }) + "\n");
+  while (true) {
+    while (!existsSync(databasePath)) {
+      process.stdout.write(JSON.stringify({ event: "backup_waiting_for_database" }) + "\n");
+      await delay(30_000);
+    }
+    try {
+      const result = await backupDatabase(databasePath, backupDirectory, retentionDays);
+      process.stdout.write(JSON.stringify({ event: "backup_created", ...result }) + "\n");
+      return;
+    } catch (error) {
+      process.stderr.write(JSON.stringify({ event: "backup_failed_retrying", error: error.message }) + "\n");
+      await delay(5 * 60 * 1000);
+    }
   }
 }
 
