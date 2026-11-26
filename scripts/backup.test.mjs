@@ -1,6 +1,6 @@
 import { afterEach, it } from "node:test";
 import assert from "node:assert/strict";
-import { appendFileSync, copyFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { appendFileSync, copyFileSync, existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -61,4 +61,19 @@ it("reports backup freshness and detects stale backup sets", async () => {
   const healthy = await checkLatestBackup(backupDirectory, 30);
   assert.equal(healthy.integrity, "ok");
   await assert.rejects(() => checkLatestBackup(backupDirectory, 1, Date.now() + 2 * 60 * 60 * 1000), /stale/i);
+});
+
+it("restores a verified backup when the current database is corrupt and preserves raw files", async () => {
+  const { databasePath, backupDirectory } = fixture();
+  const backup = await backupDatabase(databasePath, backupDirectory, 14);
+  rmSync(databasePath + "-wal", { force: true });
+  rmSync(databasePath + "-shm", { force: true });
+  writeFileSync(databasePath, "not-a-valid-sqlite-database");
+
+  const result = await restoreDatabase(databasePath, backup.path, backupDirectory);
+  assert.match(result.safetyBackup, /pre-restore-raw/);
+  assert.equal(existsSync(result.safetyBackup), true);
+  const restored = new DatabaseSync(databasePath);
+  assert.equal(restored.prepare("SELECT payload FROM medical_records WHERE id = ?").get("record-1").payload, "encrypted-value");
+  restored.close();
 });
