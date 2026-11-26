@@ -38,6 +38,17 @@ function cookieFrom(response) {
 }
 
 describe("self-hosted account API", () => {
+  it("exposes liveness and database readiness without returning account data", async () => {
+    const health = await request("/api/health");
+    assert.equal(health.status, 200);
+    assert.equal((await health.json()).status, "ok");
+    const ready = await request("/api/ready");
+    assert.equal(ready.status, 200);
+    const readiness = await ready.json();
+    assert.equal(readiness.status, "ready");
+    assert.deepEqual(readiness.checks, { database: "ok", encryption: "configured" });
+    assert.ok(ready.headers.get("x-request-id"));
+  });
   it("registers an account, normalizes email and creates an HttpOnly session", async () => {
     const response = await request("/api/auth/register", {
       method: "POST",
