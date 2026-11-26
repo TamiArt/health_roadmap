@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { chmodSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, createReadStream, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
@@ -19,7 +19,6 @@ function integrityCheck(filename) {
 
 function sha256(filename) {
   const hash = createHash("sha256");
-  const { createReadStream } = awaitImportFs();
   return new Promise((resolveHash, reject) => {
     const stream = createReadStream(filename);
     stream.on("data", chunk => hash.update(chunk));
@@ -27,12 +26,6 @@ function sha256(filename) {
     stream.on("end", () => resolveHash(hash.digest("hex")));
   });
 }
-
-function awaitImportFs() {
-  return { createReadStream: (awaitReadStream => awaitReadStream)(requireCreateReadStream) };
-}
-
-import { createReadStream as requireCreateReadStream } from "node:fs";
 
 export async function backupDatabase(databasePath, backupDirectory, retentionDays = 14) {
   const source = resolve(databasePath);
@@ -45,6 +38,7 @@ export async function backupDatabase(databasePath, backupDirectory, retentionDay
 
   const database = new DatabaseSync(source);
   let temporaryPath;
+  let databaseClosed = false;
   try {
     database.exec("PRAGMA busy_timeout = 10000");
     const checkpoint = database.prepare("PRAGMA wal_checkpoint(FULL)").get();
@@ -56,6 +50,7 @@ export async function backupDatabase(databasePath, backupDirectory, retentionDay
     rmSync(temporaryPath, { force: true });
     database.prepare("VACUUM INTO ?").run(temporaryPath);
     database.close();
+    databaseClosed = true;
 
     integrityCheck(temporaryPath);
     const checksum = await sha256(temporaryPath);
@@ -83,7 +78,7 @@ export async function backupDatabase(databasePath, backupDirectory, retentionDay
     }
     return { path: finalPath, manifestPath, sha256: checksum };
   } catch (error) {
-    if (database.isOpen) database.close();
+    if (!databaseClosed) database.close();
     if (temporaryPath) rmSync(temporaryPath, { force: true });
     throw error;
   }
