@@ -15,6 +15,9 @@ describe("medical analytics model", () => {
     expect(getReferenceStatus(5, "4-6")).toBe("normal");
     expect(getReferenceStatus(7, "4-6")).toBe("high");
     expect(getReferenceStatus(7, "по возрасту")).toBe("unknown");
+    expect(getReferenceStatus(4, "< 5")).toBe("normal");
+    expect(getReferenceStatus(6, "< 5")).toBe("high");
+    expect(getReferenceStatus(3, "> 4")).toBe("low");
   });
   it("combines only equal indicator names and units and preserves source references", () => {
     const results: LabResultEntry[] = [{ id: "study-1", testId: "cbc", testName: "ОАК", date: "2026-01-02", notes: "", indicators: [
